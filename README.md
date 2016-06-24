@@ -1,5 +1,7 @@
 # ModernGL
 
+[![Join the chat at https://gitter.im/cprogrammer1994/ModernGL](https://badges.gitter.im/cprogrammer1994/ModernGL.svg)](https://gitter.im/cprogrammer1994/ModernGL?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ```
 python -m pip install ModernGL
 ```
