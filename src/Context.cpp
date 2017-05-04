@@ -1225,7 +1225,7 @@ MGLFramebuffer * MGLContext_Framebuffer(MGLContext * self, PyObject * args, PyOb
 		}
 
 		int color_attachments_cnt = 0;
-		int color_attachments_len = attachments_len - (depth_attachment_index >= 0) ? 1 : 0;
+		int color_attachments_len = attachments_len - ((depth_attachment_index >= 0) ? 1 : 0);
 		color_attachments = PyTuple_New(color_attachments_len);
 
 		for (int i = 0; i < attachments_len; ++i) {

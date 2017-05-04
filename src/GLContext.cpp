@@ -178,6 +178,24 @@ void DestroyGLContext(const GLContext & context) {
 	DestroyWindow((HWND)context.hwnd);
 }
 
+#elif defined(__APPLE__)
+
+#include <OpenGL/gl.h>
+
+GLContext LoadCurrentGLContext() {
+	GLContext context = {};
+	return context;
+}
+
+GLContext CreateGLContext() {
+	GLContext context = {};
+	return context;
+}
+
+void DestroyGLContext(const GLContext & context) {
+	// TODO:
+}
+
 #else
 
 #include <GL/glx.h>

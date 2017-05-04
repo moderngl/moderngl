@@ -9,6 +9,12 @@ struct GLContext {
 	bool standalone;
 };
 
+#elif defined(__APPLE__)
+
+struct GLContext {
+	bool standalone;
+};
+
 #else
 
 struct GLContext {

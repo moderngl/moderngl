@@ -41,6 +41,29 @@ void * LoadMethod(const char * method) {
 	return (void *)dummy_method;
 }
 
+#elif defined(__APPLE__)
+
+#import <mach-o/dyld.h>
+#import <stdlib.h>
+#import <string.h>
+
+void * MyNSGLGetProcAddress(const char * name) {
+	NSSymbol symbol = 0;
+	char * symbolName = (char *)malloc(strlen(name) + 2);
+	strcpy(symbolName + 1, name);
+	symbolName[0] = '_';
+	if (NSIsSymbolNameDefined(symbolName)) {
+		symbol = NSLookupAndBindSymbol(symbolName);
+	}
+	free(symbolName);
+	return symbol ? NSAddressOfSymbol(symbol) : 0;
+}
+
+void * LoadMethod(const char * method) {
+	// TODO: check
+	return MyNSGLGetProcAddress(method);
+}
+
 #else
 
 #include <dlfcn.h>

@@ -10,11 +10,19 @@ if target == 'linux':
 libraries = {
 	'windows': ['gdi32', 'opengl32', 'user32'],
 	'linux': ['GL', 'dl', 'X11'],
+	'darwin': [],
 }
 
-extra_args = {
+extra_compile_args = {
 	'windows': [],
 	'linux': ['-std=c++11'],
+	'darwin': ['-std=c++11'],
+}
+
+extra_linker_args = {
+	'windows': [],
+	'linux': [],
+	'darwin': ['-framework', 'OpenGL', '-Wno-deprecated'],
 }
 
 def sources():
@@ -28,7 +36,8 @@ ModernGL = Extension(
 	include_dirs = ['src'],
 	# define_macros = [('MGL_VERBOSE', '1')],
 	libraries = libraries[target],
-	extra_compile_args = extra_args[target],
+	extra_compile_args = extra_compile_args[target],
+	extra_link_args = extra_linker_args[target],
 	sources = list(sources()),
 )
 
