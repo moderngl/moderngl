@@ -252,8 +252,8 @@ PyObject * MGLBuffer_write_slice(MGLBuffer * self, PyObject * args) {
 		return 0;
 	}
 
-	if (start + chunk_size > self->size || start + count * step + chunk_size > self->size) {
-		MGLError_Set("buffer overflow %d %d", start + chunk_size, start + count * step + chunk_size);
+	if (start + chunk_size > self->size || start + count * step - step + chunk_size > self->size) {
+		MGLError_Set("buffer overflow");
 		PyBuffer_Release(&buffer_view);
 		return 0;
 	}
