@@ -474,11 +474,17 @@ bool MGL_InitializeModule(PyObject * module) {
 		MGL_NEAREST->mag_filter = GL_NEAREST;
 		PyModule_AddObject(module, "NEAREST", (PyObject *)MGL_NEAREST);
 
-		MGL_MIPMAP = MGLTextureFilter_New();
-		MGL_MIPMAP->wrapper = 0;
-		MGL_MIPMAP->min_filter = GL_LINEAR_MIPMAP_LINEAR;
-		MGL_MIPMAP->mag_filter = GL_LINEAR;
-		PyModule_AddObject(module, "MIPMAP", (PyObject *)MGL_MIPMAP);
+		MGL_LINEAR_MIPMAP = MGLTextureFilter_New();
+		MGL_LINEAR_MIPMAP->wrapper = 0;
+		MGL_LINEAR_MIPMAP->min_filter = GL_LINEAR_MIPMAP_LINEAR;
+		MGL_LINEAR_MIPMAP->mag_filter = GL_LINEAR;
+		PyModule_AddObject(module, "LINEAR_MIPMAP", (PyObject *)MGL_LINEAR_MIPMAP);
+
+		MGL_NEAREST_MIPMAP = MGLTextureFilter_New();
+		MGL_NEAREST_MIPMAP->wrapper = 0;
+		MGL_NEAREST_MIPMAP->min_filter = GL_NEAREST_MIPMAP_LINEAR;
+		MGL_NEAREST_MIPMAP->mag_filter = GL_NEAREST;
+		PyModule_AddObject(module, "NEAREST_MIPMAP", (PyObject *)MGL_NEAREST_MIPMAP);
 	}
 
 	return true;

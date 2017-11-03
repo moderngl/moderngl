@@ -97,4 +97,5 @@ MGLTextureFilter * MGLTextureFilter_New() {
 
 MGLTextureFilter * MGL_LINEAR;
 MGLTextureFilter * MGL_NEAREST;
-MGLTextureFilter * MGL_MIPMAP;
+MGLTextureFilter * MGL_LINEAR_MIPMAP;
+MGLTextureFilter * MGL_NEAREST_MIPMAP;
