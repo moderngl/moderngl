@@ -18,6 +18,7 @@ build.py
 *.egg-info
 *.log
 *.pyd
+*.pyd_*
 *.pyc
 *.bat
 *.whl
