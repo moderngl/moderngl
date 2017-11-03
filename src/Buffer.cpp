@@ -205,6 +205,80 @@ PyObject * MGLBuffer_write(MGLBuffer * self, PyObject * args) {
 	Py_RETURN_NONE;
 }
 
+PyObject * MGLBuffer_write_slice(MGLBuffer * self, PyObject * args) {
+	PyObject * data;
+	PyObject * slice;
+
+	int args_ok = PyArg_ParseTuple(
+		args,
+		"OO",
+		&data,
+		&slice
+	);
+
+	if (!args_ok) {
+		return 0;
+	}
+
+	Py_buffer buffer_view;
+
+	int get_buffer = PyObject_GetBuffer(data, &buffer_view, PyBUF_SIMPLE);
+	if (get_buffer < 0) {
+		MGLError_Set("data (%s) does not support buffer interface", Py_TYPE(data)->tp_name);
+		return 0;
+	}
+
+	Py_ssize_t start;
+	Py_ssize_t end;
+	Py_ssize_t step;
+
+	int get_indices = PySlice_GetIndices(slice, self->size, &start, &end, &step);
+	if (get_indices < 0) {
+		MGLError_Set("slice is not valid");
+		PyBuffer_Release(&buffer_view);
+		return 0;
+	}
+
+	const GLMethods & gl = self->context->gl;
+	gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
+
+	Py_ssize_t one = step < 0 ? -1 : 1;
+	Py_ssize_t count = (end - start + step - one) / step;
+	Py_ssize_t chunk_size = buffer_view.len / count;
+
+	if (buffer_view.len != chunk_size * count || chunk_size > step * one) {
+		MGLError_Set("data (%d bytes) cannot be divided to %d equal chunks", buffer_view.len, count);
+		PyBuffer_Release(&buffer_view);
+		return 0;
+	}
+
+	if (start + chunk_size > self->size || start + count * step + chunk_size > self->size) {
+		MGLError_Set("buffer overflow %d %d", start + chunk_size, start + count * step + chunk_size);
+		PyBuffer_Release(&buffer_view);
+		return 0;
+	}
+
+	char * write_ptr = (char *)gl.MapBufferRange(GL_ARRAY_BUFFER, 0, self->size, GL_MAP_WRITE_BIT);
+	char * read_ptr = (char *)buffer_view.buf;
+
+	if (!write_ptr) {
+		MGLError_Set("cannot map the buffer");
+		PyBuffer_Release(&buffer_view);
+		return 0;
+	}
+
+	write_ptr += start;
+	for (Py_ssize_t i = 0; i < count; ++i) {
+		memcpy(write_ptr, read_ptr, chunk_size);
+		read_ptr += chunk_size;
+		write_ptr += step;
+	}
+
+	gl.UnmapBuffer(GL_ARRAY_BUFFER);
+	PyBuffer_Release(&buffer_view);
+	Py_RETURN_NONE;
+}
+
 PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
 	Py_ssize_t size;
 	Py_ssize_t offset;
@@ -328,6 +402,7 @@ PyMethodDef MGLBuffer_tp_methods[] = {
 	{"read", (PyCFunction)MGLBuffer_read, METH_VARARGS, 0},
 	{"read_into", (PyCFunction)MGLBuffer_read_into, METH_VARARGS, 0},
 	{"write", (PyCFunction)MGLBuffer_write, METH_VARARGS, 0},
+	{"write_slice", (PyCFunction)MGLBuffer_write_slice, METH_VARARGS, 0},
 	{"clear", (PyCFunction)MGLBuffer_clear, METH_VARARGS, 0},
 	{"orphan", (PyCFunction)MGLBuffer_orphan, METH_NOARGS, 0},
 	{"bind_to_uniform_block", (PyCFunction)MGLBuffer_bind_to_uniform_block, METH_VARARGS, 0},
