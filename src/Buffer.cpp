@@ -170,15 +170,13 @@ PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args) {
 }
 
 PyObject * MGLBuffer_write(MGLBuffer * self, PyObject * args) {
-	const char * data;
-	Py_ssize_t size;
+	PyObject * data;
 	Py_ssize_t offset;
 
 	int args_ok = PyArg_ParseTuple(
 		args,
-		"y#n",
+		"On",
 		&data,
-		&size,
 		&offset
 	);
 
@@ -186,14 +184,24 @@ PyObject * MGLBuffer_write(MGLBuffer * self, PyObject * args) {
 		return 0;
 	}
 
-	if (offset < 0 || size + offset > self->size) {
-		MGLError_Set("out of range offset = %d or size = %d", offset, size);
+	Py_buffer buffer_view;
+
+	int get_buffer = PyObject_GetBuffer(data, &buffer_view, PyBUF_SIMPLE);
+	if (get_buffer < 0) {
+		MGLError_Set("data (%s) does not support buffer interface", Py_TYPE(data)->tp_name);
+		return 0;
+	}
+
+	if (offset < 0 || buffer_view.len + offset > self->size) {
+		MGLError_Set("out of range offset = %d or size = %d", offset, buffer_view.len);
+		PyBuffer_Release(&buffer_view);
 		return 0;
 	}
 
 	const GLMethods & gl = self->context->gl;
 	gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
-	gl.BufferSubData(GL_ARRAY_BUFFER, (GLintptr)offset, size, data);
+	gl.BufferSubData(GL_ARRAY_BUFFER, (GLintptr)offset, buffer_view.len, buffer_view.buf);
+	PyBuffer_Release(&buffer_view);
 	Py_RETURN_NONE;
 }
 
