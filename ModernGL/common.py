@@ -59,19 +59,24 @@ class EnableFlag:
         return self.flags != other.flags
 
 
+NOTHING = EnableFlag.new(mgl.NOTHING)
+'''
+    Nothing
+'''
+
 BLEND = EnableFlag.new(mgl.BLEND)
 '''
-    GL_BLEND
+    Blending
 '''
 
 DEPTH_TEST = EnableFlag.new(mgl.DEPTH_TEST)
 '''
-    GL_DEPTH_TEST
+    Depth Test
 '''
 
 CULL_FACE = EnableFlag.new(mgl.CULL_FACE)
 '''
-    GL_CULL_FACE
+    Face Culling
 '''
 
 

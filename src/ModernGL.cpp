@@ -455,6 +455,7 @@ bool MGL_InitializeModule(PyObject * module) {
 	}
 
 	{
+		PyModule_AddObject(module, "NOTHING", PyLong_FromLong(MGL_NOTHING));
 		PyModule_AddObject(module, "BLEND", PyLong_FromLong(MGL_BLEND));
 		PyModule_AddObject(module, "DEPTH_TEST", PyLong_FromLong(MGL_DEPTH_TEST));
 		PyModule_AddObject(module, "CULL_FACE", PyLong_FromLong(MGL_CULL_FACE));
