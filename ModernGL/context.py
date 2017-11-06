@@ -359,7 +359,7 @@ class Context:
 
         self.mglo.copy_framebuffer(dst.mglo, src.mglo)
 
-    def detect_framebuffer(self, glo) -> Framebuffer:
+    def detect_framebuffer(self, glo=None) -> Framebuffer:
         '''
             Detect framebuffer.
 
@@ -370,7 +370,7 @@ class Context:
                 Framebuffer: framebuffer.
         '''
 
-        return self.mglo.detect_framebuffer(glo)
+        return Framebuffer.new(self.mglo.detect_framebuffer(glo))
 
     def buffer(self, data=None, *, reserve=0, dynamic=False) -> Buffer:
         '''

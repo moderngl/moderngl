@@ -356,24 +356,35 @@ PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args) {
 }
 
 MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args) {
-	unsigned framebuffer_obj;
+	PyObject * glo;
 
 	int args_ok = PyArg_ParseTuple(
 		args,
-		"I",
-		&framebuffer_obj
+		"O",
+		&glo
 	);
 
 	if (!args_ok) {
 		return 0;
 	}
 
+	const GLMethods & gl = self->gl;
+
+	int framebuffer_obj = 0;
+	if (glo == Py_None) {
+		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &framebuffer_obj);
+	} else {
+		framebuffer_obj = PyLong_AsLong(glo);
+		if (PyErr_Occurred()) {
+			MGLError_Set("the glo must be an integer");
+			return 0;
+		}
+	}
+
 	if (!framebuffer_obj) {
 		Py_INCREF(self->default_framebuffer);
 		return self->default_framebuffer;
 	}
-
-	const GLMethods & gl = self->gl;
 
 	gl.BindFramebuffer(GL_FRAMEBUFFER, framebuffer_obj);
 
