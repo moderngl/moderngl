@@ -9,10 +9,6 @@
 PyObject * MGLBuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLBuffer * self = (MGLBuffer *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLBuffer_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -20,11 +16,6 @@ PyObject * MGLBuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwa
 }
 
 void MGLBuffer_tp_dealloc(MGLBuffer * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLBuffer_tp_dealloc %p\n", self);
-	#endif
-
 	MGLBuffer_Type.tp_free((PyObject *)self);
 }
 
@@ -439,24 +430,13 @@ MGLBuffer * MGLBuffer_New() {
 
 void MGLBuffer_Invalidate(MGLBuffer * buffer) {
 	if (Py_TYPE(buffer) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLBuffer_Invalidate %p already released\n", buffer);
-		#endif
-
 		return;
 	}
-
-	#ifdef MGL_VERBOSE
-	printf("MGLBuffer_Invalidate %p\n", buffer);
-	#endif
 
 	const GLMethods & gl = buffer->context->gl;
 	gl.DeleteBuffers(1, (GLuint *)&buffer->buffer_obj);
 
 	Py_DECREF(buffer->context);
-
 	Py_TYPE(buffer) = &MGLInvalidObject_Type;
-
 	Py_DECREF(buffer);
 }

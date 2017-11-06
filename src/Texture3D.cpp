@@ -9,10 +9,6 @@
 PyObject * MGLTexture3D_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLTexture3D * self = (MGLTexture3D *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLTexture3D_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -20,11 +16,6 @@ PyObject * MGLTexture3D_tp_new(PyTypeObject * type, PyObject * args, PyObject * 
 }
 
 void MGLTexture3D_tp_dealloc(MGLTexture3D * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLTexture3D_tp_dealloc %p\n", self);
-	#endif
-
 	MGLTexture3D_Type.tp_free((PyObject *)self);
 }
 
@@ -643,23 +634,12 @@ MGLTexture3D * MGLTexture3D_New() {
 
 void MGLTexture3D_Invalidate(MGLTexture3D * texture) {
 	if (Py_TYPE(texture) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLTexture3D_Invalidate %p already released\n", texture);
-		#endif
-
 		return;
 	}
-
-	#ifdef MGL_VERBOSE
-	printf("MGLTexture3D_Invalidate %p\n", texture);
-	#endif
 
 	texture->context->gl.DeleteTextures(1, (GLuint *)&texture->texture_obj);
 
 	Py_DECREF(texture->context);
-
 	Py_TYPE(texture) = &MGLInvalidObject_Type;
-
 	Py_DECREF(texture);
 }

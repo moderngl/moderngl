@@ -5,10 +5,6 @@
 PyObject * MGLSubroutineUniform_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLSubroutineUniform * self = (MGLSubroutineUniform *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLSubroutineUniform_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -16,11 +12,6 @@ PyObject * MGLSubroutineUniform_tp_new(PyTypeObject * type, PyObject * args, PyO
 }
 
 void MGLSubroutineUniform_tp_dealloc(MGLSubroutineUniform * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLSubroutineUniform_tp_dealloc %p\n", self);
-	#endif
-
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 

@@ -5,10 +5,6 @@
 PyObject * MGLError_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLError * self = (MGLError *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLError_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 		self->dict = 0;
 		self->args = 0;
@@ -25,11 +21,6 @@ PyObject * MGLError_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwar
 }
 
 void MGLError_tp_dealloc(MGLError * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLError_tp_dealloc %p\n", self);
-	#endif
-
 	PyTypeObject * super = Py_TYPE(self)->tp_base;
 	return super->tp_dealloc((PyObject *)self);
 }

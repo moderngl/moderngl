@@ -12,11 +12,6 @@ PyObject * MGLInvalidObject_tp_new(PyTypeObject * type, PyObject * args, PyObjec
 }
 
 void MGLInvalidObject_tp_dealloc(MGLInvalidObject * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLInvalidObject_tp_dealloc %p\n", self);
-	#endif
-
 	MGLInvalidObject_Type.tp_free((PyObject *)self);
 }
 

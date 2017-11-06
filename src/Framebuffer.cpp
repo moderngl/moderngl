@@ -9,10 +9,6 @@
 PyObject * MGLFramebuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLFramebuffer * self = (MGLFramebuffer *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLFramebuffer_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -20,11 +16,6 @@ PyObject * MGLFramebuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject 
 }
 
 void MGLFramebuffer_tp_dealloc(MGLFramebuffer * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLFramebuffer_tp_dealloc %p\n", self);
-	#endif
-
 	MGLFramebuffer_Type.tp_free((PyObject *)self);
 }
 
@@ -744,17 +735,8 @@ MGLFramebuffer * MGLFramebuffer_New() {
 
 void MGLFramebuffer_Invalidate(MGLFramebuffer * framebuffer) {
 	if (Py_TYPE(framebuffer) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLFramebuffer_Invalidate %p already released\n", framebuffer);
-		#endif
-
 		return;
 	}
-
-	#ifdef MGL_VERBOSE
-	printf("MGLFramebuffer_Invalidate %p\n", framebuffer);
-	#endif
 
 	if (framebuffer->framebuffer_obj) {
 		framebuffer->context->gl.DeleteFramebuffers(1, (GLuint *)&framebuffer->framebuffer_obj);

@@ -6,10 +6,6 @@
 PyObject * MGLVertexArrayAttribute_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLVertexArrayAttribute * self = (MGLVertexArrayAttribute *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArrayAttribute_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -17,11 +13,6 @@ PyObject * MGLVertexArrayAttribute_tp_new(PyTypeObject * type, PyObject * args, 
 }
 
 void MGLVertexArrayAttribute_tp_dealloc(MGLVertexArrayAttribute * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArrayAttribute_tp_dealloc %p\n", self);
-	#endif
-
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 

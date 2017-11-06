@@ -22,10 +22,6 @@
 PyObject * MGLContext_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLContext * self = (MGLContext *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLContext_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -33,11 +29,6 @@ PyObject * MGLContext_tp_new(PyTypeObject * type, PyObject * args, PyObject * kw
 }
 
 void MGLContext_tp_dealloc(MGLContext * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLContext_tp_dealloc %p\n", self);
-	#endif
-
 	MGLContext_Type.tp_free((PyObject *)self);
 }
 
@@ -2601,22 +2592,11 @@ MGLContext * MGLContext_New() {
 
 void MGLContext_Invalidate(MGLContext * context) {
 	if (Py_TYPE(context) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLContext_Invalidate %p already released\n", context);
-		#endif
-
 		return;
 	}
 
-	#ifdef MGL_VERBOSE
-	printf("MGLContext_Invalidate %p\n", context);
-	#endif
-
 	DestroyGLContext(context->gl_context);
-
 	Py_TYPE(context) = &MGLInvalidObject_Type;
-
 	Py_DECREF(context);
 }
 

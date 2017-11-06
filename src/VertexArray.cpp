@@ -15,10 +15,6 @@
 PyObject * MGLVertexArray_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLVertexArray * self = (MGLVertexArray *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArray_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -26,11 +22,6 @@ PyObject * MGLVertexArray_tp_new(PyTypeObject * type, PyObject * args, PyObject 
 }
 
 void MGLVertexArray_tp_dealloc(MGLVertexArray * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArray_tp_dealloc %p\n", self);
-	#endif
-
 	MGLVertexArray_Type.tp_free((PyObject *)self);
 }
 
@@ -362,17 +353,8 @@ MGLVertexArray * MGLVertexArray_New() {
 
 void MGLVertexArray_Invalidate(MGLVertexArray * array) {
 	if (Py_TYPE(array) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLVertexArray_Invalidate %p already released\n", array);
-		#endif
-
 		return;
 	}
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArray_Invalidate %p\n", array);
-	#endif
 
 	const GLMethods & gl = array->context->gl;
 	gl.DeleteVertexArrays(1, (GLuint *)&array->vertex_array_obj);

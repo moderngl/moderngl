@@ -45,10 +45,7 @@ extra_linker_args = {
 ModernGL = Extension(
     name='ModernGL.mgl',
     include_dirs=['src'],
-    define_macros=[
-        # ('MGL_DEBUG', None),
-        # ('MGL_VERBOSE', None),
-    ],
+    define_macros=[],
     libraries=libraries[target],
     extra_compile_args=extra_compile_args[target],
     extra_link_args=extra_linker_args[target],

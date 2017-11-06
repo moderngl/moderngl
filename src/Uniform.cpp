@@ -6,10 +6,6 @@
 PyObject * MGLUniform_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLUniform * self = (MGLUniform *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLUniform_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -17,11 +13,6 @@ PyObject * MGLUniform_tp_new(PyTypeObject * type, PyObject * args, PyObject * kw
 }
 
 void MGLUniform_tp_dealloc(MGLUniform * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLUniform_tp_dealloc %p\n", self);
-	#endif
-
 	MGLUniform_Type.tp_free((PyObject *)self);
 }
 
@@ -153,15 +144,8 @@ MGLUniform * MGLUniform_New() {
 }
 
 void MGLUniform_Invalidate(MGLUniform * uniform) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLUniform_Invalidate %p\n", uniform);
-	#endif
-
 	Py_DECREF(uniform->name);
-
 	Py_TYPE(uniform) = &MGLInvalidObject_Type;
-
 	Py_DECREF(uniform);
 }
 

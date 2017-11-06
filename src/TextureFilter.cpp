@@ -5,10 +5,6 @@
 PyObject * MGLTextureFilter_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLTextureFilter * self = (MGLTextureFilter *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLTextureFilter_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -16,11 +12,6 @@ PyObject * MGLTextureFilter_tp_new(PyTypeObject * type, PyObject * args, PyObjec
 }
 
 void MGLTextureFilter_tp_dealloc(MGLTextureFilter * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLTextureFilter_tp_dealloc %p\n", self);
-	#endif
-
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 

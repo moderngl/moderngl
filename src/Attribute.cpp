@@ -6,10 +6,6 @@
 PyObject * MGLAttribute_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLAttribute * self = (MGLAttribute *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLAttribute_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -17,11 +13,6 @@ PyObject * MGLAttribute_tp_new(PyTypeObject * type, PyObject * args, PyObject * 
 }
 
 void MGLAttribute_tp_dealloc(MGLAttribute * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLAttribute_tp_dealloc %p\n", self);
-	#endif
-
 	MGLAttribute_Type.tp_free((PyObject *)self);
 }
 
@@ -111,15 +102,8 @@ MGLAttribute * MGLAttribute_New() {
 }
 
 void MGLAttribute_Invalidate(MGLAttribute * attribute) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLAttribute_Invalidate %p\n", attribute);
-	#endif
-
 	Py_DECREF(attribute->name);
-
 	Py_TYPE(attribute) = &MGLInvalidObject_Type;
-
 	Py_DECREF(attribute);
 }
 

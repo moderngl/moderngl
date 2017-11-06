@@ -16,10 +16,6 @@
 PyObject * MGLProgram_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLProgram * self = (MGLProgram *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLProgram_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -27,11 +23,6 @@ PyObject * MGLProgram_tp_new(PyTypeObject * type, PyObject * args, PyObject * kw
 }
 
 void MGLProgram_tp_dealloc(MGLProgram * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLProgram_tp_dealloc %p\n", self);
-	#endif
-
 	MGLProgram_Type.tp_free((PyObject *)self);
 }
 
@@ -211,17 +202,8 @@ MGLProgram * MGLProgram_New() {
 
 void MGLProgram_Invalidate(MGLProgram * program) {
 	if (Py_TYPE(program) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLProgram_Invalidate %p already released\n", program);
-		#endif
-
 		return;
 	}
-
-	#ifdef MGL_VERBOSE
-	printf("MGLProgram_Invalidate %p\n", program);
-	#endif
 
 	const GLMethods & gl = program->context->gl;
 
