@@ -10,5 +10,3 @@ struct MGLVertexArrayListAttribute {
 };
 
 extern PyTypeObject MGLVertexArrayListAttribute_Type;
-
-MGLVertexArrayListAttribute * MGLVertexArrayListAttribute_New();

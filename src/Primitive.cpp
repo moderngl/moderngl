@@ -81,11 +81,6 @@ PyTypeObject MGLPrimitive_Type = {
 	MGLPrimitive_tp_new,                                    // tp_new
 };
 
-MGLPrimitive * MGLPrimitive_New() {
-	MGLPrimitive * self = (MGLPrimitive *)MGLPrimitive_tp_new(&MGLPrimitive_Type, 0, 0);
-	return self;
-}
-
 MGLPrimitive * MGL_TRIANGLES;
 MGLPrimitive * MGL_TRIANGLE_STRIP;
 MGLPrimitive * MGL_TRIANGLE_FAN;

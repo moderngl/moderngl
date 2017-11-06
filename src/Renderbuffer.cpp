@@ -112,11 +112,6 @@ PyTypeObject MGLRenderbuffer_Type = {
 	MGLRenderbuffer_tp_new,                                 // tp_new
 };
 
-MGLRenderbuffer * MGLRenderbuffer_New() {
-	MGLRenderbuffer * self = (MGLRenderbuffer *)MGLRenderbuffer_tp_new(&MGLRenderbuffer_Type, 0, 0);
-	return self;
-}
-
 void MGLRenderbuffer_Invalidate(MGLRenderbuffer * renderbuffer) {
 	if (Py_TYPE(renderbuffer) == &MGLInvalidObject_Type) {
 		return;

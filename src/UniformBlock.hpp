@@ -19,5 +19,4 @@ struct MGLUniformBlock {
 
 extern PyTypeObject MGLUniformBlock_Type;
 
-MGLUniformBlock * MGLUniformBlock_New();
 void MGLUniformBlock_Complete(MGLUniformBlock * uniform_block, const GLMethods & gl);

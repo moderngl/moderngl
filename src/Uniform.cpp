@@ -138,11 +138,6 @@ PyTypeObject MGLUniform_Type = {
 	MGLUniform_tp_new,                                      // tp_new
 };
 
-MGLUniform * MGLUniform_New() {
-	MGLUniform * self = (MGLUniform *)MGLUniform_tp_new(&MGLUniform_Type, 0, 0);
-	return self;
-}
-
 void MGLUniform_Invalidate(MGLUniform * uniform) {
 	Py_DECREF(uniform->name);
 	Py_TYPE(uniform) = &MGLInvalidObject_Type;

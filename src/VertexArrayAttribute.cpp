@@ -199,10 +199,5 @@ PyTypeObject MGLVertexArrayAttribute_Type = {
 	MGLVertexArrayAttribute_tp_new,                         // tp_new
 };
 
-MGLVertexArrayAttribute * MGLVertexArrayAttribute_New() {
-	MGLVertexArrayAttribute * self = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_tp_new(&MGLVertexArrayAttribute_Type, 0, 0);
-	return self;
-}
-
 void MGLVertexArrayAttribute_Complete(MGLVertexArrayAttribute * attribute, const GLMethods & gl) {
 }

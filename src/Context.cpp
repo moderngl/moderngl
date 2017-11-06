@@ -408,7 +408,7 @@ MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * arg
 		}
 	}
 
-	MGLFramebuffer * framebuffer = MGLFramebuffer_New();
+	MGLFramebuffer * framebuffer = (MGLFramebuffer *)MGLFramebuffer_tp_new(&MGLFramebuffer_Type, 0, 0);
 
 	framebuffer->framebuffer_obj = framebuffer_obj;
 	framebuffer->color_attachments = 0;
@@ -484,7 +484,7 @@ MGLBuffer * MGLContext_buffer(MGLContext * self, PyObject * args) {
 		return 0;
 	}
 
-	MGLBuffer * buffer = MGLBuffer_New();
+	MGLBuffer * buffer = (MGLBuffer *)MGLBuffer_tp_new(&MGLBuffer_Type, 0, 0);
 
 	buffer->size = (int)buffer_view.len;
 	buffer->dynamic = dynamic ? true : false;
@@ -600,7 +600,7 @@ MGLTexture * MGLContext_texture(MGLContext * self, PyObject * args) {
 
 	gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
 
-	MGLTexture * texture = MGLTexture_New();
+	MGLTexture * texture = (MGLTexture *)MGLTexture_tp_new(&MGLTexture_Type, 0, 0);
 
 	texture->texture_obj = 0;
 	gl.GenTextures(1, (GLuint *)&texture->texture_obj);
@@ -717,7 +717,7 @@ MGLTexture3D * MGLContext_texture3d(MGLContext * self, PyObject * args) {
 
 	const GLMethods & gl = self->gl;
 
-	MGLTexture3D * texture = MGLTexture3D_New();
+	MGLTexture3D * texture = (MGLTexture3D *)MGLTexture3D_tp_new(&MGLTexture3D_Type, 0, 0);
 
 	texture->texture_obj = 0;
 	gl.GenTextures(1, (GLuint *)&texture->texture_obj);
@@ -829,7 +829,7 @@ MGLTextureCube * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
 
 	const GLMethods & gl = self->gl;
 
-	MGLTextureCube * texture = MGLTextureCube_New();
+	MGLTextureCube * texture = (MGLTextureCube *)MGLTextureCube_tp_new(&MGLTextureCube_Type, 0, 0);
 
 	texture->texture_obj = 0;
 	gl.GenTextures(1, (GLuint *)&texture->texture_obj);
@@ -944,7 +944,7 @@ MGLTexture * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
 
 	gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
 
-	MGLTexture * texture = MGLTexture_New();
+	MGLTexture * texture = (MGLTexture *)MGLTexture_tp_new(&MGLTexture_Type, 0, 0);
 
 	texture->texture_obj = 0;
 	gl.GenTextures(1, (GLuint *)&texture->texture_obj);
@@ -1123,7 +1123,7 @@ MGLVertexArray * MGLContext_vertex_array(MGLContext * self, PyObject * args) {
 
 	const GLMethods & gl = self->gl;
 
-	MGLVertexArray * array = MGLVertexArray_New();
+	MGLVertexArray * array = (MGLVertexArray *)MGLVertexArray_tp_new(&MGLVertexArray_Type, 0, 0);
 
 	Py_INCREF(program);
 	array->program = program;
@@ -1260,7 +1260,7 @@ MGLProgram * MGLContext_program(MGLContext * self, PyObject * args) {
 		}
 	}
 
-	MGLProgram * program = MGLProgram_New();
+	MGLProgram * program = (MGLProgram *)MGLProgram_tp_new(&MGLProgram_Type, 0, 0);
 
 	Py_INCREF(shaders);
 	program->shaders = shaders;
@@ -1298,7 +1298,7 @@ MGLShader * MGLContext_shader(MGLContext * self, PyObject * args) {
 		return 0;
 	}
 
-	MGLShader * shader = MGLShader_New();
+	MGLShader * shader = (MGLShader *)MGLShader_tp_new(&MGLShader_Type, 0, 0);
 
 	shader->shader_slot = ShaderSlot;
 	shader->shader_type = SHADER_TYPE[ShaderSlot];
@@ -1470,7 +1470,7 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
 		}
 	}
 
-	MGLFramebuffer * framebuffer = MGLFramebuffer_New();
+	MGLFramebuffer * framebuffer = (MGLFramebuffer *)MGLFramebuffer_tp_new(&MGLFramebuffer_Type, 0, 0);
 
 	framebuffer->framebuffer_obj = 0;
 	gl.GenFramebuffers(1, (GLuint *)&framebuffer->framebuffer_obj);
@@ -1668,7 +1668,7 @@ MGLRenderbuffer * MGLContext_renderbuffer(MGLContext * self, PyObject * args) {
 
 	const GLMethods & gl = self->gl;
 
-	MGLRenderbuffer * renderbuffer = MGLRenderbuffer_New();
+	MGLRenderbuffer * renderbuffer = (MGLRenderbuffer *)MGLRenderbuffer_tp_new(&MGLRenderbuffer_Type, 0, 0);
 
 	renderbuffer->renderbuffer_obj = 0;
 	gl.GenRenderbuffers(1, (GLuint *)&renderbuffer->renderbuffer_obj);
@@ -1726,7 +1726,7 @@ MGLRenderbuffer * MGLContext_depth_renderbuffer(MGLContext * self, PyObject * ar
 
 	const GLMethods & gl = self->gl;
 
-	MGLRenderbuffer * renderbuffer = MGLRenderbuffer_New();
+	MGLRenderbuffer * renderbuffer = (MGLRenderbuffer *)MGLRenderbuffer_tp_new(&MGLRenderbuffer_Type, 0, 0);
 
 	renderbuffer->renderbuffer_obj = 0;
 	gl.GenRenderbuffers(1, (GLuint *)&renderbuffer->renderbuffer_obj);
@@ -1777,7 +1777,7 @@ MGLComputeShader * MGLContext_compute_shader(MGLContext * self, PyObject * args)
 		return 0;
 	}
 
-	MGLComputeShader * compute_shader = MGLComputeShader_New();
+	MGLComputeShader * compute_shader = (MGLComputeShader *)MGLComputeShader_tp_new(&MGLComputeShader_Type, 0, 0);
 
 	Py_INCREF(source);
 	compute_shader->source = source;
@@ -2630,11 +2630,6 @@ PyTypeObject MGLContext_Type = {
 	MGLContext_tp_new,                                      // tp_new
 };
 
-MGLContext * MGLContext_New() {
-	MGLContext * self = (MGLContext *)MGLContext_tp_new(&MGLContext_Type, 0, 0);
-	return self;
-}
-
 void MGLContext_Invalidate(MGLContext * context) {
 	if (Py_TYPE(context) == &MGLInvalidObject_Type) {
 		return;
@@ -2685,7 +2680,7 @@ void MGLContext_Initialize(MGLContext * self) {
 	gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &bound_framebuffer);
 
 	{
-		MGLFramebuffer * framebuffer = MGLFramebuffer_New();
+		MGLFramebuffer * framebuffer = (MGLFramebuffer *)MGLFramebuffer_tp_new(&MGLFramebuffer_Type, 0, 0);
 
 		framebuffer->framebuffer_obj = 0;
 

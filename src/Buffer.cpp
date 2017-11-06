@@ -50,7 +50,7 @@ MGLBufferAccess * MGLBuffer_access(MGLBuffer * self, PyObject * args) {
 		return 0;
 	}
 
-	MGLBufferAccess * access = MGLBufferAccess_New();
+	MGLBufferAccess * access = (MGLBufferAccess *)MGLBufferAccess_tp_new(&MGLBufferAccess_Type, 0, 0);
 
 	access->gl = &self->context->gl;
 	access->ptr = 0;
@@ -422,11 +422,6 @@ PyTypeObject MGLBuffer_Type = {
 	0,                                                      // tp_alloc
 	MGLBuffer_tp_new,                                       // tp_new
 };
-
-MGLBuffer * MGLBuffer_New() {
-	MGLBuffer * self = (MGLBuffer *)MGLBuffer_tp_new(&MGLBuffer_Type, 0, 0);
-	return self;
-}
 
 void MGLBuffer_Invalidate(MGLBuffer * buffer) {
 	if (Py_TYPE(buffer) == &MGLInvalidObject_Type) {

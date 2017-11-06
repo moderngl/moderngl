@@ -32,6 +32,5 @@ struct MGLContext {
 
 extern PyTypeObject MGLContext_Type;
 
-MGLContext * MGLContext_New();
 void MGLContext_Invalidate(MGLContext * context);
 void MGLContext_Initialize(MGLContext * self);

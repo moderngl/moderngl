@@ -728,11 +728,6 @@ PyTypeObject MGLFramebuffer_Type = {
 	MGLFramebuffer_tp_new,                                  // tp_new
 };
 
-MGLFramebuffer * MGLFramebuffer_New() {
-	MGLFramebuffer * self = (MGLFramebuffer *)MGLFramebuffer_tp_new(&MGLFramebuffer_Type, 0, 0);
-	return self;
-}
-
 void MGLFramebuffer_Invalidate(MGLFramebuffer * framebuffer) {
 	if (Py_TYPE(framebuffer) == &MGLInvalidObject_Type) {
 		return;

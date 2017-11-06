@@ -83,11 +83,6 @@ PyTypeObject MGLProgramStage_Type = {
 	MGLProgramStage_tp_new,                                 // tp_new
 };
 
-MGLProgramStage * MGLProgramStage_New() {
-	MGLProgramStage * self = (MGLProgramStage *)MGLProgramStage_tp_new(&MGLProgramStage_Type, 0, 0);
-	return self;
-}
-
 void MGLProgramStage_Complete(MGLProgramStage * program_stage, int shader_type, int program_obj, int & location_base, const GLMethods & gl) {
 	PyObject * subroutines = PyDict_New();
 	PyObject * subroutine_uniforms = PyDict_New();
@@ -99,7 +94,7 @@ void MGLProgramStage_Complete(MGLProgramStage * program_stage, int shader_type, 
 	gl.GetProgramStageiv(program_obj, shader_type, GL_ACTIVE_SUBROUTINE_UNIFORMS, &num_subroutine_uniforms);
 
 	for (int i = 0; i < num_subroutines; ++i) {
-		MGLSubroutine * subroutine = MGLSubroutine_New();
+		MGLSubroutine * subroutine = (MGLSubroutine *)MGLSubroutine_tp_new(&MGLSubroutine_Type, 0, 0);
 
 		int name_len = 0;
 		char name[256];
@@ -116,7 +111,7 @@ void MGLProgramStage_Complete(MGLProgramStage * program_stage, int shader_type, 
 	}
 
 	for (int i = 0; i < num_subroutine_uniforms; ++i) {
-		MGLSubroutineUniform * subroutine_uniform = MGLSubroutineUniform_New();
+		MGLSubroutineUniform * subroutine_uniform = (MGLSubroutineUniform *)MGLSubroutineUniform_tp_new(&MGLSubroutineUniform_Type, 0, 0);
 
 		int name_len = 0;
 		char name[256];

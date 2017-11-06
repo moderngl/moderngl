@@ -17,5 +17,4 @@ struct MGLVertexArrayAttribute {
 
 extern PyTypeObject MGLVertexArrayAttribute_Type;
 
-MGLVertexArrayAttribute * MGLVertexArrayAttribute_New();
 void MGLVertexArrayAttribute_Complete(MGLVertexArrayAttribute * attribute, const GLMethods & gl);

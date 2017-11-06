@@ -30,6 +30,5 @@ struct MGLShader {
 
 extern PyTypeObject MGLShader_Type;
 
-MGLShader * MGLShader_New();
 void MGLShader_Invalidate(MGLShader * shader);
 void MGLShader_Compile(MGLShader * shader);

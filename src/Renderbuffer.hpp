@@ -25,5 +25,4 @@ struct MGLRenderbuffer {
 
 extern PyTypeObject MGLRenderbuffer_Type;
 
-MGLRenderbuffer * MGLRenderbuffer_New();
 void MGLRenderbuffer_Invalidate(MGLRenderbuffer * renderbuffer);

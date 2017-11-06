@@ -13,8 +13,6 @@ struct MGLPrimitive {
 
 extern PyTypeObject MGLPrimitive_Type;
 
-MGLPrimitive * MGLPrimitive_New();
-
 extern MGLPrimitive * MGL_TRIANGLES;
 extern MGLPrimitive * MGL_TRIANGLE_STRIP;
 extern MGLPrimitive * MGL_TRIANGLE_FAN;

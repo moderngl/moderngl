@@ -34,7 +34,6 @@ struct MGLUniform {
 
 extern PyTypeObject MGLUniform_Type;
 
-MGLUniform * MGLUniform_New();
 void MGLUniform_Invalidate(MGLUniform * uniform);
 void MGLUniform_Complete(MGLUniform * self, const GLMethods & gl);
 

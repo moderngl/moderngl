@@ -141,11 +141,6 @@ PyTypeObject MGLComputeShader_Type = {
 	MGLComputeShader_tp_new,                                // tp_new
 };
 
-MGLComputeShader * MGLComputeShader_New() {
-	MGLComputeShader * self = (MGLComputeShader *)MGLComputeShader_tp_new(&MGLComputeShader_Type, 0, 0);
-	return self;
-}
-
 void MGLComputeShader_Compile(MGLComputeShader * compute_shader) {
 	const char * source_str = PyUnicode_AsUTF8(compute_shader->source);
 
@@ -227,7 +222,7 @@ void MGLComputeShader_Compile(MGLComputeShader * compute_shader) {
 	gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORMS, &num_uniforms);
 
 	for (int i = 0; i < num_uniforms; ++i) {
-		MGLUniform * uniform = MGLUniform_New();
+		MGLUniform * uniform = (MGLUniform *)MGLUniform_tp_new(&MGLUniform_Type, 0, 0);
 
 		uniform->context = compute_shader->context;
 
@@ -266,7 +261,7 @@ void MGLComputeShader_Compile(MGLComputeShader * compute_shader) {
 	gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORM_BLOCKS, &num_uniform_blocks);
 
 	for (int i = 0; i < num_uniform_blocks; ++i) {
-		MGLUniformBlock * uniform_block = MGLUniformBlock_New();
+		MGLUniformBlock * uniform_block = (MGLUniformBlock *)MGLUniformBlock_tp_new(&MGLUniformBlock_Type, 0, 0);
 
 		int name_len = 0;
 		char name[256];

@@ -35,6 +35,5 @@ struct MGLAttribute {
 
 extern PyTypeObject MGLAttribute_Type;
 
-MGLAttribute * MGLAttribute_New();
 void MGLAttribute_Invalidate(MGLAttribute * attribute);
 void MGLAttribute_Complete(MGLAttribute * attribute, const GLMethods & gl);

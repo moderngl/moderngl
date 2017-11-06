@@ -81,11 +81,6 @@ PyTypeObject MGLSubroutine_Type = {
 	MGLSubroutine_tp_new,                                   // tp_new
 };
 
-MGLSubroutine * MGLSubroutine_New() {
-	MGLSubroutine * self = (MGLSubroutine *)MGLSubroutine_tp_new(&MGLSubroutine_Type, 0, 0);
-	return self;
-}
-
 void MGLSubroutine_Invalidate(MGLSubroutine * subroutine) {
 	Py_DECREF(subroutine->name);
 	Py_TYPE(subroutine) = &MGLInvalidObject_Type;

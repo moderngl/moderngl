@@ -33,5 +33,4 @@ struct MGLFramebuffer {
 
 extern PyTypeObject MGLFramebuffer_Type;
 
-MGLFramebuffer * MGLFramebuffer_New();
 void MGLFramebuffer_Invalidate(MGLFramebuffer * framebuffer);

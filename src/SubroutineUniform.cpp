@@ -80,10 +80,5 @@ PyTypeObject MGLSubroutineUniform_Type = {
 	MGLSubroutineUniform_tp_new,                            // tp_new
 };
 
-MGLSubroutineUniform * MGLSubroutineUniform_New() {
-	MGLSubroutineUniform * self = (MGLSubroutineUniform *)MGLSubroutineUniform_tp_new(&MGLSubroutineUniform_Type, 0, 0);
-	return self;
-}
-
 void MGLSubroutineUniform_Complete(MGLSubroutineUniform * subroutine_uniform) {
 }

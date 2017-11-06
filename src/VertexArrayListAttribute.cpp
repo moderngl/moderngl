@@ -98,8 +98,3 @@ PyTypeObject MGLVertexArrayListAttribute_Type = {
 	0,                                                      // tp_alloc
 	MGLVertexArrayListAttribute_tp_new,                     // tp_new
 };
-
-MGLVertexArrayListAttribute * MGLVertexArrayListAttribute_New() {
-	MGLVertexArrayListAttribute * self = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_tp_new(&MGLVertexArrayListAttribute_Type, 0, 0);
-	return self;
-}

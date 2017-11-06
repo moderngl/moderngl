@@ -82,11 +82,6 @@ PyTypeObject MGLVarying_Type = {
 	MGLVarying_tp_new,                                      // tp_new
 };
 
-MGLVarying * MGLVarying_New() {
-	MGLVarying * self = (MGLVarying *)MGLVarying_tp_new(&MGLVarying_Type, 0, 0);
-	return self;
-}
-
 void MGLVarying_Invalidate(MGLVarying * varying) {
 	Py_DECREF(varying->name);
 	Py_TYPE(varying) = &MGLInvalidObject_Type;

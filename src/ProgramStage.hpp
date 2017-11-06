@@ -13,5 +13,4 @@ struct MGLProgramStage {
 
 extern PyTypeObject MGLProgramStage_Type;
 
-MGLProgramStage * MGLProgramStage_New();
 void MGLProgramStage_Complete(MGLProgramStage * program_stage, int shader_type, int program_obj, int & location_base, const GLMethods & gl);

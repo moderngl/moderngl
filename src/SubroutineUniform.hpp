@@ -11,5 +11,4 @@ struct MGLSubroutineUniform {
 
 extern PyTypeObject MGLSubroutineUniform_Type;
 
-MGLSubroutineUniform * MGLSubroutineUniform_New();
 void MGLSubroutineUniform_Complete(MGLSubroutineUniform * subroutine_uniform);

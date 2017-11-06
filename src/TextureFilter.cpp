@@ -81,11 +81,6 @@ PyTypeObject MGLTextureFilter_Type = {
 	MGLTextureFilter_tp_new,                                // tp_new
 };
 
-MGLTextureFilter * MGLTextureFilter_New() {
-	MGLTextureFilter * self = (MGLTextureFilter *)MGLTextureFilter_tp_new(&MGLTextureFilter_Type, 0, 0);
-	return self;
-}
-
 MGLTextureFilter * MGL_LINEAR;
 MGLTextureFilter * MGL_NEAREST;
 MGLTextureFilter * MGL_MIPMAP;

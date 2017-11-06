@@ -19,6 +19,5 @@ struct MGLVarying {
 
 extern PyTypeObject MGLVarying_Type;
 
-MGLVarying * MGLVarying_New();
 void MGLVarying_Invalidate(MGLVarying * varying);
 void MGLVarying_Complete(MGLVarying * varying, const GLMethods & gl);

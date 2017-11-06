@@ -231,8 +231,3 @@ PyTypeObject MGLBufferAccess_Type = {
 	0,                                                      // tp_alloc
 	MGLBufferAccess_tp_new,                                 // tp_new
 };
-
-MGLBufferAccess * MGLBufferAccess_New() {
-	MGLBufferAccess * self = (MGLBufferAccess *)MGLBufferAccess_tp_new(&MGLBufferAccess_Type, 0, 0);
-	return self;
-}

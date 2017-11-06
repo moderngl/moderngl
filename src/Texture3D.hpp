@@ -31,5 +31,4 @@ struct MGLTexture3D {
 
 extern PyTypeObject MGLTexture3D_Type;
 
-MGLTexture3D * MGLTexture3D_New();
 void MGLTexture3D_Invalidate(MGLTexture3D * texture);

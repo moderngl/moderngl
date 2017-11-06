@@ -96,11 +96,6 @@ PyTypeObject MGLAttribute_Type = {
 	MGLAttribute_tp_new,                                    // tp_new
 };
 
-MGLAttribute * MGLAttribute_New() {
-	MGLAttribute * self = (MGLAttribute *)MGLAttribute_tp_new(&MGLAttribute_Type, 0, 0);
-	return self;
-}
-
 void MGLAttribute_Invalidate(MGLAttribute * attribute) {
 	Py_DECREF(attribute->name);
 	Py_TYPE(attribute) = &MGLInvalidObject_Type;

@@ -42,6 +42,5 @@ struct MGLProgram {
 
 extern PyTypeObject MGLProgram_Type;
 
-MGLProgram * MGLProgram_New();
 void MGLProgram_Invalidate(MGLProgram * program);
 void MGLProgram_Compile(MGLProgram * program, PyObject * outputs);

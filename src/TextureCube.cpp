@@ -394,11 +394,6 @@ PyTypeObject MGLTextureCube_Type = {
 	MGLTextureCube_tp_new,                                  // tp_new
 };
 
-MGLTextureCube * MGLTextureCube_New() {
-	MGLTextureCube * self = (MGLTextureCube *)MGLTextureCube_tp_new(&MGLTextureCube_Type, 0, 0);
-	return self;
-}
-
 void MGLTextureCube_Invalidate(MGLTextureCube * texture) {
 	if (Py_TYPE(texture) == &MGLInvalidObject_Type) {
 		return;

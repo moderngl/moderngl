@@ -20,5 +20,3 @@ struct MGLBufferAccess {
 };
 
 extern PyTypeObject MGLBufferAccess_Type;
-
-MGLBufferAccess * MGLBufferAccess_New();

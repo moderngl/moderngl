@@ -24,6 +24,5 @@ struct MGLVertexArray {
 
 extern PyTypeObject MGLVertexArray_Type;
 
-MGLVertexArray * MGLVertexArray_New();
 void MGLVertexArray_Invalidate(MGLVertexArray * vertex_array);
 void MGLVertexArray_Complete(MGLVertexArray * vertex_array);

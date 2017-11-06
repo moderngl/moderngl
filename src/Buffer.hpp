@@ -17,5 +17,4 @@ struct MGLBuffer {
 
 extern PyTypeObject MGLBuffer_Type;
 
-MGLBuffer * MGLBuffer_New();
 void MGLBuffer_Invalidate(MGLBuffer * buffer);

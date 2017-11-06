@@ -122,11 +122,6 @@ PyTypeObject MGLShader_Type = {
 	MGLShader_tp_new,                                       // tp_new
 };
 
-MGLShader * MGLShader_New() {
-	MGLShader * self = (MGLShader *)MGLShader_tp_new(&MGLShader_Type, 0, 0);
-	return self;
-}
-
 void MGLShader_Invalidate(MGLShader * shader) {
 	if (Py_TYPE(shader) == &MGLInvalidObject_Type) {
 		return;

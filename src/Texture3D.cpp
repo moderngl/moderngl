@@ -627,11 +627,6 @@ PyTypeObject MGLTexture3D_Type = {
 	MGLTexture3D_tp_new,                                    // tp_new
 };
 
-MGLTexture3D * MGLTexture3D_New() {
-	MGLTexture3D * self = (MGLTexture3D *)MGLTexture3D_tp_new(&MGLTexture3D_Type, 0, 0);
-	return self;
-}
-
 void MGLTexture3D_Invalidate(MGLTexture3D * texture) {
 	if (Py_TYPE(texture) == &MGLInvalidObject_Type) {
 		return;

@@ -23,5 +23,4 @@ struct MGLTextureCube {
 
 extern PyTypeObject MGLTextureCube_Type;
 
-MGLTextureCube * MGLTextureCube_New();
 void MGLTextureCube_Invalidate(MGLTextureCube * texture);
