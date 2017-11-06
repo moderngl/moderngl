@@ -31,6 +31,7 @@ Context
 	.. automethod:: geometry_shader(source) -> Shader
 	.. automethod:: tess_evaluation_shader(source) -> Shader
 	.. automethod:: tess_control_shader(source) -> Shader
+	.. automethod:: simple_framebuffer(size, components=4, samples=0, floats=False) -> Framebuffer
 	.. automethod:: framebuffer(color_attachments, depth_attachment=None) -> Framebuffer
 	.. automethod:: renderbuffer(size, components=4, samples=0, floats=False) -> Renderbuffer
 	.. automethod:: depth_renderbuffer(size, samples=0) -> Renderbuffer
