@@ -2,14 +2,14 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
-
 #include "GLMethods.hpp"
 #include "GLContext.hpp"
 
 struct MGLFramebuffer;
 
-struct MGLContext : public MGLObject {
+struct MGLContext {
+	PyObject_HEAD
+
 	MGLFramebuffer * default_framebuffer;
 	MGLFramebuffer * bound_framebuffer;
 

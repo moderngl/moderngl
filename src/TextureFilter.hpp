@@ -2,9 +2,9 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
+struct MGLTextureFilter {
+	PyObject_HEAD
 
-struct MGLTextureFilter : public MGLObject {
 	PyObject * wrapper;
 
 	int min_filter;

@@ -2,10 +2,14 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
+#include "Context.hpp"
 #include "GLMethods.hpp"
 
-struct MGLAttribute : public MGLContextMember {
+struct MGLAttribute {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	PyObject * name;
 
 	void * gl_attrib_ptr_proc;

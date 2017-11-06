@@ -10,7 +10,6 @@
 #include "Program.hpp"
 #include "Shader.hpp"
 #include "Framebuffer.hpp"
-#include "FramebufferAttachment.hpp"
 #include "Renderbuffer.hpp"
 #include "EnableFlag.hpp"
 #include "InvalidObject.hpp"
@@ -1375,31 +1374,54 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
 	for (int i = 0; i < color_attachments_len; ++i) {
 		PyObject * item = PyTuple_GET_ITEM(color_attachments, i);
 
-		if (Py_TYPE(item) != &MGLTexture_Type && Py_TYPE(item) != &MGLRenderbuffer_Type) {
-			MGLError_Set("color_attachments[%d] must be a Renderbuffer or Texture not %s", i, Py_TYPE(item)->tp_name);
-			return 0;
-		}
+		if (Py_TYPE(item) == &MGLTexture_Type) {
+			MGLTexture * texture = (MGLTexture *)item;
 
-		MGLFramebufferAttachment * attachment = (MGLFramebufferAttachment *)item;
-
-		if (attachment->depth) {
-			MGLError_Set("color_attachments[%d] is a depth attachment", i);
-			return 0;
-		}
-
-		if (i == 0) {
-			width = attachment->width;
-			height = attachment->height;
-			samples = attachment->samples;
-		} else {
-			if (attachment->width != width || attachment->height != height || attachment->samples != samples) {
-				MGLError_Set("the color_attachments have different sizes or samples");
+			if (texture->depth) {
+				MGLError_Set("color_attachments[%d] is a depth attachment", i);
 				return 0;
 			}
-		}
 
-		if (attachment->context != self) {
-			MGLError_Set("color_attachments[%d] belongs to a different context", i);
+			if (i == 0) {
+				width = texture->width;
+				height = texture->height;
+				samples = texture->samples;
+			} else {
+				if (texture->width != width || texture->height != height || texture->samples != samples) {
+					MGLError_Set("the color_attachments have different sizes or samples");
+					return 0;
+				}
+			}
+
+			if (texture->context != self) {
+				MGLError_Set("color_attachments[%d] belongs to a different context", i);
+				return 0;
+			}
+		} else if (Py_TYPE(item) == &MGLRenderbuffer_Type) {
+			MGLRenderbuffer * renderbuffer = (MGLRenderbuffer *)item;
+
+			if (renderbuffer->depth) {
+				MGLError_Set("color_attachments[%d] is a depth attachment", i);
+				return 0;
+			}
+
+			if (i == 0) {
+				width = renderbuffer->width;
+				height = renderbuffer->height;
+				samples = renderbuffer->samples;
+			} else {
+				if (renderbuffer->width != width || renderbuffer->height != height || renderbuffer->samples != samples) {
+					MGLError_Set("the color_attachments have different sizes or samples");
+					return 0;
+				}
+			}
+
+			if (renderbuffer->context != self) {
+				MGLError_Set("color_attachments[%d] belongs to a different context", i);
+				return 0;
+			}
+		} else {
+			MGLError_Set("color_attachments[%d] must be a Renderbuffer or Texture not %s", i, Py_TYPE(item)->tp_name);
 			return 0;
 		}
 	}
@@ -1408,28 +1430,44 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
 
 	if (depth_attachment != Py_None) {
 
-		if (Py_TYPE(depth_attachment) != &MGLTexture_Type && Py_TYPE(depth_attachment) != &MGLRenderbuffer_Type) {
+		if (Py_TYPE(depth_attachment) == &MGLTexture_Type) {
+			MGLTexture * texture = (MGLTexture *)depth_attachment;
+
+			if (!texture->depth) {
+				MGLError_Set("the depth_attachment is a color attachment");
+				return 0;
+			}
+
+			if (texture->context != self) {
+				MGLError_Set("the depth_attachment belongs to a different context");
+				return 0;
+			}
+
+			if (texture->width != width || texture->height != height || texture->samples != samples) {
+				MGLError_Set("the depth_attachment have different sizes or samples");
+				return 0;
+			}
+		} else if (Py_TYPE(depth_attachment) == &MGLRenderbuffer_Type) {
+			MGLRenderbuffer * renderbuffer = (MGLRenderbuffer *)depth_attachment;
+
+			if (!renderbuffer->depth) {
+				MGLError_Set("the depth_attachment is a color attachment");
+				return 0;
+			}
+
+			if (renderbuffer->context != self) {
+				MGLError_Set("the depth_attachment belongs to a different context");
+				return 0;
+			}
+
+			if (renderbuffer->width != width || renderbuffer->height != height || renderbuffer->samples != samples) {
+				MGLError_Set("the depth_attachment have different sizes or samples");
+				return 0;
+			}
+		} else {
 			MGLError_Set("the depth_attachment must be a Renderbuffer or Texture not %s", Py_TYPE(depth_attachment)->tp_name);
 			return 0;
 		}
-
-		MGLFramebufferAttachment * attachment = (MGLFramebufferAttachment *)depth_attachment;
-
-		if (!attachment->depth) {
-			MGLError_Set("the depth_attachment is a color attachment");
-			return 0;
-		}
-
-		if (attachment->context != self) {
-			MGLError_Set("the depth_attachment belongs to a different context");
-			return 0;
-		}
-
-		if (attachment->width != width || attachment->height != height || attachment->samples != samples) {
-			MGLError_Set("the depth_attachment have different sizes or samples");
-			return 0;
-		}
-
 	}
 
 	MGLFramebuffer * framebuffer = MGLFramebuffer_New();
@@ -1551,12 +1589,19 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
 
 	for (int i = 0; i < color_attachments_len; ++i) {
 		PyObject * item = PyTuple_GET_ITEM(color_attachments, i);
-		MGLFramebufferAttachment * attachment = (MGLFramebufferAttachment *)item;
-
-		framebuffer->color_mask[i * 4 + 0] = attachment->components >= 1;
-		framebuffer->color_mask[i * 4 + 1] = attachment->components >= 2;
-		framebuffer->color_mask[i * 4 + 2] = attachment->components >= 3;
-		framebuffer->color_mask[i * 4 + 3] = attachment->components >= 4;
+		if (Py_TYPE(item) == &MGLTexture_Type) {
+			MGLTexture * texture = (MGLTexture *)item;
+			framebuffer->color_mask[i * 4 + 0] = texture->components >= 1;
+			framebuffer->color_mask[i * 4 + 1] = texture->components >= 2;
+			framebuffer->color_mask[i * 4 + 2] = texture->components >= 3;
+			framebuffer->color_mask[i * 4 + 3] = texture->components >= 4;
+		} else if (Py_TYPE(item) == &MGLRenderbuffer_Type) {
+			MGLTexture * renderbuffer = (MGLTexture *)item;
+			framebuffer->color_mask[i * 4 + 0] = renderbuffer->components >= 1;
+			framebuffer->color_mask[i * 4 + 1] = renderbuffer->components >= 2;
+			framebuffer->color_mask[i * 4 + 2] = renderbuffer->components >= 3;
+			framebuffer->color_mask[i * 4 + 3] = renderbuffer->components >= 4;
+		}
 	}
 
 	Py_INCREF(color_attachments);

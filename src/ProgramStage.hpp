@@ -2,10 +2,11 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
 #include "GLMethods.hpp"
 
-struct MGLProgramStage : public MGLObject {
+struct MGLProgramStage {
+	PyObject_HEAD
+
 	PyObject * subroutines;
 	PyObject * subroutine_uniforms;
 };

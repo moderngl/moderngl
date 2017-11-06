@@ -2,9 +2,9 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
+struct MGLSubroutine {
+	PyObject_HEAD
 
-struct MGLSubroutine : public MGLObject {
 	PyObject * name;
 	unsigned index;
 };

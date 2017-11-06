@@ -2,9 +2,9 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
+struct MGLVertexArrayListAttribute {
+	PyObject_HEAD
 
-struct MGLVertexArrayListAttribute : public MGLObject {
 	PyObject * content;
 	int location;
 };

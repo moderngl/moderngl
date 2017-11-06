@@ -2,12 +2,13 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
 #include "GLMethods.hpp"
 
 #include "Attribute.hpp"
 
-struct MGLVertexArrayAttribute : public MGLObject {
+struct MGLVertexArrayAttribute {
+	PyObject_HEAD
+
 	MGLAttribute * attribute;
 
 	int vertex_array_obj;

@@ -2,9 +2,13 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
+#include "Context.hpp"
 
-struct MGLFramebuffer : public MGLContextMember {
+struct MGLFramebuffer {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	PyObject * color_attachments;
 	PyObject * depth_attachment;
 

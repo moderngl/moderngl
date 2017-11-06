@@ -2,9 +2,8 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
-
-struct MGLPrimitive : public MGLObject {
+struct MGLPrimitive {
+	PyObject_HEAD
 	PyObject * wrapper;
 
 	int primitive;
