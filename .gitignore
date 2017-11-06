@@ -15,6 +15,8 @@ build.py
 .cache
 .vscode
 
+*.pyd_*
+
 *.egg-info
 *.log
 *.pyd
