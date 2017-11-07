@@ -1,6 +1,4 @@
-#include "InvalidObject.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLInvalidObject_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLInvalidObject * self = (MGLInvalidObject *)type->tp_alloc(type, 0);

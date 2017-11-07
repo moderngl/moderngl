@@ -1,7 +1,4 @@
-#include "Renderbuffer.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
+#include "Types.hpp"
 
 PyObject * MGLRenderbuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLRenderbuffer * self = (MGLRenderbuffer *)type->tp_alloc(type, 0);

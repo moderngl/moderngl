@@ -1,6 +1,4 @@
-#include "VertexArrayListAttribute.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLVertexArrayListAttribute_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLVertexArrayListAttribute * self = (MGLVertexArrayListAttribute *)type->tp_alloc(type, 0);

@@ -1,7 +1,4 @@
-#include "VertexArrayAttribute.hpp"
-
-#include "Error.hpp"
-#include "Buffer.hpp"
+#include "Types.hpp"
 
 PyObject * MGLVertexArrayAttribute_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLVertexArrayAttribute * self = (MGLVertexArrayAttribute *)type->tp_alloc(type, 0);

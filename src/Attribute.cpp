@@ -1,7 +1,4 @@
-#include "Attribute.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
+#include "Types.hpp"
 
 PyObject * MGLAttribute_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLAttribute * self = (MGLAttribute *)type->tp_alloc(type, 0);

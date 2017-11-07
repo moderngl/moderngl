@@ -1,6 +1,4 @@
-#include "Primitive.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLPrimitive_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLPrimitive * self = (MGLPrimitive *)type->tp_alloc(type, 0);

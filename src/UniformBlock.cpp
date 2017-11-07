@@ -1,6 +1,4 @@
-#include "UniformBlock.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLUniformBlock_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLUniformBlock * self = (MGLUniformBlock *)type->tp_alloc(type, 0);

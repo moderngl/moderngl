@@ -1,9 +1,4 @@
-#include "ComputeShader.hpp"
-
-#include "Error.hpp"
-
-#include "Uniform.hpp"
-#include "UniformBlock.hpp"
+#include "Types.hpp"
 
 #include "InlineMethods.hpp"
 

@@ -1,6 +1,4 @@
-#include "BufferAccess.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLBufferAccess_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLBufferAccess * self = (MGLBufferAccess *)type->tp_alloc(type, 0);

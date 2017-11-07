@@ -1,8 +1,4 @@
-#include "ProgramStage.hpp"
-
-#include "Error.hpp"
-#include "Subroutine.hpp"
-#include "SubroutineUniform.hpp"
+#include "Types.hpp"
 
 PyObject * MGLProgramStage_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLProgramStage * self = (MGLProgramStage *)type->tp_alloc(type, 0);

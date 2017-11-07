@@ -1,6 +1,6 @@
-#include "Uniform.hpp"
+#include "UniformGetSetters.hpp"
 
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLUniform_invalid_getter(MGLUniform * self) {
 	MGLError_Set("cannot detect uniform type");

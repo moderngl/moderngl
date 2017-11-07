@@ -1,8 +1,4 @@
-#include "Texture.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
-#include "Buffer.hpp"
+#include "Types.hpp"
 
 #include "InlineMethods.hpp"
 

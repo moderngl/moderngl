@@ -1,15 +1,4 @@
-#include "Program.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
-#include "Shader.hpp"
-#include "Uniform.hpp"
-#include "UniformBlock.hpp"
-#include "Attribute.hpp"
-#include "Subroutine.hpp"
-#include "SubroutineUniform.hpp"
-#include "ProgramStage.hpp"
-#include "Varying.hpp"
+#include "Types.hpp"
 
 #include "InlineMethods.hpp"
 

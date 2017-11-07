@@ -1,31 +1,4 @@
-#include "Shader.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
-
-const int SHADER_TYPE[] = {
-	GL_VERTEX_SHADER,
-	GL_FRAGMENT_SHADER,
-	GL_GEOMETRY_SHADER,
-	GL_TESS_EVALUATION_SHADER,
-	GL_TESS_CONTROL_SHADER,
-};
-
-const char * SHADER_NAME[] = {
-	"vertex_shader",
-	"fragment_shader",
-	"geometry_shader",
-	"tess_evaluation_shader",
-	"tess_control_shader",
-};
-
-const char * SHADER_NAME_UNDERLINE[] = {
-	"=============",
-	"===============",
-	"===============",
-	"======================",
-	"===================",
-};
+#include "Types.hpp"
 
 PyObject * MGLShader_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLShader * self = (MGLShader *)type->tp_alloc(type, 0);

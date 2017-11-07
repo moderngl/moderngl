@@ -1,20 +1,4 @@
-#include "Context.hpp"
-
-#include "Error.hpp"
-#include "Buffer.hpp"
-#include "ComputeShader.hpp"
-#include "Texture.hpp"
-#include "Texture3D.hpp"
-#include "TextureCube.hpp"
-#include "VertexArray.hpp"
-#include "Program.hpp"
-#include "Shader.hpp"
-#include "Framebuffer.hpp"
-#include "Renderbuffer.hpp"
-#include "EnableFlag.hpp"
-#include "InvalidObject.hpp"
-#include "Attribute.hpp"
-#include "Uniform.hpp"
+#include "Types.hpp"
 
 #include "BufferFormat.hpp"
 

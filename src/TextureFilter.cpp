@@ -1,6 +1,4 @@
-#include "TextureFilter.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLTextureFilter_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLTextureFilter * self = (MGLTextureFilter *)type->tp_alloc(type, 0);

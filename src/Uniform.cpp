@@ -1,7 +1,6 @@
-#include "Uniform.hpp"
+#include "Types.hpp"
 
-#include "Error.hpp"
-#include "InvalidObject.hpp"
+#include "UniformGetSetters.hpp"
 
 PyObject * MGLUniform_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLUniform * self = (MGLUniform *)type->tp_alloc(type, 0);

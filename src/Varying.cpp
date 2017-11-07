@@ -1,7 +1,4 @@
-#include "Varying.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
+#include "Types.hpp"
 
 PyObject * MGLVarying_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLVarying * self = (MGLVarying *)type->tp_alloc(type, 0);

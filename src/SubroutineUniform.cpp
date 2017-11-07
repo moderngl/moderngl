@@ -1,6 +1,4 @@
-#include "SubroutineUniform.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLSubroutineUniform_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLSubroutineUniform * self = (MGLSubroutineUniform *)type->tp_alloc(type, 0);

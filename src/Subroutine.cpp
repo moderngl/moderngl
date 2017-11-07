@@ -1,7 +1,4 @@
-#include "Subroutine.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
+#include "Types.hpp"
 
 PyObject * MGLSubroutine_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLSubroutine * self = (MGLSubroutine *)type->tp_alloc(type, 0);

@@ -1,6 +1,6 @@
 #include "GLMethods.hpp"
 
-#include "Error.hpp"
+#include "Types.hpp"
 
 void AddToLog(PyObject ** pstr, const char * function) {
 	PyObject * name = PyUnicode_FromFormat("- %s\n", function);

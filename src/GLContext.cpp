@@ -1,6 +1,6 @@
 #include "GLContext.hpp"
 
-#include "Error.hpp"
+#include "Types.hpp"
 
 struct GLVersion {
 	int major;

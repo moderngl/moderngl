@@ -1,10 +1,4 @@
-#include "Framebuffer.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
-#include "Renderbuffer.hpp"
-#include "Texture.hpp"
-#include "Buffer.hpp"
+#include "Types.hpp"
 
 PyObject * MGLFramebuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLFramebuffer * self = (MGLFramebuffer *)type->tp_alloc(type, 0);

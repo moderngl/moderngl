@@ -1,10 +1,4 @@
-#include "Buffer.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
-#include "BufferAccess.hpp"
-
-#include "UniformBlock.hpp"
+#include "Types.hpp"
 
 PyObject * MGLBuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLBuffer * self = (MGLBuffer *)type->tp_alloc(type, 0);
