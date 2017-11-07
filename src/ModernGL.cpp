@@ -27,24 +27,10 @@
 
 #include "GLContext.hpp"
 
-MGLContext * create_standalone_context(PyObject * self, PyObject * args) {
-	int width;
-	int height;
-
-	int args_ok = PyArg_ParseTuple(
-		args,
-		"II",
-		&width,
-		&height
-	);
-
-	if (!args_ok) {
-		return 0;
-	}
-
+MGLContext * create_standalone_context(PyObject * self) {
 	MGLContext * ctx = (MGLContext *)MGLContext_Type.tp_alloc(&MGLContext_Type, 0);
 
-	ctx->gl_context = CreateGLContext(width, height);
+	ctx->gl_context = CreateGLContext(1, 1);
 	ctx->wireframe = false;
 
 	if (PyErr_Occurred()) {
@@ -84,7 +70,7 @@ MGLContext * create_context(PyObject * self) {
 }
 
 PyMethodDef MGL_module_methods[] = {
-	{"create_standalone_context", (PyCFunction)create_standalone_context, METH_VARARGS, 0},
+	{"create_standalone_context", (PyCFunction)create_standalone_context, METH_NOARGS, 0},
 	{"create_context", (PyCFunction)create_context, METH_NOARGS, 0},
 	{0},
 };

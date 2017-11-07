@@ -819,24 +819,12 @@ def create_context(require=None) -> Context:
     return ctx
 
 
-def create_standalone_context(size=(4, 4), require=None) -> Context:
+def create_standalone_context() -> Context:
     '''
         Create a standalone ModernGL context.
-        This method will create a hidden window with the
-        initial size given in the parameters. This will
-        set the  initial viewport as well.
-
-        Keyword Arguments:
-            size (tuple): Initial framebuffer size.
-            require (int): OpenGL version code.
 
         Returns:
             Context: context
     '''
 
-    ctx = Context.new(mgl.create_standalone_context(*size))
-
-    if require is not None and ctx.version_code < require:
-        raise Exception('The version required is not provided')
-
-    return ctx
+    return Context.new(mgl.create_standalone_context())
