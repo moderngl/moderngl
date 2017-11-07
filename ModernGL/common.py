@@ -19,59 +19,24 @@ class InvalidObject:
     __slots__ = ['mglo']
 
 
-class EnableFlag:
-    '''
-        EnableFlag
-    '''
-
-    __slots__ = ['flags']
-
-    @staticmethod
-    def new(flags) -> 'EnableFlag':
-        '''
-            For internal use only.
-        '''
-
-        res = EnableFlag.__new__(EnableFlag)
-        res.flags = flags
-        return res
-
-    def __init__(self):
-        self.flags = 0
-        raise NotImplementedError('EnableFlag')
-
-    def __or__(self, other) -> 'EnableFlag':
-        return EnableFlag.new(self.flags | other.flags)
-
-    def __and__(self, other) -> 'EnableFlag':
-        return EnableFlag.new(self.flags & other.flags)
-
-    def __inv__(self) -> 'EnableFlag':
-        return EnableFlag.new(mgl.ENABLE_MASK & ~self.flags)
-
-    def __repr__(self):
-        return '<ModernGL.EnableFlag>'
-
-    def __eq__(self, other):
-        return self.flags == other.flags
-
-    def __ne__(self, other):
-        return self.flags != other.flags
-
-
-BLEND = EnableFlag.new(mgl.BLEND)
+NOTHING = mgl.NOTHING
 '''
-    GL_BLEND
+    Nothing
 '''
 
-DEPTH_TEST = EnableFlag.new(mgl.DEPTH_TEST)
+BLEND = mgl.BLEND
 '''
-    GL_DEPTH_TEST
+    Blending
 '''
 
-CULL_FACE = EnableFlag.new(mgl.CULL_FACE)
+DEPTH_TEST = mgl.DEPTH_TEST
 '''
-    GL_CULL_FACE
+    Depth Test
+'''
+
+CULL_FACE = mgl.CULL_FACE
+'''
+    Face Culling
 '''
 
 
@@ -97,16 +62,16 @@ class Primitive:
     def __init__(self):
         self.name = None
         self.mglo = None
-        raise NotImplementedError('Primitive')
+        raise NotImplementedError()
 
     def __repr__(self):
         return 'ModernGL.%s' % self.name
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
 
 TRIANGLES = Primitive.new(mgl.TRIANGLES, 'TRIANGLES')
@@ -187,16 +152,16 @@ class TextureFilter:
     def __init__(self):
         self.name = None
         self.mglo = None
-        raise NotImplementedError('TextureFilter')
+        raise NotImplementedError()
 
     def __repr__(self):
         return 'ModernGL.%s' % self.name
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
 
 LINEAR = TextureFilter.new(mgl.LINEAR, 'LINEAR')
@@ -209,7 +174,14 @@ NEAREST = TextureFilter.new(mgl.NEAREST, 'NEAREST')
     (GL_NEAREST, GL_NEAREST)
 '''
 
-MIPMAP = TextureFilter.new(mgl.MIPMAP, 'MIPMAP')
+LINEAR_MIPMAP = TextureFilter.new(mgl.LINEAR_MIPMAP, 'LINEAR_MIPMAP')
 '''
     (GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR)
 '''
+
+NEAREST_MIPMAP = TextureFilter.new(mgl.NEAREST_MIPMAP, 'NEAREST_MIPMAP')
+'''
+    (GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST)
+'''
+
+MIPMAP = LINEAR_MIPMAP

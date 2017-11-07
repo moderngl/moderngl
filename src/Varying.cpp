@@ -1,14 +1,7 @@
-#include "Varying.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
+#include "Types.hpp"
 
 PyObject * MGLVarying_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLVarying * self = (MGLVarying *)type->tp_alloc(type, 0);
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVarying_tp_new %p\n", self);
-	#endif
 
 	if (self) {
 	}
@@ -17,10 +10,6 @@ PyObject * MGLVarying_tp_new(PyTypeObject * type, PyObject * args, PyObject * kw
 }
 
 void MGLVarying_tp_dealloc(MGLVarying * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVarying_tp_dealloc %p\n", self);
-	#endif
 
 	MGLVarying_Type.tp_free((PyObject *)self);
 }
@@ -90,21 +79,9 @@ PyTypeObject MGLVarying_Type = {
 	MGLVarying_tp_new,                                      // tp_new
 };
 
-MGLVarying * MGLVarying_New() {
-	MGLVarying * self = (MGLVarying *)MGLVarying_tp_new(&MGLVarying_Type, 0, 0);
-	return self;
-}
-
 void MGLVarying_Invalidate(MGLVarying * varying) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVarying_Invalidate %p\n", varying);
-	#endif
-
 	Py_DECREF(varying->name);
-
 	Py_TYPE(varying) = &MGLInvalidObject_Type;
-
 	Py_DECREF(varying);
 }
 

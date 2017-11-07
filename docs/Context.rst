@@ -7,7 +7,7 @@ Context
 .. autofunction:: ModernGL.create_standalone_context(size=(256, 256), require=None) -> Context
 
 .. autoclass:: Context
-	:members: line_width, point_size, viewport, max_samples, max_integer_samples, max_texture_units, default_texture_unit, default_framebuffer, wireframe, error, vendor, renderer, version, version_code, info, front_face
+	:members: line_width, point_size, viewport, max_samples, max_integer_samples, max_texture_units, default_texture_unit, screen, default_framebuffer, wireframe, error, vendor, renderer, version, version_code, info, front_face
 
 	.. automethod:: clear(red=0.0, green=0.0, blue=0.0, alpha=0.0, viewport=None)
 	.. automethod:: enable(flag)
@@ -31,6 +31,7 @@ Context
 	.. automethod:: geometry_shader(source) -> Shader
 	.. automethod:: tess_evaluation_shader(source) -> Shader
 	.. automethod:: tess_control_shader(source) -> Shader
+	.. automethod:: simple_framebuffer(size, components=4, samples=0, floats=False) -> Framebuffer
 	.. automethod:: framebuffer(color_attachments, depth_attachment=None) -> Framebuffer
 	.. automethod:: renderbuffer(size, components=4, samples=0, floats=False) -> Renderbuffer
 	.. automethod:: depth_renderbuffer(size, samples=0) -> Renderbuffer

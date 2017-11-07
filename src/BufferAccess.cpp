@@ -1,13 +1,7 @@
-#include "BufferAccess.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLBufferAccess_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLBufferAccess * self = (MGLBufferAccess *)type->tp_alloc(type, 0);
-
-	#ifdef MGL_VERBOSE
-	printf("MGLBufferAccess_tp_new %p\n", self);
-	#endif
 
 	if (self) {
 	}
@@ -16,11 +10,6 @@ PyObject * MGLBufferAccess_tp_new(PyTypeObject * type, PyObject * args, PyObject
 }
 
 void MGLBufferAccess_tp_dealloc(MGLBufferAccess * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLBufferAccess_tp_dealloc %p\n", self);
-	#endif
-
 	MGLBufferAccess_Type.tp_free((PyObject *)self);
 }
 
@@ -141,15 +130,13 @@ PyObject * MGLBufferAccess_read_into(MGLBufferAccess * self, PyObject * args) {
 }
 
 PyObject * MGLBufferAccess_write(MGLBufferAccess * self, PyObject * args) {
-	const char * data;
-	Py_ssize_t size;
+	PyObject * data;
 	Py_ssize_t offset;
 
 	int args_ok = PyArg_ParseTuple(
 		args,
-		"y#n",
+		"On",
 		&data,
-		&size,
 		&offset
 	);
 
@@ -157,18 +144,28 @@ PyObject * MGLBufferAccess_write(MGLBufferAccess * self, PyObject * args) {
 		return 0;
 	}
 
-	if (offset < 0 || size + offset > self->size) {
-		MGLError_Set("out of range offset = %d or size = %d", offset, size);
+	Py_buffer buffer_view;
+
+	int get_buffer = PyObject_GetBuffer(data, &buffer_view, PyBUF_SIMPLE);
+	if (get_buffer < 0) {
+		MGLError_Set("data (%s) does not support buffer interface", Py_TYPE(data)->tp_name);
+		return 0;
+	}
+
+	if (offset < 0 || buffer_view.len + offset > self->size) {
+		MGLError_Set("out of range offset = %d or size = %d", offset, buffer_view.len);
+		PyBuffer_Release(&buffer_view);
 		return 0;
 	}
 
 	if (!self->ptr) {
 		MGLError_Set("access objet is not open");
+		PyBuffer_Release(&buffer_view);
 		return 0;
 	}
 
-	memcpy(self->ptr + offset, data, size);
-
+	memcpy(self->ptr + offset, buffer_view.buf, buffer_view.len);
+	PyBuffer_Release(&buffer_view);
 	Py_RETURN_NONE;
 }
 
@@ -240,8 +237,3 @@ PyTypeObject MGLBufferAccess_Type = {
 	0,                                                      // tp_alloc
 	MGLBufferAccess_tp_new,                                 // tp_new
 };
-
-MGLBufferAccess * MGLBufferAccess_New() {
-	MGLBufferAccess * self = (MGLBufferAccess *)MGLBufferAccess_tp_new(&MGLBufferAccess_Type, 0, 0);
-	return self;
-}

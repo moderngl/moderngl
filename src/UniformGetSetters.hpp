@@ -1,38 +1,7 @@
 #pragma once
 
-#include "Python.hpp"
+#include "Types.hpp"
 
-#include "ContextMember.hpp"
-#include "Program.hpp"
-
-typedef void (* MGLProc)();
-
-struct MGLUniform : public MGLContextMember {
-	PyObject * name;
-
-	MGLProc value_getter;
-	MGLProc value_setter;
-	MGLProc gl_value_reader_proc;
-	MGLProc gl_value_writer_proc;
-
-	int program_obj;
-
-	int number;
-	int location;
-	int type;
-
-	int dimension;
-	int element_size;
-	int array_length;
-
-	bool matrix;
-};
-
-extern PyTypeObject MGLUniform_Type;
-
-MGLUniform * MGLUniform_New();
-void MGLUniform_Invalidate(MGLUniform * uniform);
-void MGLUniform_Complete(MGLUniform * self, const GLMethods & gl);
 
 typedef void (GLAPI * gl_uniform_reader_proc)(GLuint program, GLint location, void * value);
 typedef void (GLAPI * gl_uniform_vector_writer_proc)(GLuint program, GLint location, GLsizei count, const void * value);

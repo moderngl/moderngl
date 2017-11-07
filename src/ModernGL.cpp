@@ -1,50 +1,11 @@
-#include "Attribute.hpp"
-#include "Buffer.hpp"
-#include "BufferAccess.hpp"
-#include "ComputeShader.hpp"
-#include "Context.hpp"
-#include "EnableFlag.hpp"
-#include "Error.hpp"
-#include "Framebuffer.hpp"
-#include "InvalidObject.hpp"
-#include "Primitive.hpp"
-#include "Program.hpp"
-#include "ProgramStage.hpp"
-#include "Renderbuffer.hpp"
-#include "Shader.hpp"
-#include "Subroutine.hpp"
-#include "SubroutineUniform.hpp"
-#include "Texture.hpp"
-#include "TextureCube.hpp"
-#include "Texture3D.hpp"
-#include "TextureFilter.hpp"
-#include "Uniform.hpp"
-#include "UniformBlock.hpp"
-#include "Varying.hpp"
-#include "VertexArray.hpp"
-#include "VertexArrayAttribute.hpp"
-#include "VertexArrayListAttribute.hpp"
+#include "Types.hpp"
 
 #include "GLContext.hpp"
 
-MGLContext * create_standalone_context(PyObject * self, PyObject * args) {
-	int width;
-	int height;
+MGLContext * create_standalone_context(PyObject * self) {
+	MGLContext * ctx = (MGLContext *)MGLContext_Type.tp_alloc(&MGLContext_Type, 0);
 
-	int args_ok = PyArg_ParseTuple(
-		args,
-		"II",
-		&width,
-		&height
-	);
-
-	if (!args_ok) {
-		return 0;
-	}
-
-	MGLContext * ctx = MGLContext_New();
-
-	ctx->gl_context = CreateGLContext(width, height);
+	ctx->gl_context = CreateGLContext(1, 1);
 	ctx->wireframe = false;
 
 	if (PyErr_Occurred()) {
@@ -63,7 +24,7 @@ MGLContext * create_standalone_context(PyObject * self, PyObject * args) {
 }
 
 MGLContext * create_context(PyObject * self) {
-	MGLContext * ctx = MGLContext_New();
+	MGLContext * ctx = (MGLContext *)MGLContext_Type.tp_alloc(&MGLContext_Type, 0);
 
 	ctx->gl_context = LoadCurrentGLContext();
 	ctx->wireframe = false;
@@ -84,7 +45,7 @@ MGLContext * create_context(PyObject * self) {
 }
 
 PyMethodDef MGL_module_methods[] = {
-	{"create_standalone_context", (PyCFunction)create_standalone_context, METH_VARARGS, 0},
+	{"create_standalone_context", (PyCFunction)create_standalone_context, METH_NOARGS, 0},
 	{"create_context", (PyCFunction)create_context, METH_NOARGS, 0},
 	{0},
 };
@@ -366,77 +327,77 @@ bool MGL_InitializeModule(PyObject * module) {
 	}
 
 	{
-		MGL_TRIANGLES = MGLPrimitive_New();
+		MGL_TRIANGLES = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_TRIANGLES->wrapper = 0;
 		MGL_TRIANGLES->primitive = GL_TRIANGLES;
 		MGL_TRIANGLES->geometry_primitive = GL_TRIANGLES;
 		MGL_TRIANGLES->transform_primitive = GL_TRIANGLES;
 		PyModule_AddObject(module, "TRIANGLES", (PyObject *)MGL_TRIANGLES);
 
-		MGL_TRIANGLE_STRIP = MGLPrimitive_New();
+		MGL_TRIANGLE_STRIP = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_TRIANGLE_STRIP->wrapper = 0;
 		MGL_TRIANGLE_STRIP->primitive = GL_TRIANGLE_STRIP;
 		MGL_TRIANGLE_STRIP->geometry_primitive = GL_TRIANGLES;
 		MGL_TRIANGLE_STRIP->transform_primitive = GL_TRIANGLES;
 		PyModule_AddObject(module, "TRIANGLE_STRIP", (PyObject *)MGL_TRIANGLE_STRIP);
 
-		MGL_TRIANGLE_FAN = MGLPrimitive_New();
+		MGL_TRIANGLE_FAN = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_TRIANGLE_FAN->wrapper = 0;
 		MGL_TRIANGLE_FAN->primitive = GL_TRIANGLE_FAN;
 		MGL_TRIANGLE_FAN->geometry_primitive = GL_TRIANGLES;
 		MGL_TRIANGLE_FAN->transform_primitive = GL_TRIANGLES;
 		PyModule_AddObject(module, "TRIANGLE_FAN", (PyObject *)MGL_TRIANGLE_FAN);
 
-		MGL_LINES = MGLPrimitive_New();
+		MGL_LINES = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_LINES->wrapper = 0;
 		MGL_LINES->primitive = GL_LINES;
 		MGL_LINES->geometry_primitive = GL_LINES;
 		MGL_LINES->transform_primitive = GL_LINES;
 		PyModule_AddObject(module, "LINES", (PyObject *)MGL_LINES);
 
-		MGL_LINE_STRIP = MGLPrimitive_New();
+		MGL_LINE_STRIP = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_LINE_STRIP->wrapper = 0;
 		MGL_LINE_STRIP->primitive = GL_LINE_STRIP;
 		MGL_LINE_STRIP->geometry_primitive = GL_LINES;
 		MGL_LINE_STRIP->transform_primitive = GL_LINES;
 		PyModule_AddObject(module, "LINE_STRIP", (PyObject *)MGL_LINE_STRIP);
 
-		MGL_LINE_LOOP = MGLPrimitive_New();
+		MGL_LINE_LOOP = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_LINE_LOOP->wrapper = 0;
 		MGL_LINE_LOOP->primitive = GL_LINE_LOOP;
 		MGL_LINE_LOOP->geometry_primitive = GL_LINES;
 		MGL_LINE_LOOP->transform_primitive = GL_LINES;
 		PyModule_AddObject(module, "LINE_LOOP", (PyObject *)MGL_LINE_LOOP);
 
-		MGL_POINTS = MGLPrimitive_New();
+		MGL_POINTS = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_POINTS->wrapper = 0;
 		MGL_POINTS->primitive = GL_POINTS;
 		MGL_POINTS->geometry_primitive = GL_POINTS;
 		MGL_POINTS->transform_primitive = GL_POINTS;
 		PyModule_AddObject(module, "POINTS", (PyObject *)MGL_POINTS);
 
-		MGL_LINE_STRIP_ADJACENCY = MGLPrimitive_New();
+		MGL_LINE_STRIP_ADJACENCY = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_LINE_STRIP_ADJACENCY->wrapper = 0;
 		MGL_LINE_STRIP_ADJACENCY->primitive = GL_LINE_STRIP_ADJACENCY;
 		MGL_LINE_STRIP_ADJACENCY->geometry_primitive = GL_LINES_ADJACENCY;
 		MGL_LINE_STRIP_ADJACENCY->transform_primitive = GL_LINES;
 		PyModule_AddObject(module, "LINE_STRIP_ADJACENCY", (PyObject *)MGL_LINE_STRIP_ADJACENCY);
 
-		MGL_LINES_ADJACENCY = MGLPrimitive_New();
+		MGL_LINES_ADJACENCY = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_LINES_ADJACENCY->wrapper = 0;
 		MGL_LINES_ADJACENCY->primitive = GL_LINES_ADJACENCY;
 		MGL_LINES_ADJACENCY->geometry_primitive = GL_LINES_ADJACENCY;
 		MGL_LINES_ADJACENCY->transform_primitive = GL_LINES;
 		PyModule_AddObject(module, "LINES_ADJACENCY", (PyObject *)MGL_LINES_ADJACENCY);
 
-		MGL_TRIANGLE_STRIP_ADJACENCY = MGLPrimitive_New();
+		MGL_TRIANGLE_STRIP_ADJACENCY = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_TRIANGLE_STRIP_ADJACENCY->wrapper = 0;
 		MGL_TRIANGLE_STRIP_ADJACENCY->primitive = GL_TRIANGLE_STRIP_ADJACENCY;
 		MGL_TRIANGLE_STRIP_ADJACENCY->geometry_primitive = GL_TRIANGLES_ADJACENCY;
 		MGL_TRIANGLE_STRIP_ADJACENCY->transform_primitive = GL_TRIANGLES;
 		PyModule_AddObject(module, "TRIANGLE_STRIP_ADJACENCY", (PyObject *)MGL_TRIANGLE_STRIP_ADJACENCY);
 
-		MGL_TRIANGLES_ADJACENCY = MGLPrimitive_New();
+		MGL_TRIANGLES_ADJACENCY = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_TRIANGLES_ADJACENCY->wrapper = 0;
 		MGL_TRIANGLES_ADJACENCY->primitive = GL_TRIANGLES_ADJACENCY;
 		MGL_TRIANGLES_ADJACENCY->geometry_primitive = GL_TRIANGLES_ADJACENCY;
@@ -445,7 +406,7 @@ bool MGL_InitializeModule(PyObject * module) {
 	}
 
 	{
-		MGL_NO_PRIMITIVE = MGLPrimitive_New();
+		MGL_NO_PRIMITIVE = (MGLPrimitive *)MGLPrimitive_Type.tp_alloc(&MGLPrimitive_Type, 0);
 		MGL_NO_PRIMITIVE->wrapper = Py_None;
 		MGL_NO_PRIMITIVE->primitive = 0;
 		MGL_NO_PRIMITIVE->geometry_primitive = 0;
@@ -455,6 +416,7 @@ bool MGL_InitializeModule(PyObject * module) {
 	}
 
 	{
+		PyModule_AddObject(module, "NOTHING", PyLong_FromLong(MGL_NOTHING));
 		PyModule_AddObject(module, "BLEND", PyLong_FromLong(MGL_BLEND));
 		PyModule_AddObject(module, "DEPTH_TEST", PyLong_FromLong(MGL_DEPTH_TEST));
 		PyModule_AddObject(module, "CULL_FACE", PyLong_FromLong(MGL_CULL_FACE));
@@ -462,23 +424,29 @@ bool MGL_InitializeModule(PyObject * module) {
 	}
 
 	{
-		MGL_LINEAR = MGLTextureFilter_New();
+		MGL_LINEAR = (MGLTextureFilter *)MGLTextureFilter_Type.tp_alloc(&MGLTextureFilter_Type, 0);
 		MGL_LINEAR->wrapper = 0;
 		MGL_LINEAR->min_filter = GL_LINEAR;
 		MGL_LINEAR->mag_filter = GL_LINEAR;
 		PyModule_AddObject(module, "LINEAR", (PyObject *)MGL_LINEAR);
 
-		MGL_NEAREST = MGLTextureFilter_New();
+		MGL_NEAREST = (MGLTextureFilter *)MGLTextureFilter_Type.tp_alloc(&MGLTextureFilter_Type, 0);
 		MGL_NEAREST->wrapper = 0;
 		MGL_NEAREST->min_filter = GL_NEAREST;
 		MGL_NEAREST->mag_filter = GL_NEAREST;
 		PyModule_AddObject(module, "NEAREST", (PyObject *)MGL_NEAREST);
 
-		MGL_MIPMAP = MGLTextureFilter_New();
-		MGL_MIPMAP->wrapper = 0;
-		MGL_MIPMAP->min_filter = GL_LINEAR_MIPMAP_LINEAR;
-		MGL_MIPMAP->mag_filter = GL_LINEAR;
-		PyModule_AddObject(module, "MIPMAP", (PyObject *)MGL_MIPMAP);
+		MGL_LINEAR_MIPMAP = (MGLTextureFilter *)MGLTextureFilter_Type.tp_alloc(&MGLTextureFilter_Type, 0);
+		MGL_LINEAR_MIPMAP->wrapper = 0;
+		MGL_LINEAR_MIPMAP->min_filter = GL_LINEAR_MIPMAP_LINEAR;
+		MGL_LINEAR_MIPMAP->mag_filter = GL_LINEAR;
+		PyModule_AddObject(module, "LINEAR_MIPMAP", (PyObject *)MGL_LINEAR_MIPMAP);
+
+		MGL_NEAREST_MIPMAP = (MGLTextureFilter *)MGLTextureFilter_Type.tp_alloc(&MGLTextureFilter_Type, 0);
+		MGL_NEAREST_MIPMAP->wrapper = 0;
+		MGL_NEAREST_MIPMAP->min_filter = GL_NEAREST_MIPMAP_LINEAR;
+		MGL_NEAREST_MIPMAP->mag_filter = GL_NEAREST;
+		PyModule_AddObject(module, "NEAREST_MIPMAP", (PyObject *)MGL_NEAREST_MIPMAP);
 	}
 
 	return true;

@@ -17,30 +17,22 @@ class Framebuffer:
         Create a :py:class:`Framebuffer` using :py:meth:`Context.framebuffer`.
     '''
 
-    __slots__ = ['mglo']
-
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Framebuffer.__new__(Framebuffer)
-        res.mglo = obj
-        return res
+    __slots__ = ['mglo', '_color_attachments', '_depth_attachment']
 
     def __init__(self):
         self.mglo = None
+        self._color_attachments = None
+        self._depth_attachment = None
         raise NotImplementedError()
 
     def __repr__(self):
         return '<Framebuffer: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def viewport(self) -> Tuple[int, int, int, int]:
@@ -124,7 +116,7 @@ class Framebuffer:
             tuple: The color attachments of the framebuffer.
         '''
 
-        return tuple(Renderbuffer.new(x) for x in self.mglo.color_attachments)
+        return self._color_attachments
 
     @property
     def depth_attachment(self) -> Renderbuffer:
@@ -132,7 +124,7 @@ class Framebuffer:
             Renderbuffer: The depth attachment of the framebuffer.
         '''
 
-        return Renderbuffer.new(self.mglo.depth_attachment)
+        return self._depth_attachment
 
     @property
     def glo(self) -> int:
@@ -215,7 +207,7 @@ class Framebuffer:
                 write_offset (int): The write offset.
         '''
 
-        if isinstance(buffer, Buffer):
+        if type(buffer) is Buffer:
             buffer = buffer.mglo
 
         return self.mglo.read_into(buffer, viewport, components, attachment, alignment, floats, write_offset)

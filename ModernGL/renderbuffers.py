@@ -21,16 +21,6 @@ class Renderbuffer:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Renderbuffer.__new__(Renderbuffer)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -39,10 +29,10 @@ class Renderbuffer:
         return '<Renderbuffer: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def width(self) -> int:

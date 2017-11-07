@@ -20,16 +20,6 @@ class Texture:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj) -> 'Texture':
-        '''
-            For internal use only.
-        '''
-
-        res = Texture.__new__(Texture)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -38,10 +28,10 @@ class Texture:
         return '<Texture: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def repeat_x(self) -> bool:
@@ -181,7 +171,7 @@ class Texture:
                 write_offset (int): The write offset.
         '''
 
-        if isinstance(buffer, Buffer):
+        if type(buffer) is Buffer:
             buffer = buffer.mglo
 
         return self.mglo.read_into(buffer, alignment, write_offset)
@@ -198,7 +188,7 @@ class Texture:
                 alignment (int): The byte alignment of the pixels.
         '''
 
-        if isinstance(data, Buffer):
+        if type(data) is Buffer:
             data = data.mglo
 
         self.mglo.write(data, viewport, alignment)
@@ -245,16 +235,6 @@ class Texture3D:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj) -> 'Texture3D':
-        '''
-            For internal use only.
-        '''
-
-        res = Texture3D.__new__(Texture3D)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -263,10 +243,10 @@ class Texture3D:
         return '<Texture3D: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def repeat_x(self) -> bool:
@@ -410,7 +390,7 @@ class Texture3D:
                 write_offset (int): The write offset.
         '''
 
-        if isinstance(buffer, Buffer):
+        if type(buffer) is Buffer:
             buffer = buffer.mglo
 
         return self.mglo.read_into(buffer, alignment, write_offset)
@@ -427,7 +407,7 @@ class Texture3D:
                 alignment (int): The byte alignment of the pixels.
         '''
 
-        if isinstance(data, Buffer):
+        if type(data) is Buffer:
             data = data.mglo
 
         self.mglo.write(data, viewport, alignment)
@@ -474,16 +454,6 @@ class TextureCube:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj) -> 'TextureCube':
-        '''
-            For internal use only.
-        '''
-
-        res = TextureCube.__new__(TextureCube)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -492,10 +462,10 @@ class TextureCube:
         return '<TextureCube: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def glo(self) -> int:
@@ -532,7 +502,7 @@ class TextureCube:
                 write_offset (int): The write offset.
         '''
 
-        if isinstance(buffer, Buffer):
+        if type(buffer) is Buffer:
             buffer = buffer.mglo
 
         return self.mglo.read_into(buffer, face, alignment, write_offset)
@@ -550,7 +520,7 @@ class TextureCube:
                 alignment (int): The byte alignment of the pixels.
         '''
 
-        if isinstance(data, Buffer):
+        if type(data) is Buffer:
             data = data.mglo
 
         self.mglo.write(face, data, viewport, alignment)

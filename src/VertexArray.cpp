@@ -1,23 +1,7 @@
-#include "VertexArray.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
-#include "Primitive.hpp"
-#include "Buffer.hpp"
-
-#include "Attribute.hpp"
-#include "VertexArrayAttribute.hpp"
-#include "VertexArrayListAttribute.hpp"
-
-#include "ProgramStage.hpp"
-#include "Subroutine.hpp"
+#include "Types.hpp"
 
 PyObject * MGLVertexArray_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLVertexArray * self = (MGLVertexArray *)type->tp_alloc(type, 0);
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArray_tp_new %p\n", self);
-	#endif
 
 	if (self) {
 	}
@@ -26,11 +10,6 @@ PyObject * MGLVertexArray_tp_new(PyTypeObject * type, PyObject * args, PyObject 
 }
 
 void MGLVertexArray_tp_dealloc(MGLVertexArray * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArray_tp_dealloc %p\n", self);
-	#endif
-
 	MGLVertexArray_Type.tp_free((PyObject *)self);
 }
 
@@ -355,24 +334,10 @@ PyTypeObject MGLVertexArray_Type = {
 	MGLVertexArray_tp_new,                                  // tp_new
 };
 
-MGLVertexArray * MGLVertexArray_New() {
-	MGLVertexArray * self = (MGLVertexArray *)MGLVertexArray_tp_new(&MGLVertexArray_Type, 0, 0);
-	return self;
-}
-
 void MGLVertexArray_Invalidate(MGLVertexArray * array) {
 	if (Py_TYPE(array) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLVertexArray_Invalidate %p already released\n", array);
-		#endif
-
 		return;
 	}
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArray_Invalidate %p\n", array);
-	#endif
 
 	const GLMethods & gl = array->context->gl;
 	gl.DeleteVertexArrays(1, (GLuint *)&array->vertex_array_obj);
@@ -412,17 +377,17 @@ void MGLVertexArray_Complete(MGLVertexArray * vertex_array) {
 
 			if (program_attribute->rows_length > 1) {
 
-				MGLVertexArrayListAttribute * attrib_list = MGLVertexArrayListAttribute_New();
+				MGLVertexArrayListAttribute * attrib_list = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_Type.tp_alloc(&MGLVertexArrayListAttribute_Type, 0);
 				attrib_list->content = PyTuple_New(program_attribute->array_length);
 				attrib_list->location = program_attribute->location;
 
 				for (int i = 0; i < program_attribute->array_length; ++i) {
-					MGLVertexArrayListAttribute * matrix = MGLVertexArrayListAttribute_New();
+					MGLVertexArrayListAttribute * matrix = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_Type.tp_alloc(&MGLVertexArrayListAttribute_Type, 0);
 					matrix->content = PyTuple_New(program_attribute->rows_length);
 					matrix->location = attrib_list->location + i * program_attribute->rows_length;
 
 					for (int j = 0; j < program_attribute->rows_length; ++j) {
-						MGLVertexArrayAttribute * attrib = MGLVertexArrayAttribute_New();
+						MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_Type.tp_alloc(&MGLVertexArrayAttribute_Type, 0);
 						attrib->vertex_array_obj = vertex_array->vertex_array_obj;
 						attrib->location = matrix->location + j;
 						attrib->attribute = program_attribute;
@@ -438,12 +403,12 @@ void MGLVertexArray_Complete(MGLVertexArray * vertex_array) {
 
 			} else {
 
-				MGLVertexArrayListAttribute * attrib_list = MGLVertexArrayListAttribute_New();
+				MGLVertexArrayListAttribute * attrib_list = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_Type.tp_alloc(&MGLVertexArrayListAttribute_Type, 0);
 				attrib_list->content = PyTuple_New(program_attribute->array_length);
 				attrib_list->location = program_attribute->location;
 
 				for (int i = 0; i < program_attribute->array_length; ++i) {
-					MGLVertexArrayAttribute * attrib = MGLVertexArrayAttribute_New();
+					MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_Type.tp_alloc(&MGLVertexArrayAttribute_Type, 0);
 					attrib->vertex_array_obj = vertex_array->vertex_array_obj;
 					attrib->location = attrib_list->location + i;
 					attrib->attribute = program_attribute;
@@ -459,12 +424,12 @@ void MGLVertexArray_Complete(MGLVertexArray * vertex_array) {
 		} else {
 
 			if (program_attribute->rows_length > 1) {
-				MGLVertexArrayListAttribute * matrix = MGLVertexArrayListAttribute_New();
+				MGLVertexArrayListAttribute * matrix = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_Type.tp_alloc(&MGLVertexArrayListAttribute_Type, 0);
 				matrix->content = PyTuple_New(program_attribute->rows_length);
 				matrix->location = program_attribute->location;
 
 				for (int j = 0; j < program_attribute->rows_length; ++j) {
-					MGLVertexArrayAttribute * attrib = MGLVertexArrayAttribute_New();
+					MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_Type.tp_alloc(&MGLVertexArrayAttribute_Type, 0);
 					attrib->vertex_array_obj = vertex_array->vertex_array_obj;
 					attrib->location = matrix->location + j;
 					attrib->attribute = program_attribute;
@@ -477,7 +442,7 @@ void MGLVertexArray_Complete(MGLVertexArray * vertex_array) {
 
 			} else {
 
-				MGLVertexArrayAttribute * attrib = MGLVertexArrayAttribute_New();
+				MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_Type.tp_alloc(&MGLVertexArrayAttribute_Type, 0);
 				attrib->vertex_array_obj = vertex_array->vertex_array_obj;
 				attrib->location = program_attribute->location;
 				attrib->attribute = program_attribute;

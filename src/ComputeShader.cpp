@@ -1,18 +1,9 @@
-#include "ComputeShader.hpp"
-
-#include "Error.hpp"
-
-#include "Uniform.hpp"
-#include "UniformBlock.hpp"
+#include "Types.hpp"
 
 #include "InlineMethods.hpp"
 
 PyObject * MGLComputeShader_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLComputeShader * self = (MGLComputeShader *)type->tp_alloc(type, 0);
-
-	#ifdef MGL_VERBOSE
-	printf("MGLComputeShader_tp_new %p\n", self);
-	#endif
 
 	if (self) {
 	}
@@ -21,11 +12,6 @@ PyObject * MGLComputeShader_tp_new(PyTypeObject * type, PyObject * args, PyObjec
 }
 
 void MGLComputeShader_tp_dealloc(MGLComputeShader * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLComputeShader_tp_dealloc %p\n", self);
-	#endif
-
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -150,11 +136,6 @@ PyTypeObject MGLComputeShader_Type = {
 	MGLComputeShader_tp_new,                                // tp_new
 };
 
-MGLComputeShader * MGLComputeShader_New() {
-	MGLComputeShader * self = (MGLComputeShader *)MGLComputeShader_tp_new(&MGLComputeShader_Type, 0, 0);
-	return self;
-}
-
 void MGLComputeShader_Compile(MGLComputeShader * compute_shader) {
 	const char * source_str = PyUnicode_AsUTF8(compute_shader->source);
 
@@ -236,7 +217,7 @@ void MGLComputeShader_Compile(MGLComputeShader * compute_shader) {
 	gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORMS, &num_uniforms);
 
 	for (int i = 0; i < num_uniforms; ++i) {
-		MGLUniform * uniform = MGLUniform_New();
+		MGLUniform * uniform = (MGLUniform *)MGLUniform_Type.tp_alloc(&MGLUniform_Type, 0);
 
 		uniform->context = compute_shader->context;
 
@@ -275,7 +256,7 @@ void MGLComputeShader_Compile(MGLComputeShader * compute_shader) {
 	gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORM_BLOCKS, &num_uniform_blocks);
 
 	for (int i = 0; i < num_uniform_blocks; ++i) {
-		MGLUniformBlock * uniform_block = MGLUniformBlock_New();
+		MGLUniformBlock * uniform_block = (MGLUniformBlock *)MGLUniformBlock_Type.tp_alloc(&MGLUniformBlock_Type, 0);
 
 		int name_len = 0;
 		char name[256];

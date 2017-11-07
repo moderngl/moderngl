@@ -16,19 +16,9 @@ class BufferAccess:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = BufferAccess.__new__(BufferAccess)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
-        raise NotImplementedError('BufferAccess')
+        raise NotImplementedError()
 
     def __repr__(self):
         return '<BufferAccess>'
@@ -41,10 +31,10 @@ class BufferAccess:
         self.mglo.close()
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     def open(self) -> None:
         '''
@@ -101,13 +91,63 @@ class BufferAccess:
             Write the content.
 
             Args:
-                size (int): The data.
+                data (bytes): The data.
 
             Keyword Args:
                 offset (int): The offset.
         '''
 
         self.mglo.write(data, offset)
+
+    def write_chunks(self, data, start, step, count) -> None:
+        '''
+            Split `data` to `count` equal parts.
+            Write the chunks using offsets calculated from `start`, `step` and `stop`.
+
+            Args:
+                data (bytes): The data.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+        '''
+
+        self.mglo.write_chunks(data, start, step, count)
+
+    def read_chunks(self, chunk_size, start, step, count) -> bytes:
+        '''
+            Read the content.
+
+            Args:
+                chunk_size (int): The chunk size.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+
+            Returns:
+                bytes: binary data
+        '''
+
+        return self.mglo.read_chunks(chunk_size, start, step, count)
+
+    def read_chunks_into(self, buffer, chunk_size, start, step, count, *, write_offset=0) -> None:
+        '''
+            Read the content.
+
+            Args:
+                buffer (bytarray): The buffer that will receive the content.
+                chunk_size (int): The chunk size.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+
+            Keyword Args:
+                write_offset (int): The write offset.
+
+            Returns:
+                bytes: binary data
+        '''
+
+        return self.mglo.read(buffer, chunk_size, start, step, count, write_offset)
 
     @property
     def offset(self) -> int:
@@ -149,16 +189,6 @@ class Buffer:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Buffer.__new__(Buffer)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -167,10 +197,10 @@ class Buffer:
         return '<Buffer: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def size(self) -> int:
@@ -217,7 +247,9 @@ class Buffer:
                     ...     access.write(...)
         '''
 
-        return BufferAccess.new(self.mglo.access(size, offset, readonly))
+        res = BufferAccess.__new__(BufferAccess)
+        res.mglo = self.mglo.access(size, offset, readonly)
+        return res
 
     def read(self, size=-1, *, offset=0) -> bytes:
         '''
@@ -265,6 +297,56 @@ class Buffer:
         '''
 
         self.mglo.write(data, offset)
+
+    def write_chunks(self, data, start, step, count) -> None:
+        '''
+            Split `data` to `count` equal parts.
+            Write the chunks using offsets calculated from `start`, `step` and `stop`.
+
+            Args:
+                data (bytes): The data.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+        '''
+
+        self.mglo.write_chunks(data, start, step, count)
+
+    def read_chunks(self, chunk_size, start, step, count) -> bytes:
+        '''
+            Read the content.
+
+            Args:
+                chunk_size (int): The chunk size.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+
+            Returns:
+                bytes: binary data
+        '''
+
+        return self.mglo.read_chunks(chunk_size, start, step, count)
+
+    def read_chunks_into(self, buffer, chunk_size, start, step, count, *, write_offset=0) -> None:
+        '''
+            Read the content.
+
+            Args:
+                buffer (bytarray): The buffer that will receive the content.
+                chunk_size (int): The chunk size.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+
+            Keyword Args:
+                write_offset (int): The write offset.
+
+            Returns:
+                bytes: binary data
+        '''
+
+        return self.mglo.read(buffer, chunk_size, start, step, count, write_offset)
 
     def clear(self, size=-1, *, offset=0, chunk=None) -> None:
         '''

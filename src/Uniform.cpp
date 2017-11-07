@@ -1,14 +1,9 @@
-#include "Uniform.hpp"
+#include "Types.hpp"
 
-#include "Error.hpp"
-#include "InvalidObject.hpp"
+#include "UniformGetSetters.hpp"
 
 PyObject * MGLUniform_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLUniform * self = (MGLUniform *)type->tp_alloc(type, 0);
-
-	#ifdef MGL_VERBOSE
-	printf("MGLUniform_tp_new %p\n", self);
-	#endif
 
 	if (self) {
 	}
@@ -17,11 +12,6 @@ PyObject * MGLUniform_tp_new(PyTypeObject * type, PyObject * args, PyObject * kw
 }
 
 void MGLUniform_tp_dealloc(MGLUniform * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLUniform_tp_dealloc %p\n", self);
-	#endif
-
 	MGLUniform_Type.tp_free((PyObject *)self);
 }
 
@@ -38,31 +28,39 @@ PyObject * MGLUniform_read(MGLUniform * self) {
 }
 
 PyObject * MGLUniform_write(MGLUniform * self, PyObject * args) {
-	const char * buffer;
-	Py_ssize_t size;
+	PyObject * data;
 
 	int args_ok = PyArg_ParseTuple(
 		args,
-		"y#",   // TODO: replace y# with O if possible
-		&buffer,
-		&size
+		"O",
+		&data
 	);
 
 	if (!args_ok) {
 		return 0;
 	}
 
-	if (size != self->array_length * self->element_size) {
-		MGLError_Set("data size mismatch %d != %d", size, self->array_length * self->element_size);
+	Py_buffer buffer_view;
+
+	int get_buffer = PyObject_GetBuffer(data, &buffer_view, PyBUF_SIMPLE);
+	if (get_buffer < 0) {
+		MGLError_Set("data (%s) does not support buffer interface", Py_TYPE(data)->tp_name);
+		return 0;
+	}
+
+	if (buffer_view.len != self->array_length * self->element_size) {
+		MGLError_Set("data size mismatch %d != %d", buffer_view.len, self->array_length * self->element_size);
+		PyBuffer_Release(&buffer_view);
 		return 0;
 	}
 
 	if (self->matrix) {
-		((gl_uniform_matrix_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, self->array_length, false, buffer);
+		((gl_uniform_matrix_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, self->array_length, false, buffer_view.buf);
 	} else {
-		((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, self->array_length, buffer);
+		((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, self->array_length, buffer_view.buf);
 	}
 
+	PyBuffer_Release(&buffer_view);
 	Py_RETURN_NONE;
 }
 
@@ -147,21 +145,9 @@ PyTypeObject MGLUniform_Type = {
 	MGLUniform_tp_new,                                      // tp_new
 };
 
-MGLUniform * MGLUniform_New() {
-	MGLUniform * self = (MGLUniform *)MGLUniform_tp_new(&MGLUniform_Type, 0, 0);
-	return self;
-}
-
 void MGLUniform_Invalidate(MGLUniform * uniform) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLUniform_Invalidate %p\n", uniform);
-	#endif
-
 	Py_DECREF(uniform->name);
-
 	Py_TYPE(uniform) = &MGLInvalidObject_Type;
-
 	Py_DECREF(uniform);
 }
 

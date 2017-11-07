@@ -1,14 +1,7 @@
-#include "Subroutine.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
+#include "Types.hpp"
 
 PyObject * MGLSubroutine_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLSubroutine * self = (MGLSubroutine *)type->tp_alloc(type, 0);
-
-	#ifdef MGL_VERBOSE
-	printf("MGLSubroutine_tp_new %p\n", self);
-	#endif
 
 	if (self) {
 	}
@@ -17,11 +10,6 @@ PyObject * MGLSubroutine_tp_new(PyTypeObject * type, PyObject * args, PyObject *
 }
 
 void MGLSubroutine_tp_dealloc(MGLSubroutine * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLSubroutine_tp_dealloc %p\n", self);
-	#endif
-
 	MGLSubroutine_Type.tp_free((PyObject *)self);
 }
 
@@ -90,21 +78,9 @@ PyTypeObject MGLSubroutine_Type = {
 	MGLSubroutine_tp_new,                                   // tp_new
 };
 
-MGLSubroutine * MGLSubroutine_New() {
-	MGLSubroutine * self = (MGLSubroutine *)MGLSubroutine_tp_new(&MGLSubroutine_Type, 0, 0);
-	return self;
-}
-
 void MGLSubroutine_Invalidate(MGLSubroutine * subroutine) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLSubroutine_Invalidate %p\n", subroutine);
-	#endif
-
 	Py_DECREF(subroutine->name);
-
 	Py_TYPE(subroutine) = &MGLInvalidObject_Type;
-
 	Py_DECREF(subroutine);
 }
 

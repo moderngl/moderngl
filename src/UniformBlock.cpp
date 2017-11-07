@@ -1,13 +1,7 @@
-#include "UniformBlock.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLUniformBlock_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLUniformBlock * self = (MGLUniformBlock *)type->tp_alloc(type, 0);
-
-	#ifdef MGL_VERBOSE
-	printf("MGLUniformBlock_tp_new %p\n", self);
-	#endif
 
 	if (self) {
 	}
@@ -16,10 +10,6 @@ PyObject * MGLUniformBlock_tp_new(PyTypeObject * type, PyObject * args, PyObject
 }
 
 void MGLUniformBlock_tp_dealloc(MGLUniformBlock * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLUniformBlock_tp_dealloc %p\n", self);
-	#endif
 
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
@@ -112,11 +102,6 @@ PyTypeObject MGLUniformBlock_Type = {
 	0,                                                      // tp_alloc
 	MGLUniformBlock_tp_new,                                 // tp_new
 };
-
-MGLUniformBlock * MGLUniformBlock_New() {
-	MGLUniformBlock * self = (MGLUniformBlock *)MGLUniformBlock_tp_new(&MGLUniformBlock_Type, 0, 0);
-	return self;
-}
 
 void MGLUniformBlock_Complete(MGLUniformBlock * uniform_block, const GLMethods & gl) {
 }

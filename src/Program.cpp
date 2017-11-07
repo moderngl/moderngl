@@ -1,24 +1,9 @@
-#include "Program.hpp"
-
-#include "Error.hpp"
-#include "InvalidObject.hpp"
-#include "Shader.hpp"
-#include "Uniform.hpp"
-#include "UniformBlock.hpp"
-#include "Attribute.hpp"
-#include "Subroutine.hpp"
-#include "SubroutineUniform.hpp"
-#include "ProgramStage.hpp"
-#include "Varying.hpp"
+#include "Types.hpp"
 
 #include "InlineMethods.hpp"
 
 PyObject * MGLProgram_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLProgram * self = (MGLProgram *)type->tp_alloc(type, 0);
-
-	#ifdef MGL_VERBOSE
-	printf("MGLProgram_tp_new %p\n", self);
-	#endif
 
 	if (self) {
 	}
@@ -27,11 +12,6 @@ PyObject * MGLProgram_tp_new(PyTypeObject * type, PyObject * args, PyObject * kw
 }
 
 void MGLProgram_tp_dealloc(MGLProgram * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLProgram_tp_dealloc %p\n", self);
-	#endif
-
 	MGLProgram_Type.tp_free((PyObject *)self);
 }
 
@@ -204,24 +184,10 @@ PyTypeObject MGLProgram_Type = {
 	MGLProgram_tp_new,                                      // tp_new
 };
 
-MGLProgram * MGLProgram_New() {
-	MGLProgram * self = (MGLProgram *)MGLProgram_tp_new(&MGLProgram_Type, 0, 0);
-	return self;
-}
-
 void MGLProgram_Invalidate(MGLProgram * program) {
 	if (Py_TYPE(program) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLProgram_Invalidate %p already released\n", program);
-		#endif
-
 		return;
 	}
-
-	#ifdef MGL_VERBOSE
-	printf("MGLProgram_Invalidate %p\n", program);
-	#endif
 
 	const GLMethods & gl = program->context->gl;
 
@@ -347,7 +313,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	int location_base = 0;
 
 	if (shaders[VERTEX_SHADER_SLOT]) {
-		MGLProgramStage * program_stage = MGLProgramStage_New();
+		MGLProgramStage * program_stage = (MGLProgramStage *)MGLProgramStage_Type.tp_alloc(&MGLProgramStage_Type, 0);
 		MGLProgramStage_Complete(program_stage, GL_VERTEX_SHADER, obj, location_base, gl);
 		program->vertex_shader = program_stage;
 	} else {
@@ -355,7 +321,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	}
 
 	if (shaders[FRAGMENT_SHADER_SLOT]) {
-		MGLProgramStage * program_stage = MGLProgramStage_New();
+		MGLProgramStage * program_stage = (MGLProgramStage *)MGLProgramStage_Type.tp_alloc(&MGLProgramStage_Type, 0);
 		MGLProgramStage_Complete(program_stage, GL_FRAGMENT_SHADER, obj, location_base, gl);
 		program->fragment_shader = program_stage;
 	} else {
@@ -363,7 +329,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	}
 
 	if (shaders[GEOMETRY_SHADER_SLOT]) {
-		MGLProgramStage * program_stage = MGLProgramStage_New();
+		MGLProgramStage * program_stage = (MGLProgramStage *)MGLProgramStage_Type.tp_alloc(&MGLProgramStage_Type, 0);
 		MGLProgramStage_Complete(program_stage, GL_GEOMETRY_SHADER, obj, location_base, gl);
 		program->geometry_shader = program_stage;
 	} else {
@@ -371,7 +337,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	}
 
 	if (shaders[TESS_EVALUATION_SHADER_SLOT]) {
-		MGLProgramStage * program_stage = MGLProgramStage_New();
+		MGLProgramStage * program_stage = (MGLProgramStage *)MGLProgramStage_Type.tp_alloc(&MGLProgramStage_Type, 0);
 		MGLProgramStage_Complete(program_stage, GL_TESS_EVALUATION_SHADER, obj, location_base, gl);
 		program->tess_evaluation_shader = program_stage;
 	} else {
@@ -379,7 +345,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	}
 
 	if (shaders[TESS_CONTROL_SHADER_SLOT]) {
-		MGLProgramStage * program_stage = MGLProgramStage_New();
+		MGLProgramStage * program_stage = (MGLProgramStage *)MGLProgramStage_Type.tp_alloc(&MGLProgramStage_Type, 0);
 		MGLProgramStage_Complete(program_stage, GL_TESS_CONTROL_SHADER, obj, location_base, gl);
 		program->tess_control_shader = program_stage;
 	} else {
@@ -445,7 +411,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	gl.GetProgramiv(obj, GL_ACTIVE_UNIFORMS, &num_uniforms);
 
 	for (int i = 0; i < num_uniforms; ++i) {
-		MGLUniform * uniform = MGLUniform_New();
+		MGLUniform * uniform = (MGLUniform *)MGLUniform_Type.tp_alloc(&MGLUniform_Type, 0);
 
 		uniform->context = program->context;
 
@@ -484,7 +450,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	gl.GetProgramiv(obj, GL_ACTIVE_UNIFORM_BLOCKS, &num_uniform_blocks);
 
 	for (int i = 0; i < num_uniform_blocks; ++i) {
-		MGLUniformBlock * uniform_block = MGLUniformBlock_New();
+		MGLUniformBlock * uniform_block = (MGLUniformBlock *)MGLUniformBlock_Type.tp_alloc(&MGLUniformBlock_Type, 0);
 
 		int name_len = 0;
 		char name[256];
@@ -515,7 +481,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	gl.GetProgramiv(obj, GL_ACTIVE_ATTRIBUTES, &num_attributes);
 
 	for (int i = 0; i < num_attributes; ++i) {
-		MGLAttribute * attribute = MGLAttribute_New();
+		MGLAttribute * attribute = (MGLAttribute *)MGLAttribute_Type.tp_alloc(&MGLAttribute_Type, 0);
 
 		attribute->context = program->context;
 
@@ -546,7 +512,7 @@ void MGLProgram_Compile(MGLProgram * program, PyObject * outputs) {
 	gl.GetProgramiv(obj, GL_TRANSFORM_FEEDBACK_VARYINGS, &program->num_varyings);
 
 	for (int i = 0; i < program->num_varyings; ++i) {
-		MGLVarying * varying = MGLVarying_New();
+		MGLVarying * varying = (MGLVarying *)MGLVarying_Type.tp_alloc(&MGLVarying_Type, 0);
 
 		int name_len = 0;
 		char name[256];

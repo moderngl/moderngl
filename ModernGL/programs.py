@@ -16,16 +16,6 @@ class ComputeShader:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = ComputeShader.__new__(ComputeShader)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -34,10 +24,10 @@ class ComputeShader:
         return '<ComputeShader: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def source(self) -> str:
@@ -156,16 +146,6 @@ class Shader:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Shader.__new__(Shader)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -174,10 +154,10 @@ class Shader:
         return '<Shader: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def source(self) -> str:
@@ -237,16 +217,6 @@ class Program:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Program.__new__(Program)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -255,10 +225,10 @@ class Program:
         return '<Program: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def uniforms(self) -> UniformMap:

@@ -1,6 +1,4 @@
-#include "InvalidObject.hpp"
-
-#include "Error.hpp"
+#include "Types.hpp"
 
 PyObject * MGLInvalidObject_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLInvalidObject * self = (MGLInvalidObject *)type->tp_alloc(type, 0);
@@ -12,11 +10,6 @@ PyObject * MGLInvalidObject_tp_new(PyTypeObject * type, PyObject * args, PyObjec
 }
 
 void MGLInvalidObject_tp_dealloc(MGLInvalidObject * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLInvalidObject_tp_dealloc %p\n", self);
-	#endif
-
 	MGLInvalidObject_Type.tp_free((PyObject *)self);
 }
 
