@@ -50,7 +50,7 @@ MGLBufferAccess * MGLBuffer_access(MGLBuffer * self, PyObject * args) {
 		return 0;
 	}
 
-	MGLBufferAccess * access = (MGLBufferAccess *)MGLBufferAccess_tp_new(&MGLBufferAccess_Type, 0, 0);
+	MGLBufferAccess * access = (MGLBufferAccess *)MGLBufferAccess_Type.tp_alloc(&MGLBufferAccess_Type, 0);
 
 	access->gl = &self->context->gl;
 	access->ptr = 0;

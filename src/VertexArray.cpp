@@ -389,17 +389,17 @@ void MGLVertexArray_Complete(MGLVertexArray * vertex_array) {
 
 			if (program_attribute->rows_length > 1) {
 
-				MGLVertexArrayListAttribute * attrib_list = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_tp_new(&MGLVertexArrayListAttribute_Type, 0, 0);
+				MGLVertexArrayListAttribute * attrib_list = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_Type.tp_alloc(&MGLVertexArrayListAttribute_Type, 0);
 				attrib_list->content = PyTuple_New(program_attribute->array_length);
 				attrib_list->location = program_attribute->location;
 
 				for (int i = 0; i < program_attribute->array_length; ++i) {
-					MGLVertexArrayListAttribute * matrix = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_tp_new(&MGLVertexArrayListAttribute_Type, 0, 0);
+					MGLVertexArrayListAttribute * matrix = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_Type.tp_alloc(&MGLVertexArrayListAttribute_Type, 0);
 					matrix->content = PyTuple_New(program_attribute->rows_length);
 					matrix->location = attrib_list->location + i * program_attribute->rows_length;
 
 					for (int j = 0; j < program_attribute->rows_length; ++j) {
-						MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_tp_new(&MGLVertexArrayAttribute_Type, 0, 0);
+						MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_Type.tp_alloc(&MGLVertexArrayAttribute_Type, 0);
 						attrib->vertex_array_obj = vertex_array->vertex_array_obj;
 						attrib->location = matrix->location + j;
 						attrib->attribute = program_attribute;
@@ -415,12 +415,12 @@ void MGLVertexArray_Complete(MGLVertexArray * vertex_array) {
 
 			} else {
 
-				MGLVertexArrayListAttribute * attrib_list = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_tp_new(&MGLVertexArrayListAttribute_Type, 0, 0);
+				MGLVertexArrayListAttribute * attrib_list = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_Type.tp_alloc(&MGLVertexArrayListAttribute_Type, 0);
 				attrib_list->content = PyTuple_New(program_attribute->array_length);
 				attrib_list->location = program_attribute->location;
 
 				for (int i = 0; i < program_attribute->array_length; ++i) {
-					MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_tp_new(&MGLVertexArrayAttribute_Type, 0, 0);
+					MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_Type.tp_alloc(&MGLVertexArrayAttribute_Type, 0);
 					attrib->vertex_array_obj = vertex_array->vertex_array_obj;
 					attrib->location = attrib_list->location + i;
 					attrib->attribute = program_attribute;
@@ -436,12 +436,12 @@ void MGLVertexArray_Complete(MGLVertexArray * vertex_array) {
 		} else {
 
 			if (program_attribute->rows_length > 1) {
-				MGLVertexArrayListAttribute * matrix = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_tp_new(&MGLVertexArrayListAttribute_Type, 0, 0);
+				MGLVertexArrayListAttribute * matrix = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_Type.tp_alloc(&MGLVertexArrayListAttribute_Type, 0);
 				matrix->content = PyTuple_New(program_attribute->rows_length);
 				matrix->location = program_attribute->location;
 
 				for (int j = 0; j < program_attribute->rows_length; ++j) {
-					MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_tp_new(&MGLVertexArrayAttribute_Type, 0, 0);
+					MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_Type.tp_alloc(&MGLVertexArrayAttribute_Type, 0);
 					attrib->vertex_array_obj = vertex_array->vertex_array_obj;
 					attrib->location = matrix->location + j;
 					attrib->attribute = program_attribute;
@@ -454,7 +454,7 @@ void MGLVertexArray_Complete(MGLVertexArray * vertex_array) {
 
 			} else {
 
-				MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_tp_new(&MGLVertexArrayAttribute_Type, 0, 0);
+				MGLVertexArrayAttribute * attrib = (MGLVertexArrayAttribute *)MGLVertexArrayAttribute_Type.tp_alloc(&MGLVertexArrayAttribute_Type, 0);
 				attrib->vertex_array_obj = vertex_array->vertex_array_obj;
 				attrib->location = program_attribute->location;
 				attrib->attribute = program_attribute;

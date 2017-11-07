@@ -103,7 +103,7 @@ PyTypeObject MGLError_Type = {
 };
 
 void MGLError_SetTrace(const char * filename, const char * function, int line, const char * format, ...) {
-	MGLError * error = (MGLError *)MGLError_tp_new(&MGLError_Type, 0, 0);
+	MGLError * error = (MGLError *)MGLError_Type.tp_alloc(&MGLError_Type, 0);
 
 	va_list va_args;
 	va_start(va_args, format);
@@ -116,7 +116,7 @@ void MGLError_SetTrace(const char * filename, const char * function, int line, c
 }
 
 void MGLError_SetTrace(const char * filename, const char * function, int line, PyObject * message) {
-	MGLError * error = (MGLError *)MGLError_tp_new(&MGLError_Type, 0, 0);
+	MGLError * error = (MGLError *)MGLError_Type.tp_alloc(&MGLError_Type, 0);
 
 	error->filename = filename;
 	error->function = function;

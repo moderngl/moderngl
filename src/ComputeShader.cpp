@@ -222,7 +222,7 @@ void MGLComputeShader_Compile(MGLComputeShader * compute_shader) {
 	gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORMS, &num_uniforms);
 
 	for (int i = 0; i < num_uniforms; ++i) {
-		MGLUniform * uniform = (MGLUniform *)MGLUniform_tp_new(&MGLUniform_Type, 0, 0);
+		MGLUniform * uniform = (MGLUniform *)MGLUniform_Type.tp_alloc(&MGLUniform_Type, 0);
 
 		uniform->context = compute_shader->context;
 
@@ -261,7 +261,7 @@ void MGLComputeShader_Compile(MGLComputeShader * compute_shader) {
 	gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORM_BLOCKS, &num_uniform_blocks);
 
 	for (int i = 0; i < num_uniform_blocks; ++i) {
-		MGLUniformBlock * uniform_block = (MGLUniformBlock *)MGLUniformBlock_tp_new(&MGLUniformBlock_Type, 0, 0);
+		MGLUniformBlock * uniform_block = (MGLUniformBlock *)MGLUniformBlock_Type.tp_alloc(&MGLUniformBlock_Type, 0);
 
 		int name_len = 0;
 		char name[256];

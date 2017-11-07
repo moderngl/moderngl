@@ -94,7 +94,7 @@ void MGLProgramStage_Complete(MGLProgramStage * program_stage, int shader_type, 
 	gl.GetProgramStageiv(program_obj, shader_type, GL_ACTIVE_SUBROUTINE_UNIFORMS, &num_subroutine_uniforms);
 
 	for (int i = 0; i < num_subroutines; ++i) {
-		MGLSubroutine * subroutine = (MGLSubroutine *)MGLSubroutine_tp_new(&MGLSubroutine_Type, 0, 0);
+		MGLSubroutine * subroutine = (MGLSubroutine *)MGLSubroutine_Type.tp_alloc(&MGLSubroutine_Type, 0);
 
 		int name_len = 0;
 		char name[256];
@@ -111,7 +111,7 @@ void MGLProgramStage_Complete(MGLProgramStage * program_stage, int shader_type, 
 	}
 
 	for (int i = 0; i < num_subroutine_uniforms; ++i) {
-		MGLSubroutineUniform * subroutine_uniform = (MGLSubroutineUniform *)MGLSubroutineUniform_tp_new(&MGLSubroutineUniform_Type, 0, 0);
+		MGLSubroutineUniform * subroutine_uniform = (MGLSubroutineUniform *)MGLSubroutineUniform_Type.tp_alloc(&MGLSubroutineUniform_Type, 0);
 
 		int name_len = 0;
 		char name[256];
