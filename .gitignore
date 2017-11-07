@@ -3,7 +3,9 @@ ModernGL/ext/**/*
 !ModernGL/ext/__main__.py
 !ModernGL/ext/README.md
 
-**/python-embed
+venv
+python-embed
+
 **/__pycache__
 **/Temp
 **/build
