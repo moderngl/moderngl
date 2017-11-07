@@ -28,10 +28,10 @@ class Texture:
         return '<Texture: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def repeat_x(self) -> bool:
@@ -243,10 +243,10 @@ class Texture3D:
         return '<Texture3D: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def repeat_x(self) -> bool:
@@ -462,10 +462,10 @@ class TextureCube:
         return '<TextureCube: %d>' % self.glo
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
     @property
     def glo(self) -> int:

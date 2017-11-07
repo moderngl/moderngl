@@ -68,10 +68,10 @@ class Primitive:
         return 'ModernGL.%s' % self.name
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
 
 TRIANGLES = Primitive.new(mgl.TRIANGLES, 'TRIANGLES')
@@ -158,10 +158,10 @@ class TextureFilter:
         return 'ModernGL.%s' % self.name
 
     def __eq__(self, other):
-        return self.mglo is other.mglo
+        return type(self) is type(other) and self.mglo is other.mglo
 
     def __ne__(self, other):
-        return self.mglo is not other.mglo
+        return type(self) is not type(other) or self.mglo is not other.mglo
 
 
 LINEAR = TextureFilter.new(mgl.LINEAR, 'LINEAR')
