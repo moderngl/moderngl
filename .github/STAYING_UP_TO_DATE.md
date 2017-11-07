@@ -15,6 +15,15 @@ All non-backward compatible changes will be logged here.
 
 > work in progress
 
+`Context.vendor`, `Context.version` and `Context.renderer` are deprecated. Please use `Context.info()`.
+
+```python
+ctx = ModernGL.create_context()
+# print(ctx.vendor, ctx.renderer, ctx.version)                      # bad
+info = ctx.info()
+print(info['GL_VENDOR'], info['GL_RENDERER'], info['GL_VERSION'])   # good
+```
+
 `Context.default_framebuffer` is deprecated. Please change `default_framebuffer` to `screen`, they are the same.
 The `Context.default_framebuffer` will be removed later.
 

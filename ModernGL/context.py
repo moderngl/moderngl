@@ -214,7 +214,7 @@ class Context:
     @property
     def vendor(self) -> str:
         '''
-            str: The vendor.
+            str: The vendor. [DEPRECATED] Use Contex.info() instead.
         '''
 
         return self.mglo.info()['GL_VENDOR']
@@ -222,7 +222,7 @@ class Context:
     @property
     def renderer(self) -> str:
         '''
-            str: The renderer.
+            str: The renderer. [DEPRECATED] Use Contex.info() instead.
         '''
 
         return self.mglo.info()['GL_RENDERER']
@@ -230,7 +230,7 @@ class Context:
     @property
     def version(self) -> str:
         '''
-            str: The OpenGL version string.
+            str: The OpenGL version string. [DEPRECATED] Use Contex.info() instead.
         '''
 
         return self.mglo.info()['GL_VERSION']
