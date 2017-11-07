@@ -19,9 +19,8 @@ All non-backward compatible changes will be logged here.
 
 ```python
 ctx = ModernGL.create_context()
-# print(ctx.vendor, ctx.renderer, ctx.version)                      # bad
-info = ctx.info()
-print(info['GL_VENDOR'], info['GL_RENDERER'], info['GL_VERSION'])   # good
+# print(ctx.vendor, ctx.renderer, ctx.version)                                  # bad
+print(ctx.info['GL_VENDOR'], ctx.info['GL_RENDERER'], ctx.info['GL_VERSION'])   # good
 ```
 
 `Context.default_framebuffer` is deprecated. Please change `default_framebuffer` to `screen`, they are the same.
