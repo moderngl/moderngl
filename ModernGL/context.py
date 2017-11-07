@@ -217,7 +217,7 @@ class Context:
             str: The vendor.
         '''
 
-        return self.mglo.vendor
+        return self.mglo.info()['GL_VENDOR']
 
     @property
     def renderer(self) -> str:
@@ -225,15 +225,15 @@ class Context:
             str: The renderer.
         '''
 
-        return self.mglo.renderer
+        return self.mglo.info()['GL_RENDERER']
 
     @property
     def version(self) -> str:
         '''
-            str: The OpenGL version.
+            str: The OpenGL version string.
         '''
 
-        return self.mglo.version
+        return self.mglo.info()['GL_VERSION']
 
     @property
     def version_code(self) -> int:

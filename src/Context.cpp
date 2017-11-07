@@ -2035,39 +2035,6 @@ PyObject * MGLContext_get_error(MGLContext * self, void * closure) {
 	return PyUnicode_FromFormat("GL_UNKNOWN_ERROR");
 }
 
-PyObject * MGLContext_get_vendor(MGLContext * self, void * closure) {
-	const char * vendor = (const char *)self->gl.GetString(GL_VENDOR);
-
-	if (!vendor) {
-		MGLError_Set("missing vendor information");
-		return 0;
-	}
-
-	return PyUnicode_FromFormat("%s", vendor);
-}
-
-PyObject * MGLContext_get_renderer(MGLContext * self, void * closure) {
-	const char * renderer = (const char *)self->gl.GetString(GL_RENDERER);
-
-	if (!renderer) {
-		MGLError_Set("missing renderer information");
-		return 0;
-	}
-
-	return PyUnicode_FromFormat("%s", renderer);
-}
-
-PyObject * MGLContext_get_version(MGLContext * self, void * closure) {
-	const char * version = (const char *)self->gl.GetString(GL_VERSION);
-
-	if (!version) {
-		MGLError_Set("missing version information");
-		return 0;
-	}
-
-	return PyUnicode_FromFormat("%s", version);
-}
-
 PyObject * MGLContext_get_version_code(MGLContext * self, void * closure) {
 	return PyLong_FromLong(self->version_code);
 }
@@ -2079,6 +2046,24 @@ PyObject * MGLContext_get_info(MGLContext * self, void * closure) {
 
 	PyObject * info = PyDict_New();
 
+	PyDict_SetItemString(
+		info,
+		"GL_VENDOR",
+		PyUnicode_FromString((const char *)self->gl.GetString(GL_VENDOR))
+	);
+
+	PyDict_SetItemString(
+		info,
+		"GL_RENDERER",
+		PyUnicode_FromString((const char *)self->gl.GetString(GL_RENDERER))
+	);
+
+	PyDict_SetItemString(
+		info,
+		"GL_VERSION",
+		PyUnicode_FromString((const char *)self->gl.GetString(GL_VERSION))
+	);
+
 	{
 		float gl_point_size_range[2] = {};
 		gl.GetFloatv(GL_POINT_SIZE_RANGE, gl_point_size_range);
@@ -2088,7 +2073,7 @@ PyObject * MGLContext_get_info(MGLContext * self, void * closure) {
 			"GL_POINT_SIZE_RANGE",
 			PyTuple_Pack(
 				2,
-				PyFloat_FromDouble(gl_point_size_range[0]),
+				PyFloat_FromDouble(gl_point_size_range[0]), // TODO: PyTuple_Pack and decref
 				PyFloat_FromDouble(gl_point_size_range[1])
 			)
 		);
@@ -2575,22 +2560,19 @@ PyGetSetDef MGLContext_tp_getseters[] = {
 	{(char *)"line_width", (getter)MGLContext_get_line_width, (setter)MGLContext_set_line_width, 0, 0},
 	{(char *)"point_size", (getter)MGLContext_get_point_size, (setter)MGLContext_set_point_size, 0, 0},
 	{(char *)"viewport", (getter)MGLContext_get_viewport, (setter)MGLContext_set_viewport, 0, 0},
+	{(char *)"screen", (getter)MGLContext_get_screen, 0, 0, 0},
 
 	{(char *)"max_samples", (getter)MGLContext_get_max_samples, 0, 0, 0},
 	{(char *)"max_integer_samples", (getter)MGLContext_get_max_integer_samples, 0, 0, 0},
 	{(char *)"max_texture_units", (getter)MGLContext_get_max_texture_units, 0, 0, 0},
 	{(char *)"default_texture_unit", (getter)MGLContext_get_default_texture_unit, (setter)MGLContext_set_default_texture_unit, 0, 0},
-	{(char *)"screen", (getter)MGLContext_get_screen, 0, 0, 0},
 
 	{(char *)"wireframe", (getter)MGLContext_get_wireframe, (setter)MGLContext_set_wireframe, 0, 0},
 	{(char *)"front_face", (getter)MGLContext_get_front_face, (setter)MGLContext_set_front_face, 0, 0},
 
-	{(char *)"error", (getter)MGLContext_get_error, 0, 0, 0},
-	{(char *)"vendor", (getter)MGLContext_get_vendor, 0, 0, 0},
-	{(char *)"renderer", (getter)MGLContext_get_renderer, 0, 0, 0},
-	{(char *)"version", (getter)MGLContext_get_version, 0, 0, 0},
 	{(char *)"version_code", (getter)MGLContext_get_version_code, 0, 0, 0},
 	{(char *)"info", (getter)MGLContext_get_info, 0, 0, 0},
+	{(char *)"error", (getter)MGLContext_get_error, 0, 0, 0},
 	{0},
 };
 
