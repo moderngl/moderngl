@@ -1908,7 +1908,7 @@ PyObject * MGLContext_get_viewport(MGLContext * self) {
 }
 
 int MGLContext_set_viewport(MGLContext * self, PyObject * value) {
-	int size = (int)PyTuple_GET_SIZE(value);
+	int size = (int)PyTuple_Size(value);
 
 	if (PyErr_Occurred()) {
 		return -1;
@@ -1931,12 +1931,10 @@ int MGLContext_set_viewport(MGLContext * self, PyObject * value) {
 
 	self->gl.Viewport(x, y, width, height);
 
-	if (self->bound_framebuffer->framebuffer_obj == self->screen->framebuffer_obj) {
-		self->screen->viewport_x = x;
-		self->screen->viewport_y = y;
-		self->screen->viewport_width = width;
-		self->screen->viewport_height = height;
-	}
+	self->bound_framebuffer->viewport_x = x;
+	self->bound_framebuffer->viewport_y = y;
+	self->bound_framebuffer->viewport_width = width;
+	self->bound_framebuffer->viewport_height = height;
 
 	return 0;
 }
@@ -1972,11 +1970,6 @@ PyObject * MGLContext_get_max_texture_units(MGLContext * self) {
 MGLFramebuffer * MGLContext_get_screen(MGLContext * self) {
 	Py_INCREF(self->screen);
 	return self->screen;
-}
-
-MGLFramebuffer * MGLContext_get_bound_framebuffer(MGLContext * self) {
-	Py_INCREF(self->bound_framebuffer);
-	return self->bound_framebuffer;
 }
 
 PyObject * MGLContext_get_wireframe(MGLContext * self) {
@@ -2588,7 +2581,6 @@ PyGetSetDef MGLContext_tp_getseters[] = {
 	{(char *)"max_texture_units", (getter)MGLContext_get_max_texture_units, 0, 0, 0},
 	{(char *)"default_texture_unit", (getter)MGLContext_get_default_texture_unit, (setter)MGLContext_set_default_texture_unit, 0, 0},
 	{(char *)"screen", (getter)MGLContext_get_screen, 0, 0, 0},
-	{(char *)"bound_framebuffer", (getter)MGLContext_get_bound_framebuffer, 0, 0, 0},
 
 	{(char *)"wireframe", (getter)MGLContext_get_wireframe, (setter)MGLContext_set_wireframe, 0, 0},
 	{(char *)"front_face", (getter)MGLContext_get_front_face, (setter)MGLContext_set_front_face, 0, 0},
