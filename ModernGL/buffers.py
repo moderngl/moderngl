@@ -101,13 +101,63 @@ class BufferAccess:
             Write the content.
 
             Args:
-                size (int): The data.
+                data (bytes): The data.
 
             Keyword Args:
                 offset (int): The offset.
         '''
 
         self.mglo.write(data, offset)
+
+    def write_chunks(self, data, start, step, count) -> None:
+        '''
+            Split `data` to `count` equal parts.
+            Write the chunks using offsets calculated from `start`, `step` and `stop`.
+
+            Args:
+                data (bytes): The data.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+        '''
+
+        self.mglo.write_chunks(data, start, step, count)
+
+    def read_chunks(self, chunk_size, start, step, count) -> bytes:
+        '''
+            Read the content.
+
+            Args:
+                chunk_size (int): The chunk size.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+
+            Returns:
+                bytes: binary data
+        '''
+
+        return self.mglo.read_chunks(chunk_size, start, step, count)
+
+    def read_chunks_into(self, buffer, chunk_size, start, step, count, *, write_offset=0) -> None:
+        '''
+            Read the content.
+
+            Args:
+                buffer (bytarray): The buffer that will receive the content.
+                chunk_size (int): The chunk size.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+
+            Keyword Args:
+                write_offset (int): The write offset.
+
+            Returns:
+                bytes: binary data
+        '''
+
+        return self.mglo.read(buffer, chunk_size, start, step, count, write_offset)
 
     @property
     def offset(self) -> int:
@@ -265,6 +315,56 @@ class Buffer:
         '''
 
         self.mglo.write(data, offset)
+
+    def write_chunks(self, data, start, step, count) -> None:
+        '''
+            Split `data` to `count` equal parts.
+            Write the chunks using offsets calculated from `start`, `step` and `stop`.
+
+            Args:
+                data (bytes): The data.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+        '''
+
+        self.mglo.write_chunks(data, start, step, count)
+
+    def read_chunks(self, chunk_size, start, step, count) -> bytes:
+        '''
+            Read the content.
+
+            Args:
+                chunk_size (int): The chunk size.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+
+            Returns:
+                bytes: binary data
+        '''
+
+        return self.mglo.read_chunks(chunk_size, start, step, count)
+
+    def read_chunks_into(self, buffer, chunk_size, start, step, count, *, write_offset=0) -> None:
+        '''
+            Read the content.
+
+            Args:
+                buffer (bytarray): The buffer that will receive the content.
+                chunk_size (int): The chunk size.
+                start (int): First offset.
+                step (int): Offset increment.
+                count (int): The number of offsets.
+
+            Keyword Args:
+                write_offset (int): The write offset.
+
+            Returns:
+                bytes: binary data
+        '''
+
+        return self.mglo.read(buffer, chunk_size, start, step, count, write_offset)
 
     def clear(self, size=-1, *, offset=0, chunk=None) -> None:
         '''
