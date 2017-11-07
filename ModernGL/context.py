@@ -58,6 +58,7 @@ class Context:
             - :py:meth:`Context.depth_texture`
             - :py:meth:`Context.renderbuffer`
             - :py:meth:`Context.depth_renderbuffer`
+            - :py:meth:`Context.simple_framebuffer`
             - :py:meth:`Context.framebuffer`
     '''
 
@@ -691,6 +692,28 @@ class Context:
         '''
 
         return Shader.new(self.mglo.tess_control_shader(source))
+
+    def simple_framebuffer(self, size, components=4, *, samples=0, floats=False) -> Framebuffer:
+        '''
+            A :py:class:`Framebuffer` is a collection of buffers that can be used as the destination for rendering.
+            The buffers for Framebuffer objects reference images from either Textures or Renderbuffers.
+
+            Args:
+                size (tuple): The width and height of the renderbuffer.
+                components (int): The number of components 1, 2, 3 or 4.
+
+            Keyword Args:
+                samples (int): The number of samples. Value `0` means no multisample format.
+                floats (bool): Use floating point precision.
+
+            Returns:
+                Framebuffer: framebuffer
+        '''
+
+        return self.framebuffer(
+            self.renderbuffer(size, components, samples=samples, floats=floats),
+            self.depth_renderbuffer(size, samples=samples),
+        )
 
     def framebuffer(self, color_attachments, depth_attachment=None) -> Framebuffer:
         '''
