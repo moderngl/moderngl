@@ -10,7 +10,7 @@ struct MGLFramebuffer;
 struct MGLContext {
 	PyObject_HEAD
 
-	MGLFramebuffer * default_framebuffer;
+	MGLFramebuffer * screen;
 	MGLFramebuffer * bound_framebuffer;
 
 	GLContext gl_context;

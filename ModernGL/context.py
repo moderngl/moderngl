@@ -168,7 +168,15 @@ class Context:
             Framebuffer: The default framebuffer.
         '''
 
-        return Framebuffer.new(self.mglo.default_framebuffer)
+        return Framebuffer.new(self.mglo.screen)
+
+    @property
+    def screen(self) -> Framebuffer:
+        '''
+            Framebuffer: The default framebuffer.
+        '''
+
+        return Framebuffer.new(self.mglo.screen)
 
     @property
     def wireframe(self) -> bool:

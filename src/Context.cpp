@@ -372,8 +372,8 @@ MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * arg
 	}
 
 	if (!framebuffer_obj) {
-		Py_INCREF(self->default_framebuffer);
-		return self->default_framebuffer;
+		Py_INCREF(self->screen);
+		return self->screen;
 	}
 
 	gl.BindFramebuffer(GL_FRAMEBUFFER, framebuffer_obj);
@@ -448,6 +448,8 @@ MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * arg
 
 	framebuffer->width = width;
 	framebuffer->height = height;
+
+	gl.BindFramebuffer(GL_FRAMEBUFFER, self->bound_framebuffer->framebuffer_obj);
 
 	return framebuffer;
 }
@@ -1929,11 +1931,11 @@ int MGLContext_set_viewport(MGLContext * self, PyObject * value) {
 
 	self->gl.Viewport(x, y, width, height);
 
-	if (self->bound_framebuffer->framebuffer_obj == self->default_framebuffer->framebuffer_obj) {
-		self->default_framebuffer->viewport_x = x;
-		self->default_framebuffer->viewport_y = y;
-		self->default_framebuffer->viewport_width = width;
-		self->default_framebuffer->viewport_height = height;
+	if (self->bound_framebuffer->framebuffer_obj == self->screen->framebuffer_obj) {
+		self->screen->viewport_x = x;
+		self->screen->viewport_y = y;
+		self->screen->viewport_width = width;
+		self->screen->viewport_height = height;
 	}
 
 	return 0;
@@ -1967,9 +1969,9 @@ PyObject * MGLContext_get_max_texture_units(MGLContext * self) {
 	return PyLong_FromLong(self->max_texture_units);
 }
 
-MGLFramebuffer * MGLContext_get_default_framebuffer(MGLContext * self) {
-	Py_INCREF(self->default_framebuffer);
-	return self->default_framebuffer;
+MGLFramebuffer * MGLContext_get_screen(MGLContext * self) {
+	Py_INCREF(self->screen);
+	return self->screen;
 }
 
 MGLFramebuffer * MGLContext_get_bound_framebuffer(MGLContext * self) {
@@ -2585,7 +2587,7 @@ PyGetSetDef MGLContext_tp_getseters[] = {
 	{(char *)"max_integer_samples", (getter)MGLContext_get_max_integer_samples, 0, 0, 0},
 	{(char *)"max_texture_units", (getter)MGLContext_get_max_texture_units, 0, 0, 0},
 	{(char *)"default_texture_unit", (getter)MGLContext_get_default_texture_unit, (setter)MGLContext_set_default_texture_unit, 0, 0},
-	{(char *)"default_framebuffer", (getter)MGLContext_get_default_framebuffer, 0, 0, 0},
+	{(char *)"screen", (getter)MGLContext_get_screen, 0, 0, 0},
 	{(char *)"bound_framebuffer", (getter)MGLContext_get_bound_framebuffer, 0, 0, 0},
 
 	{(char *)"wireframe", (getter)MGLContext_get_wireframe, (setter)MGLContext_set_wireframe, 0, 0},
@@ -2737,7 +2739,7 @@ void MGLContext_Initialize(MGLContext * self) {
 		framebuffer->width = scrissor_box[2];
 		framebuffer->height = scrissor_box[3];
 
-		self->default_framebuffer = framebuffer;
+		self->screen = framebuffer;
 	}
 
 	if (bound_framebuffer) {
@@ -2746,8 +2748,8 @@ void MGLContext_Initialize(MGLContext * self) {
 		MGLFramebuffer * framebuffer = MGLContext_detect_framebuffer(self, args);
 		self->bound_framebuffer = framebuffer;
 	} else {
-		Py_INCREF(self->default_framebuffer);
-		self->bound_framebuffer = self->default_framebuffer;
+		Py_INCREF(self->screen);
+		self->bound_framebuffer = self->screen;
 	}
 
 	self->wireframe = false;
