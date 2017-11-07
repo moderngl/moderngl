@@ -2,9 +2,8 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
-
-struct MGLPrimitive : public MGLObject {
+struct MGLPrimitive {
+	PyObject_HEAD
 	PyObject * wrapper;
 
 	int primitive;
@@ -13,8 +12,6 @@ struct MGLPrimitive : public MGLObject {
 };
 
 extern PyTypeObject MGLPrimitive_Type;
-
-MGLPrimitive * MGLPrimitive_New();
 
 extern MGLPrimitive * MGL_TRIANGLES;
 extern MGLPrimitive * MGL_TRIANGLE_STRIP;

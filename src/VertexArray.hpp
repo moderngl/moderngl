@@ -2,11 +2,15 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
+#include "Context.hpp"
 #include "Program.hpp"
 #include "Buffer.hpp"
 
-struct MGLVertexArray : public MGLContextMember {
+struct MGLVertexArray {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	MGLProgram * program;
 	MGLBuffer * index_buffer;
 	PyObject * attributes;
@@ -20,6 +24,5 @@ struct MGLVertexArray : public MGLContextMember {
 
 extern PyTypeObject MGLVertexArray_Type;
 
-MGLVertexArray * MGLVertexArray_New();
 void MGLVertexArray_Invalidate(MGLVertexArray * vertex_array);
 void MGLVertexArray_Complete(MGLVertexArray * vertex_array);

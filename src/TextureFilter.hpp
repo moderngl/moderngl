@@ -2,9 +2,9 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
+struct MGLTextureFilter {
+	PyObject_HEAD
 
-struct MGLTextureFilter : public MGLObject {
 	PyObject * wrapper;
 
 	int min_filter;
@@ -12,8 +12,6 @@ struct MGLTextureFilter : public MGLObject {
 };
 
 extern PyTypeObject MGLTextureFilter_Type;
-
-MGLTextureFilter * MGLTextureFilter_New();
 
 extern MGLTextureFilter * MGL_LINEAR;
 extern MGLTextureFilter * MGL_NEAREST;

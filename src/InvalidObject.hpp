@@ -2,9 +2,8 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
-
-struct MGLInvalidObject : public MGLObject {
+struct MGLInvalidObject {
+	PyObject_HEAD
 };
 
 extern PyTypeObject MGLInvalidObject_Type;

@@ -2,12 +2,16 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
+#include "Context.hpp"
 #include "Program.hpp"
 
 typedef void (* MGLProc)();
 
-struct MGLUniform : public MGLContextMember {
+struct MGLUniform {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	PyObject * name;
 
 	MGLProc value_getter;
@@ -30,7 +34,6 @@ struct MGLUniform : public MGLContextMember {
 
 extern PyTypeObject MGLUniform_Type;
 
-MGLUniform * MGLUniform_New();
 void MGLUniform_Invalidate(MGLUniform * uniform);
 void MGLUniform_Complete(MGLUniform * self, const GLMethods & gl);
 

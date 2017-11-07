@@ -2,12 +2,16 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
+#include "Context.hpp"
 #include "Primitive.hpp"
 
 struct MGLProgramStage;
 
-struct MGLProgram : public MGLContextMember {
+struct MGLProgram {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	PyObject * shaders;
 
 	MGLProgramStage * vertex_shader;
@@ -38,6 +42,5 @@ struct MGLProgram : public MGLContextMember {
 
 extern PyTypeObject MGLProgram_Type;
 
-MGLProgram * MGLProgram_New();
 void MGLProgram_Invalidate(MGLProgram * program);
 void MGLProgram_Compile(MGLProgram * program, PyObject * outputs);

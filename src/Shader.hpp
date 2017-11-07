@@ -2,7 +2,7 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
+#include "Context.hpp"
 
 enum SHADER_SLOT_ENUM {
 	VERTEX_SHADER_SLOT,
@@ -16,7 +16,11 @@ enum SHADER_SLOT_ENUM {
 extern const int SHADER_TYPE[];
 extern const char * SHADER_NAME[];
 
-struct MGLShader : public MGLContextMember {
+struct MGLShader {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	PyObject * source;
 
 	int shader_obj;
@@ -26,6 +30,5 @@ struct MGLShader : public MGLContextMember {
 
 extern PyTypeObject MGLShader_Type;
 
-MGLShader * MGLShader_New();
 void MGLShader_Invalidate(MGLShader * shader);
 void MGLShader_Compile(MGLShader * shader);

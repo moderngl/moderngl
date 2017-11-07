@@ -2,10 +2,11 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
 #include "GLMethods.hpp"
 
-struct MGLUniformBlock : public MGLObject {
+struct MGLUniformBlock {
+	PyObject_HEAD
+
 	const GLMethods * gl;
 
 	PyObject * name;
@@ -18,5 +19,4 @@ struct MGLUniformBlock : public MGLObject {
 
 extern PyTypeObject MGLUniformBlock_Type;
 
-MGLUniformBlock * MGLUniformBlock_New();
 void MGLUniformBlock_Complete(MGLUniformBlock * uniform_block, const GLMethods & gl);

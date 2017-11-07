@@ -5,10 +5,6 @@
 PyObject * MGLBufferAccess_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLBufferAccess * self = (MGLBufferAccess *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLBufferAccess_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -16,11 +12,6 @@ PyObject * MGLBufferAccess_tp_new(PyTypeObject * type, PyObject * args, PyObject
 }
 
 void MGLBufferAccess_tp_dealloc(MGLBufferAccess * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLBufferAccess_tp_dealloc %p\n", self);
-	#endif
-
 	MGLBufferAccess_Type.tp_free((PyObject *)self);
 }
 
@@ -248,8 +239,3 @@ PyTypeObject MGLBufferAccess_Type = {
 	0,                                                      // tp_alloc
 	MGLBufferAccess_tp_new,                                 // tp_new
 };
-
-MGLBufferAccess * MGLBufferAccess_New() {
-	MGLBufferAccess * self = (MGLBufferAccess *)MGLBufferAccess_tp_new(&MGLBufferAccess_Type, 0, 0);
-	return self;
-}

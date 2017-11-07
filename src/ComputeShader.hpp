@@ -2,9 +2,13 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
+#include "Context.hpp"
 
-struct MGLComputeShader : public MGLContextMember {
+struct MGLComputeShader {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	PyObject * source;
 
 	PyObject * uniforms;
@@ -18,6 +22,5 @@ struct MGLComputeShader : public MGLContextMember {
 
 extern PyTypeObject MGLComputeShader_Type;
 
-MGLComputeShader * MGLComputeShader_New();
 void MGLComputeShader_Invalidate(MGLComputeShader * program);
 void MGLComputeShader_Compile(MGLComputeShader * compute_shader);

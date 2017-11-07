@@ -2,11 +2,14 @@
 
 #include "Python.hpp"
 
-#include "FramebufferAttachment.hpp"
-
+#include "Context.hpp"
 #include "TextureFilter.hpp"
 
-struct MGLTextureCube : public MGLContextMember {
+struct MGLTextureCube {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	int texture_obj;
 
 	int width;
@@ -20,5 +23,4 @@ struct MGLTextureCube : public MGLContextMember {
 
 extern PyTypeObject MGLTextureCube_Type;
 
-MGLTextureCube * MGLTextureCube_New();
 void MGLTextureCube_Invalidate(MGLTextureCube * texture);

@@ -6,10 +6,6 @@
 PyObject * MGLRenderbuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLRenderbuffer * self = (MGLRenderbuffer *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLRenderbuffer_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -17,11 +13,6 @@ PyObject * MGLRenderbuffer_tp_new(PyTypeObject * type, PyObject * args, PyObject
 }
 
 void MGLRenderbuffer_tp_dealloc(MGLRenderbuffer * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLRenderbuffer_tp_dealloc %p\n", self);
-	#endif
-
 	MGLRenderbuffer_Type.tp_free((PyObject *)self);
 }
 
@@ -121,30 +112,14 @@ PyTypeObject MGLRenderbuffer_Type = {
 	MGLRenderbuffer_tp_new,                                 // tp_new
 };
 
-MGLRenderbuffer * MGLRenderbuffer_New() {
-	MGLRenderbuffer * self = (MGLRenderbuffer *)MGLRenderbuffer_tp_new(&MGLRenderbuffer_Type, 0, 0);
-	return self;
-}
-
 void MGLRenderbuffer_Invalidate(MGLRenderbuffer * renderbuffer) {
 	if (Py_TYPE(renderbuffer) == &MGLInvalidObject_Type) {
-
-		#ifdef MGL_VERBOSE
-		printf("MGLRenderbuffer_Invalidate %p already released\n", renderbuffer);
-		#endif
-
 		return;
 	}
-
-	#ifdef MGL_VERBOSE
-	printf("MGLRenderbuffer_Invalidate %p\n", renderbuffer);
-	#endif
 
 	renderbuffer->context->gl.DeleteRenderbuffers(1, (GLuint *)&renderbuffer->renderbuffer_obj);
 
 	Py_DECREF(renderbuffer->context);
-
 	Py_TYPE(renderbuffer) = &MGLInvalidObject_Type;
-
 	Py_DECREF(renderbuffer);
 }

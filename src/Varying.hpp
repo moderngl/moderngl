@@ -2,10 +2,11 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
 #include "GLMethods.hpp"
 
-struct MGLVarying : public MGLObject {
+struct MGLVarying {
+	PyObject_HEAD
+
 	PyObject * name;
 
 	int number;
@@ -18,6 +19,5 @@ struct MGLVarying : public MGLObject {
 
 extern PyTypeObject MGLVarying_Type;
 
-MGLVarying * MGLVarying_New();
 void MGLVarying_Invalidate(MGLVarying * varying);
 void MGLVarying_Complete(MGLVarying * varying, const GLMethods & gl);

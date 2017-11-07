@@ -2,11 +2,14 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
-
+#include "Context.hpp"
 #include "TextureFilter.hpp"
 
-struct MGLTexture3D : public MGLContextMember {
+struct MGLTexture3D {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	int texture_obj;
 
 	int width;
@@ -28,5 +31,4 @@ struct MGLTexture3D : public MGLContextMember {
 
 extern PyTypeObject MGLTexture3D_Type;
 
-MGLTexture3D * MGLTexture3D_New();
 void MGLTexture3D_Invalidate(MGLTexture3D * texture);

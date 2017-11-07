@@ -5,10 +5,6 @@
 PyObject * MGLVertexArrayListAttribute_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLVertexArrayListAttribute * self = (MGLVertexArrayListAttribute *)type->tp_alloc(type, 0);
 
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArrayListAttribute_tp_new %p\n", self);
-	#endif
-
 	if (self) {
 	}
 
@@ -16,11 +12,6 @@ PyObject * MGLVertexArrayListAttribute_tp_new(PyTypeObject * type, PyObject * ar
 }
 
 void MGLVertexArrayListAttribute_tp_dealloc(MGLVertexArrayListAttribute * self) {
-
-	#ifdef MGL_VERBOSE
-	printf("MGLVertexArrayListAttribute_tp_dealloc %p\n", self);
-	#endif
-
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -107,8 +98,3 @@ PyTypeObject MGLVertexArrayListAttribute_Type = {
 	0,                                                      // tp_alloc
 	MGLVertexArrayListAttribute_tp_new,                     // tp_new
 };
-
-MGLVertexArrayListAttribute * MGLVertexArrayListAttribute_New() {
-	MGLVertexArrayListAttribute * self = (MGLVertexArrayListAttribute *)MGLVertexArrayListAttribute_tp_new(&MGLVertexArrayListAttribute_Type, 0, 0);
-	return self;
-}

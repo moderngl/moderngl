@@ -2,10 +2,11 @@
 
 #include "Python.hpp"
 
-#include "Object.hpp"
 #include "GLMethods.hpp"
 
-struct MGLBufferAccess : public MGLObject {
+struct MGLBufferAccess {
+	PyObject_HEAD
+
 	GLMethods * gl;
 
 	char * ptr;
@@ -19,5 +20,3 @@ struct MGLBufferAccess : public MGLObject {
 };
 
 extern PyTypeObject MGLBufferAccess_Type;
-
-MGLBufferAccess * MGLBufferAccess_New();

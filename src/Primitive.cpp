@@ -5,10 +5,6 @@
 PyObject * MGLPrimitive_tp_new(PyTypeObject * type, PyObject * args, PyObject * kwargs) {
 	MGLPrimitive * self = (MGLPrimitive *)type->tp_alloc(type, 0);
 
-	// #ifdef MGL_VERBOSE
-	// printf("MGLPrimitive_tp_new %p\n", self);
-	// #endif
-
 	if (self) {
 	}
 
@@ -16,11 +12,6 @@ PyObject * MGLPrimitive_tp_new(PyTypeObject * type, PyObject * args, PyObject * 
 }
 
 void MGLPrimitive_tp_dealloc(MGLPrimitive * self) {
-
-	// #ifdef MGL_VERBOSE
-	// printf("MGLPrimitive_tp_dealloc %p\n", self);
-	// #endif
-
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -89,11 +80,6 @@ PyTypeObject MGLPrimitive_Type = {
 	0,                                                      // tp_alloc
 	MGLPrimitive_tp_new,                                    // tp_new
 };
-
-MGLPrimitive * MGLPrimitive_New() {
-	MGLPrimitive * self = (MGLPrimitive *)MGLPrimitive_tp_new(&MGLPrimitive_Type, 0, 0);
-	return self;
-}
 
 MGLPrimitive * MGL_TRIANGLES;
 MGLPrimitive * MGL_TRIANGLE_STRIP;

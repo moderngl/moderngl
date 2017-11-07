@@ -2,9 +2,13 @@
 
 #include "Python.hpp"
 
-#include "ContextMember.hpp"
+#include "Context.hpp"
 
-struct MGLBuffer : public MGLContextMember {
+struct MGLBuffer {
+	PyObject_HEAD
+
+	MGLContext * context;
+
 	int buffer_obj;
 
 	Py_ssize_t size;
@@ -13,5 +17,4 @@ struct MGLBuffer : public MGLContextMember {
 
 extern PyTypeObject MGLBuffer_Type;
 
-MGLBuffer * MGLBuffer_New();
 void MGLBuffer_Invalidate(MGLBuffer * buffer);
