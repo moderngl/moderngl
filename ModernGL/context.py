@@ -165,7 +165,7 @@ class Context:
     @property
     def default_framebuffer(self) -> Framebuffer:
         '''
-            Framebuffer: The default framebuffer.
+            Framebuffer: The default framebuffer. [DEPRECATED] Use `Context.screen` instead.
         '''
 
         return Framebuffer.new(self.mglo.screen)
@@ -214,7 +214,7 @@ class Context:
     @property
     def vendor(self) -> str:
         '''
-            str: The vendor. [DEPRECATED] Use Contex.info() instead.
+            str: The vendor. [DEPRECATED] Use `Contex.info()` instead.
         '''
 
         return self.mglo.info()['GL_VENDOR']
@@ -222,7 +222,7 @@ class Context:
     @property
     def renderer(self) -> str:
         '''
-            str: The renderer. [DEPRECATED] Use Contex.info() instead.
+            str: The renderer. [DEPRECATED] Use `Contex.info()` instead.
         '''
 
         return self.mglo.info()['GL_RENDERER']
@@ -230,7 +230,7 @@ class Context:
     @property
     def version(self) -> str:
         '''
-            str: The OpenGL version string. [DEPRECATED] Use Contex.info() instead.
+            str: The OpenGL version string. [DEPRECATED] Use `Contex.info()` instead.
         '''
 
         return self.mglo.info()['GL_VERSION']
@@ -285,6 +285,7 @@ class Context:
 
             Valid flags are:
 
+                - :py:data:`ModernGL.NOTHING`
                 - :py:data:`ModernGL.BLEND`
                 - :py:data:`ModernGL.DEPTH_TEST`
                 - :py:data:`ModernGL.CULL_FACE`
