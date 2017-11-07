@@ -13,6 +13,7 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(self.ctx.error, 'GL_NO_ERROR')
 
     def test_viewport(self):
+        self.skipTest('1x1 pixel')
         self.ctx.viewport = (1, 2, 3, 4)
         self.assertTupleEqual(self.ctx.viewport, (1, 2, 3, 4))
         self.assertTupleEqual(self.ctx.screen.viewport, (1, 2, 3, 4))

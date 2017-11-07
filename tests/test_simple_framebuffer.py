@@ -53,11 +53,8 @@ class TestCase(unittest.TestCase):
         fbo1 = self.ctx.framebuffer(rbo1)
         fbo2 = self.ctx.framebuffer(rbo1, rbo2)
 
-        self.assertIsInstance(fbo1.depth_attachment, ModernGL.Renderbuffer)
+        self.assertIsNone(fbo1.depth_attachment)
         self.assertIsInstance(fbo2.depth_attachment, ModernGL.Renderbuffer)
-
-        self.assertNotEqual(fbo1.depth_attachment, rbo2)
-        self.assertEqual(fbo2.depth_attachment, rbo2)
 
     def test_framebuffer_color_mask(self):
         fbo = self.ctx.framebuffer(self.ctx.renderbuffer((16, 16)))

@@ -16,16 +16,6 @@ class ComputeShader:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = ComputeShader.__new__(ComputeShader)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -156,16 +146,6 @@ class Shader:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Shader.__new__(Shader)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -236,16 +216,6 @@ class Program:
     '''
 
     __slots__ = ['mglo']
-
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Program.__new__(Program)
-        res.mglo = obj
-        return res
 
     def __init__(self):
         self.mglo = None

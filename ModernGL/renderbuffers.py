@@ -21,16 +21,6 @@ class Renderbuffer:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Renderbuffer.__new__(Renderbuffer)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()

@@ -19,62 +19,22 @@ class InvalidObject:
     __slots__ = ['mglo']
 
 
-class EnableFlag:
-    '''
-        EnableFlag
-    '''
-
-    __slots__ = ['flags']
-
-    @staticmethod
-    def new(flags) -> 'EnableFlag':
-        '''
-            For internal use only.
-        '''
-
-        res = EnableFlag.__new__(EnableFlag)
-        res.flags = flags
-        return res
-
-    def __init__(self):
-        self.flags = 0
-        raise NotImplementedError('EnableFlag')
-
-    def __or__(self, other) -> 'EnableFlag':
-        return EnableFlag.new(self.flags | other.flags)
-
-    def __and__(self, other) -> 'EnableFlag':
-        return EnableFlag.new(self.flags & other.flags)
-
-    def __inv__(self) -> 'EnableFlag':
-        return EnableFlag.new(mgl.ENABLE_MASK & ~self.flags)
-
-    def __repr__(self):
-        return '<ModernGL.EnableFlag>'
-
-    def __eq__(self, other):
-        return self.flags == other.flags
-
-    def __ne__(self, other):
-        return self.flags != other.flags
-
-
-NOTHING = EnableFlag.new(mgl.NOTHING)
+NOTHING = mgl.NOTHING
 '''
     Nothing
 '''
 
-BLEND = EnableFlag.new(mgl.BLEND)
+BLEND = mgl.BLEND
 '''
     Blending
 '''
 
-DEPTH_TEST = EnableFlag.new(mgl.DEPTH_TEST)
+DEPTH_TEST = mgl.DEPTH_TEST
 '''
     Depth Test
 '''
 
-CULL_FACE = EnableFlag.new(mgl.CULL_FACE)
+CULL_FACE = mgl.CULL_FACE
 '''
     Face Culling
 '''
@@ -102,7 +62,7 @@ class Primitive:
     def __init__(self):
         self.name = None
         self.mglo = None
-        raise NotImplementedError('Primitive')
+        raise NotImplementedError()
 
     def __repr__(self):
         return 'ModernGL.%s' % self.name
@@ -192,7 +152,7 @@ class TextureFilter:
     def __init__(self):
         self.name = None
         self.mglo = None
-        raise NotImplementedError('TextureFilter')
+        raise NotImplementedError()
 
     def __repr__(self):
         return 'ModernGL.%s' % self.name

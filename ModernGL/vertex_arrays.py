@@ -30,7 +30,7 @@ class VertexArrayAttribute:
 
     def __init__(self):
         self.mglo = None
-        raise NotImplementedError('VertexArrayAttributeMap')
+        raise NotImplementedError()
 
     def __getitem__(self, key) -> 'VertexArrayAttribute':
         return VertexArrayAttribute.new(self.mglo[key])
@@ -98,11 +98,23 @@ class VertexArrayAttributeMap:
         VertexArrayAttributeMap
     '''
 
-    __slots__ = ['mglo']
+    __slots__ = ['mglo', '_map']
+
+    @staticmethod
+    def new(obj):
+        '''
+            For internal use only.
+        '''
+
+        res = VertexArrayAttributeMap.__new__(VertexArrayAttributeMap)
+        res.mglo = obj
+        return res
+
 
     def __init__(self):
-        self.mglo = {}
-        raise NotImplementedError('VertexArrayAttributeMap')
+        self.mglo = None
+        self._map = {}
+        raise NotImplementedError()
 
     def __getitem__(self, key) -> VertexArrayAttribute:
         return VertexArrayAttribute.new(self.mglo[key])
@@ -125,16 +137,6 @@ class VertexArrayAttributeMap:
     def __ne__(self, other):
         return self.mglo is not other.mglo
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = VertexArrayAttributeMap.__new__(VertexArrayAttributeMap)
-        res.mglo = obj
-        return res
-
 
 class VertexArray:
     '''
@@ -150,20 +152,12 @@ class VertexArray:
         to create one.
     '''
 
-    __slots__ = ['mglo']
-
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = VertexArray.__new__(VertexArray)
-        res.mglo = obj
-        return res
+    __slots__ = ['mglo', '_program', '_index_buffer']
 
     def __init__(self):
         self.mglo = None
+        self._program = None
+        self._index_buffer = None
         raise NotImplementedError()
 
     def __repr__(self):
@@ -182,7 +176,7 @@ class VertexArray:
             The program used when rendering or transforming primitives.
         '''
 
-        return Program.new(self.mglo.program)
+        return self._program
 
     @property
     def attributes(self) -> VertexArrayAttributeMap:
@@ -200,7 +194,7 @@ class VertexArray:
             Buffer: The index buffer if the index_buffer is set, otherwise ``None``.
         '''
 
-        return self.mglo.index_buffer
+        return self._index_buffer
 
     @property
     def vertices(self) -> int:

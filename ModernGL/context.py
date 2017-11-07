@@ -62,20 +62,12 @@ class Context:
             - :py:meth:`Context.framebuffer`
     '''
 
-    __slots__ = ['mglo']
-
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Context.__new__(Context)
-        res.mglo = obj
-        return res
+    __slots__ = ['mglo', '_screen', '_info']
 
     def __init__(self):
         self.mglo = None
+        self._screen = None
+        self._info = None
         raise NotImplementedError()
 
     def __repr__(self):
@@ -168,7 +160,7 @@ class Context:
             Framebuffer: The default framebuffer. [DEPRECATED] Use `Context.screen` instead.
         '''
 
-        return Framebuffer.new(self.mglo.screen)
+        return self._screen
 
     @property
     def screen(self) -> Framebuffer:
@@ -176,7 +168,7 @@ class Context:
             Framebuffer: The default framebuffer.
         '''
 
-        return Framebuffer.new(self.mglo.screen)
+        return self._screen
 
     @property
     def wireframe(self) -> bool:
@@ -214,26 +206,26 @@ class Context:
     @property
     def vendor(self) -> str:
         '''
-            str: The vendor. [DEPRECATED] Use `Contex.info()` instead.
+            str: The vendor. [DEPRECATED] Use `Contex.info` instead.
         '''
 
-        return self.mglo.info()['GL_VENDOR']
+        return self.mglo.info['GL_VENDOR']
 
     @property
     def renderer(self) -> str:
         '''
-            str: The renderer. [DEPRECATED] Use `Contex.info()` instead.
+            str: The renderer. [DEPRECATED] Use `Contex.info` instead.
         '''
 
-        return self.mglo.info()['GL_RENDERER']
+        return self.mglo.info['GL_RENDERER']
 
     @property
     def version(self) -> str:
         '''
-            str: The OpenGL version string. [DEPRECATED] Use `Contex.info()` instead.
+            str: The OpenGL version string. [DEPRECATED] Use `Contex.info` instead.
         '''
 
-        return self.mglo.info()['GL_VERSION']
+        return self.mglo.info['GL_VERSION']
 
     @property
     def version_code(self) -> int:
@@ -249,7 +241,10 @@ class Context:
             dict: The result of multiple glGet.
         '''
 
-        return self.mglo.info
+        if self._info is None:
+            self._info = self.mglo.info
+
+        return self._info
 
     def clear(self, red=0.0, green=0.0, blue=0.0, alpha=0.0, *, viewport=None) -> None:
         '''
@@ -294,7 +289,7 @@ class Context:
                 flags (EnableFlag): The flag to enable.
         '''
 
-        self.mglo.enable_only(flags.flags)
+        self.mglo.enable_only(flags)
 
     def enable(self, flags) -> None:
         '''
@@ -310,7 +305,7 @@ class Context:
                 flag (EnableFlag): The flag to enable.
         '''
 
-        self.mglo.enable(flags.flags)
+        self.mglo.enable(flags)
 
     def disable(self, flags) -> None:
         '''
@@ -326,7 +321,7 @@ class Context:
                 flag (EnableFlag): The flag to disable.
         '''
 
-        self.mglo.disable(flags.flags)
+        self.mglo.disable(flags)
 
     def finish(self) -> None:
         '''
@@ -380,7 +375,9 @@ class Context:
                 Framebuffer: framebuffer.
         '''
 
-        return Framebuffer.new(self.mglo.detect_framebuffer(glo))
+        res = Framebuffer.__new__(Framebuffer)
+        res.mglo = self.mglo.detect_framebuffer(glo)
+        return res
 
     def buffer(self, data=None, *, reserve=0, dynamic=False) -> Buffer:
         '''
@@ -397,10 +394,12 @@ class Context:
                 Buffer: buffer
         '''
 
-        if isinstance(reserve, str):
+        if type(reserve) is str:
             reserve = _size_from_str(reserve)
 
-        return Buffer.new(self.mglo.buffer(data, reserve, dynamic))
+        res = Buffer.__new__(Buffer)
+        res.mglo = self.mglo.buffer(data, reserve, dynamic)
+        return res
 
     def texture(self, size, components, data=None, *, samples=0, alignment=1, floats=False) -> Texture:
         '''
@@ -420,7 +419,9 @@ class Context:
                 Texture: texture
         '''
 
-        return Texture.new(self.mglo.texture(size, components, data, samples, alignment, floats))
+        res = Texture.__new__(Texture)
+        res.mglo = self.mglo.texture(size, components, data, samples, alignment, floats)
+        return res
 
     def texture3d(self, size, components, data=None, *, alignment=1, floats=False) -> Texture3D:
         '''
@@ -439,7 +440,9 @@ class Context:
                 Texture3D: texture
         '''
 
-        return Texture3D.new(self.mglo.texture3d(size, components, data, alignment, floats))
+        res = Texture3D.__new__(Texture3D)
+        res.mglo = self.mglo.texture3d(size, components, data, alignment, floats)
+        return res
 
     def texture_cube(self, size, components, data=None, *, alignment=1, floats=False) -> TextureCube:
         '''
@@ -458,7 +461,9 @@ class Context:
                 TextureCube: texture
         '''
 
-        return TextureCube.new(self.mglo.texture_cube(size, components, data, alignment, floats))
+        res = TextureCube.__new__(TextureCube)
+        res.mglo = self.mglo.texture_cube(size, components, data, alignment, floats)
+        return res
 
     def depth_texture(self, size, data=None, *, samples=0, alignment=4) -> Texture:
         '''
@@ -476,7 +481,9 @@ class Context:
                 Texture: depth texture
         '''
 
-        return Texture.new(self.mglo.depth_texture(size, data, samples, alignment))
+        res = Texture.__new__(Texture)
+        res.mglo = self.mglo.depth_texture(size, data, samples, alignment)
+        return res
 
     def vertex_array(self, program, content, index_buffer=None) -> VertexArray:
         '''
@@ -492,11 +499,15 @@ class Context:
                 VertexArray: vertex array
         '''
 
-        if index_buffer is not None:
-            index_buffer = index_buffer.mglo
+        index_buffer_mglo = None if index_buffer is None else index_buffer.mglo
 
         content = tuple((a.mglo, b, tuple(c)) for a, b, c in content)
-        return VertexArray.new(self.mglo.vertex_array(program.mglo, content, index_buffer))
+
+        res = VertexArray.__new__(VertexArray)
+        res.mglo = self.mglo.vertex_array(program.mglo, content, index_buffer_mglo)
+        res._program = program
+        res._index_buffer = index_buffer
+        return res
 
     def simple_vertex_array(self, program, buffer, attributes) -> VertexArray:
         '''
@@ -579,19 +590,19 @@ class Context:
                     >>> my_transform_program = ctx.program(my_vertex_shader, ['vert_length'])
         '''
 
-        if isinstance(shaders, Shader):
-            shaders = (shaders.mglo,)
+        if type(shaders) is Shader:
+            shaders = (shaders,)
 
-        else:
-            shaders = tuple(x.mglo for x in shaders)
+        shaders = tuple(x.mglo for x in shaders)
 
-        if isinstance(varyings, str):
+        if type(varyings) is str:
             varyings = (varyings,)
 
-        else:
-            varyings = tuple(x for x in varyings)
+        varyings = tuple(x for x in varyings)
 
-        return Program.new(self.mglo.program(shaders, varyings))
+        res = Program.__new__(Program)
+        res.mglo = self.mglo.program(shaders, varyings)
+        return res
 
     def vertex_shader(self, source) -> Shader:
         '''
@@ -623,7 +634,9 @@ class Context:
                     ... \'\'\')
         '''
 
-        return Shader.new(self.mglo.vertex_shader(source))
+        res = Shader.__new__(Shader)
+        res.mglo = self.mglo.vertex_shader(source)
+        return res
 
     def fragment_shader(self, source) -> Shader:
         '''
@@ -651,7 +664,9 @@ class Context:
                     ... \'\'\')
         '''
 
-        return Shader.new(self.mglo.fragment_shader(source))
+        res = Shader.__new__(Shader)
+        res.mglo = self.mglo.fragment_shader(source)
+        return res
 
     def geometry_shader(self, source) -> Shader:
         '''
@@ -668,7 +683,9 @@ class Context:
                 Shader: geometry shader
         '''
 
-        return Shader.new(self.mglo.geometry_shader(source))
+        res = Shader.__new__(Shader)
+        res.mglo = self.mglo.geometry_shader(source)
+        return res
 
     def tess_evaluation_shader(self, source) -> Shader:
         '''
@@ -685,7 +702,9 @@ class Context:
                 Shader: tesselation evaluation shader
         '''
 
-        return Shader.new(self.mglo.tess_evaluation_shader(source))
+        res = Shader.__new__(Shader)
+        res.mglo = self.mglo.tess_evaluation_shader(source)
+        return res
 
     def tess_control_shader(self, source) -> Shader:
         '''
@@ -700,7 +719,9 @@ class Context:
                 Shader: tesselation control shader
         '''
 
-        return Shader.new(self.mglo.tess_control_shader(source))
+        res = Shader.__new__(Shader)
+        res.mglo = self.mglo.tess_control_shader(source)
+        return res
 
     def simple_framebuffer(self, size, components=4, *, samples=0, floats=False) -> Framebuffer:
         '''
@@ -737,16 +758,17 @@ class Context:
                 Framebuffer: framebuffer
         '''
 
-        if isinstance(color_attachments, (Texture, Renderbuffer)):
-            color_attachments = (color_attachments.mglo,)
+        if type(color_attachments) is Texture or type(color_attachments) is Renderbuffer:
+            color_attachments = (color_attachments,)
 
-        else:
-            color_attachments = tuple(x.mglo for x in color_attachments)
+        color_attachments_mglo = tuple(x.mglo for x in color_attachments)
+        depth_attachment_mglo = None if depth_attachment is None else depth_attachment.mglo
 
-        if depth_attachment is not None:
-            depth_attachment = depth_attachment.mglo
-
-        return Framebuffer.new(self.mglo.framebuffer(color_attachments, depth_attachment))
+        res = Framebuffer.__new__(Framebuffer)
+        res.mglo = self.mglo.framebuffer(color_attachments_mglo, depth_attachment_mglo)
+        res._color_attachments = tuple(color_attachments)
+        res._depth_attachment = depth_attachment
+        return res
 
     def renderbuffer(self, size, components=4, *, samples=0, floats=False) -> Renderbuffer:
         '''
@@ -765,7 +787,9 @@ class Context:
                 Renderbuffer: renderbuffer
         '''
 
-        return Renderbuffer.new(self.mglo.renderbuffer(size, components, samples, floats))
+        res = Renderbuffer.__new__(Renderbuffer)
+        res.mglo = self.mglo.renderbuffer(size, components, samples, floats)
+        return res
 
     def depth_renderbuffer(self, size, *, samples=0) -> Renderbuffer:
         '''
@@ -782,7 +806,9 @@ class Context:
                 Renderbuffer: depth renderbuffer
         '''
 
-        return Renderbuffer.new(self.mglo.depth_renderbuffer(size, samples))
+        res = Renderbuffer.__new__(Renderbuffer)
+        res.mglo = self.mglo.depth_renderbuffer(size, samples)
+        return res
 
     def compute_shader(self, source) -> ComputeShader:
         '''
@@ -796,7 +822,9 @@ class Context:
                 ComputeShader: compute shader program
         '''
 
-        return ComputeShader.new(self.mglo.compute_shader(source))
+        res = ComputeShader.__new__(ComputeShader)
+        res.mglo = self.mglo.compute_shader(source)
+        return res
 
     def release(self) -> None:
         '''
@@ -820,7 +848,9 @@ def create_context(require=None) -> Context:
             Context: context
     '''
 
-    ctx = Context.new(mgl.create_context())
+    ctx = Context.__new__(Context)
+    ctx.mglo = mgl.create_context()
+    ctx._screen = ctx.mglo.screen
 
     if require is not None and ctx.version_code < require:
         raise Exception('The version required is not provided')
@@ -828,12 +858,22 @@ def create_context(require=None) -> Context:
     return ctx
 
 
-def create_standalone_context() -> Context:
+def create_standalone_context(require=None) -> Context:
     '''
         Create a standalone ModernGL context.
+
+        Keyword Arguments:
+            require (int): OpenGL version code.
 
         Returns:
             Context: context
     '''
 
-    return Context.new(mgl.create_standalone_context())
+    ctx = Context.__new__(Context)
+    ctx.mglo = mgl.create_standalone_context()
+    ctx._screen = ctx.mglo.screen
+
+    if require is not None and ctx.version_code < require:
+        raise Exception('The version required is not provided')
+
+    return ctx

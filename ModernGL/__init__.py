@@ -24,7 +24,7 @@ except ImportError:
 from .buffers import Buffer, BufferAccess, detect_format
 from .common import (
     BLEND, CULL_FACE, DEPTH_TEST, LINE_LOOP, LINE_STRIP, LINE_STRIP_ADJACENCY, LINEAR, LINES, LINES_ADJACENCY, MIPMAP,
-    NEAREST, POINTS, TRIANGLE_FAN, TRIANGLE_STRIP, TRIANGLE_STRIP_ADJACENCY, TRIANGLES, TRIANGLES_ADJACENCY, EnableFlag,
+    NEAREST, POINTS, TRIANGLE_FAN, TRIANGLE_STRIP, TRIANGLE_STRIP_ADJACENCY, TRIANGLES, TRIANGLES_ADJACENCY,
     InvalidObject, Primitive, TextureFilter
 )
 from .context import Context, create_context, create_standalone_context

@@ -16,19 +16,9 @@ class BufferAccess:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = BufferAccess.__new__(BufferAccess)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
-        raise NotImplementedError('BufferAccess')
+        raise NotImplementedError()
 
     def __repr__(self):
         return '<BufferAccess>'
@@ -199,16 +189,6 @@ class Buffer:
 
     __slots__ = ['mglo']
 
-    @staticmethod
-    def new(obj):
-        '''
-            For internal use only.
-        '''
-
-        res = Buffer.__new__(Buffer)
-        res.mglo = obj
-        return res
-
     def __init__(self):
         self.mglo = None
         raise NotImplementedError()
@@ -267,7 +247,9 @@ class Buffer:
                     ...     access.write(...)
         '''
 
-        return BufferAccess.new(self.mglo.access(size, offset, readonly))
+        res = BufferAccess.__new__(BufferAccess)
+        res.mglo = self.mglo.access(size, offset, readonly)
+        return res
 
     def read(self, size=-1, *, offset=0) -> bytes:
         '''
