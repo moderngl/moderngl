@@ -376,6 +376,13 @@ PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
 
 	gl.BindFramebuffer(GL_FRAMEBUFFER, self->framebuffer_obj);
 	gl.DrawBuffers(self->draw_buffers_len, self->draw_buffers);
+
+	// Store the current clear values
+	float color_clear_value[4];
+	float depth_clear_value;
+	gl.GetFloatv(GL_COLOR_CLEAR_VALUE, color_clear_value);
+	gl.GetFloatv(GL_DEPTH_CLEAR_VALUE, &depth_clear_value);
+
 	gl.ClearColor(r, g, b, a);
 	gl.ClearDepth(depth);
 
@@ -401,6 +408,10 @@ PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
 	}
 
 	gl.BindFramebuffer(GL_FRAMEBUFFER, self->context->bound_framebuffer->framebuffer_obj);
+
+	// Restore clear values
+	gl.ClearColor(color_clear_value[0], color_clear_value[1], color_clear_value[2], color_clear_value[3]);
+	gl.ClearDepth(depth_clear_value);
 
 	Py_RETURN_NONE;
 }
