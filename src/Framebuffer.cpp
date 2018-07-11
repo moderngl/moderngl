@@ -520,6 +520,14 @@ PyObject * MGLFramebuffer_read(MGLFramebuffer * self, PyObject * args) {
 
 	}
 
+	bool read_depth = false;
+
+	if (components == -1) {
+		components = 1;
+		read_depth = true;
+		data_type = from_dtype("f4");
+	}
+
 	int expected_size = width * components * data_type->size;
 	expected_size = (expected_size + alignment - 1) / alignment * alignment;
 	expected_size = expected_size * height;
@@ -536,14 +544,22 @@ PyObject * MGLFramebuffer_read(MGLFramebuffer * self, PyObject * args) {
 
 	gl.BindFramebuffer(GL_FRAMEBUFFER, self->framebuffer_obj);
 	// if (self->framebuffer_obj) {
-	gl.ReadBuffer(GL_COLOR_ATTACHMENT0 + attachment);
+	if (!read_depth) {
+		gl.ReadBuffer(GL_COLOR_ATTACHMENT0 + attachment);
+	} else {
+		gl.ReadBuffer(GL_NONE);
+	}
 	// } else {
 	// gl.ReadBuffer(GL_BACK_LEFT);
 	// gl.ReadBuffer(self->draw_buffers[0]);
 	// }
 	gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
 	gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
-	gl.ReadPixels(x, y, width, height, base_format, pixel_type, data);
+	if (!read_depth) {
+		gl.ReadPixels(x, y, width, height, base_format, pixel_type, data);
+	} else {
+		gl.ReadPixels(x, y, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, data);
+	}
 	gl.BindFramebuffer(GL_FRAMEBUFFER, self->context->bound_framebuffer->framebuffer_obj);
 
 	return result;
