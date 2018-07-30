@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
-
-- missing `ComputeShader` uniforms and uniform blocks
-- wrong `DrawBuffer` call when clearing the screen
-- reading depth values from textures
-- broken comapre functions
-
 ### Added
 
 - `index_element_size` parameter for `Context.vertex_array` and `Context.simple_vertex_array`
@@ -24,6 +17,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Texture.compare_func` property
 - `Texture.anisotropy` property
 - docs and tests
+
+### Fixed
+
+- missing `ComputeShader` uniforms and uniform blocks
+- wrong `DrawBuffer` call when clearing the screen
+- reading depth values from textures
+- broken comapre functions
 
 ## [5.3.0] - 2018-06-27
 
