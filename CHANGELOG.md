@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Sampler object support
+- `Context.sampler` method
 - `index_element_size` parameter for `Context.vertex_array` and `Context.simple_vertex_array`
-- Sampler objects and the `Context.sampler` method
 - `Context.max_anisotropy` property
 - `Context.clear_samplers` method
 - `Framebuffer.read` and `Framebuffer.read_into` now accepts `attachment=-1` to read the depth attachment
