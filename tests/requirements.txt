@@ -1,3 +1,4 @@
+setuptools>=40.2.0
 numpy
 pytest
 pycodestyle
