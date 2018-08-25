@@ -3,7 +3,7 @@ import platform
 import re
 import sys
 
-from setuptools import Extension, setup
+from setuptools import Extension, setup, find_namespace_packages
 
 # pylint: disable=C0103, W0212
 
@@ -139,7 +139,7 @@ setup(
     license='MIT',
     classifiers=classifiers,
     keywords=keywords,
-    packages=['moderngl', 'moderngl.program_members'],
+    packages=find_namespace_packages(include=['moderngl', 'moderngl.*']),
     install_requires=install_requires,
     ext_modules=[mgl],
     platforms=['any'],
