@@ -1,3 +1,4 @@
+setuptools>=40.2.0
 Sphinx
 sphinx-rtd-theme
 sphinxcontrib-napoleon
