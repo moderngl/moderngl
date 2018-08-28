@@ -232,10 +232,8 @@ PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
 
 	gl.BindTexture(texture_target, texture->texture_obj);
 
-	// gl.TexParameteri(texture_target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	// gl.TexParameteri(texture_target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// gl.TexParameteri(texture_target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	// gl.TexParameteri(texture_target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	gl.TexParameteri(texture_target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	gl.TexParameteri(texture_target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	if (samples) {
 		gl.TexImage2DMultisample(texture_target, samples, GL_DEPTH_COMPONENT24, width, height, true);
