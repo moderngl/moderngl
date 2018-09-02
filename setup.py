@@ -39,8 +39,9 @@ if target == 'darwin':
 
 if target in ['linux', 'cygwin']:
     from distutils import sysconfig
+
     cvars = sysconfig.get_config_vars()
-    
+
     if hasattr(sysconfig, '_config_vars') and sysconfig._config_vars is not None:
         if 'OPT' in cvars:
             sysconfig._config_vars['OPT'] = cvars['OPT'].replace('-Wstrict-prototypes', '')
@@ -94,6 +95,7 @@ mgl = Extension(
         'moderngl/src/InvalidObject.cpp',
         'moderngl/src/ModernGL.cpp',
         'moderngl/src/Program.cpp',
+        'moderngl/src/Program_Error.cpp',
         'moderngl/src/Query.cpp',
         'moderngl/src/Renderbuffer.cpp',
         'moderngl/src/Scope.cpp',
