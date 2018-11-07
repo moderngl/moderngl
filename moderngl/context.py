@@ -719,7 +719,7 @@ class Context:
         res.mglo, res._glo = self.mglo.vertex_array(program.mglo, content, index_buffer_mglo,
                                                     index_element_size, skip_errors)
         res._program = program
-        res._buffer = buffers
+        res._buffers = buffers
         res._index_buffer = index_buffer
         res._index_element_size = index_element_size
         res.ctx = self
