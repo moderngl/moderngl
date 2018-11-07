@@ -33,11 +33,12 @@ class VertexArray:
         to create one.
     '''
 
-    __slots__ = ['mglo', '_program', '_index_buffer', '_index_element_size', '_glo', 'ctx', 'extra']
+    __slots__ = ['mglo', '_program', '_buffer', '_index_buffer', '_index_element_size', '_glo', 'ctx', 'extra']
 
     def __init__(self):
         self.mglo = None
         self._program = None
+        self._buffer = None
         self._index_buffer = None
         self._index_element_size = None
         self._glo = None
@@ -59,6 +60,14 @@ class VertexArray:
         '''
 
         return self._program
+
+    @property
+    def buffer(self) -> 'Buffer':
+        '''
+           Buffer: The vbo assigned to this vao object.
+        '''
+           
+        return self._buffer
 
     @property
     def index_buffer(self) -> 'Buffer':
