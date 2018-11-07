@@ -33,6 +33,7 @@ Attributes
 ----------
 
 .. autoattribute:: VertexArray.program
+.. autoattribute:: VertexArray.buffers
 .. autoattribute:: VertexArray.index_buffer
 .. autoattribute:: VertexArray.index_element_size
 .. autoattribute:: VertexArray.vertices
