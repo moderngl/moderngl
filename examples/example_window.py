@@ -3,7 +3,7 @@ import time
 import moderngl as mgl
 import numpy as np
 from PyQt5 import QtOpenGL, QtWidgets, QtCore
-
+from PyQt5.QtGui import QSurfaceFormat
 
 class WindowInfo:
     def __init__(self):
@@ -26,16 +26,18 @@ class WindowInfo:
         return not self.keys[key] and self.old_keys[key]
 
 
-class ExampleWindow(QtOpenGL.QGLWidget):
+class ExampleWindow(QtWidgets.QOpenGLWidget):
     def __init__(self, size, title):
-        fmt = QtOpenGL.QGLFormat()
-        fmt.setVersion(3, 3)
-        fmt.setProfile(QtOpenGL.QGLFormat.CoreProfile)
-        fmt.setSwapInterval(1)
-        fmt.setSampleBuffers(True)
-        fmt.setDepthBufferSize(24)
+        super(ExampleWindow, self).__init__()
 
-        super(ExampleWindow, self).__init__(fmt, None)
+        qformat = QSurfaceFormat()
+        qformat.setVersion(3, 3)
+        qformat.setProfile(QSurfaceFormat.CoreProfile)
+        qformat.setSwapInterval(1)
+        qformat.setSamples(16)
+        qformat.setDepthBufferSize(24)
+        self.setFormat(qformat)
+        
         self.setFixedSize(size[0], size[1])
         self.move(QtWidgets.QDesktopWidget().rect().center() - self.rect().center())
         self.setWindowTitle(title)
