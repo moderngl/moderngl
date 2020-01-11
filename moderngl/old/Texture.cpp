@@ -142,6 +142,7 @@ PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
 
 	texture->repeat_x = true;
 	texture->repeat_y = true;
+	texture->reference = nullptr;
 
 	Py_INCREF(self);
 	texture->context = self;
@@ -284,6 +285,27 @@ PyObject * MGLTexture_tp_new(PyTypeObject * type, PyObject * args, PyObject * kw
 	}
 
 	return (PyObject *)self;
+}
+
+PyObject * MGLTexture_transfer(MGLTexture* self, PyObject* args) {
+	MGLContext* context;
+	bool args_ok = PyArg_ParseTuple(
+		args,
+		"O!",
+		&MGLContext_Type,
+		&context);
+	if (!args_ok) return 0;
+	// TODO: to check if the texture is sharable amongst old and new context
+	MGLTexture* new_texture = new MGLTexture(*self);
+	Py_INCREF(context);
+	Py_INCREF(new_texture);
+	Py_INCREF(self);
+	new_texture->context = context;
+	new_texture->reference = self;
+	PyObject * result = PyTuple_New(2);
+	PyTuple_SET_ITEM(result, 0, (PyObject *)new_texture);
+	PyTuple_SET_ITEM(result, 1, PyLong_FromLong(new_texture->texture_obj));
+	return result;
 }
 
 void MGLTexture_tp_dealloc(MGLTexture * self) {
@@ -668,6 +690,7 @@ PyMethodDef MGLTexture_tp_methods[] = {
 	{"read", (PyCFunction)MGLTexture_read, METH_VARARGS, 0},
 	{"read_into", (PyCFunction)MGLTexture_read_into, METH_VARARGS, 0},
 	{"release", (PyCFunction)MGLTexture_release, METH_NOARGS, 0},
+	{"transfer", (PyCFunction)MGLTexture_transfer, METH_VARARGS, 0},
 	{0},
 };
 
@@ -946,10 +969,14 @@ void MGLTexture_Invalidate(MGLTexture * texture) {
 		return;
 	}
 
-	// TODO: decref
 
-	const GLMethods & gl = texture->context->gl;
-	gl.DeleteTextures(1, (GLuint *)&texture->texture_obj);
+	if (texture->reference) {
+		Py_DECREF(texture->reference);
+	} else {
+		// TODO: decref
+		const GLMethods & gl = texture->context->gl;
+		gl.DeleteTextures(1, (GLuint *)&texture->texture_obj);
+	}
 
 	Py_DECREF(texture->context);
 	Py_TYPE(texture) = &MGLInvalidObject_Type;

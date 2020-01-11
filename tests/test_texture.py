@@ -146,6 +146,17 @@ class TestCase(unittest.TestCase):
         texture.read_into(pbo)
 
         self.assertEqual(pbo.read(), pixels)
+    
+    def test_7(self):
+        pixels = struct.pack('16B', 255, 0, 0, 255, 0, 255, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255)
+        texture1 = self.ctx.texture((2, 2), 4, pixels)
+        texture2 = texture1.transfer(self.ctx)
+        pbo1 = self.ctx.buffer(reserve=len(pixels))
+        pbo2 = self.ctx.buffer(reserve=len(pixels))
+        texture1.read_into(pbo1)
+        texture2.read_into(pbo2)
+        self.assertEqual(pbo1.read(), pbo2.read())
+
 
 
 if __name__ == '__main__':

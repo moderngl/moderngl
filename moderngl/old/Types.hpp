@@ -268,6 +268,7 @@ struct MGLTexture {
 
 	bool repeat_x;
 	bool repeat_y;
+	MGLTexture* reference;
 };
 
 struct MGLTexture3D {
