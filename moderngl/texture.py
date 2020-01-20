@@ -353,7 +353,12 @@ class Texture:
 
     def transfer(self, context) -> 'Texture':
         '''
-            create a reference texture under another sharable context
+            share the texture to a new context
+
+            Args:
+                context (:py:class:`Context`): shared context
+            Returns:
+                :py:class:`Texture` object
         '''
         res = Texture.__new__(Texture)
         res.mglo, res._glo = self.mglo.transfer(context.mglo)

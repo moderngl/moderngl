@@ -266,6 +266,7 @@ PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
 
 	texture->repeat_x = false;
 	texture->repeat_y = false;
+	texture->reference = nullptr;
 
 	Py_INCREF(self);
 	texture->context = self;
@@ -285,27 +286,6 @@ PyObject * MGLTexture_tp_new(PyTypeObject * type, PyObject * args, PyObject * kw
 	}
 
 	return (PyObject *)self;
-}
-
-PyObject * MGLTexture_transfer(MGLTexture* self, PyObject* args) {
-	MGLContext* context;
-	bool args_ok = PyArg_ParseTuple(
-		args,
-		"O!",
-		&MGLContext_Type,
-		&context);
-	if (!args_ok) return 0;
-	// TODO: to check if the texture is sharable amongst old and new context
-	MGLTexture* new_texture = new MGLTexture(*self);
-	Py_INCREF(context);
-	Py_INCREF(new_texture);
-	Py_INCREF(self);
-	new_texture->context = context;
-	new_texture->reference = self;
-	PyObject * result = PyTuple_New(2);
-	PyTuple_SET_ITEM(result, 0, (PyObject *)new_texture);
-	PyTuple_SET_ITEM(result, 1, PyLong_FromLong(new_texture->texture_obj));
-	return result;
 }
 
 void MGLTexture_tp_dealloc(MGLTexture * self) {
@@ -676,6 +656,27 @@ PyObject * MGLTexture_build_mipmaps(MGLTexture * self, PyObject * args) {
 	self->max_level = max;
 
 	Py_RETURN_NONE;
+}
+
+PyObject * MGLTexture_transfer(MGLTexture * self, PyObject * args) {
+	MGLContext* context;
+	bool args_ok = PyArg_ParseTuple(
+			args,
+			"O!",
+			&MGLContext_Type,
+			&context);
+	if (!args_ok) return 0;
+	// TODO: to check if the texture is sharable amongst old and new context
+	MGLTexture* new_texture = new MGLTexture(*self);
+	Py_INCREF(context);
+	Py_INCREF(new_texture);
+	Py_INCREF(self);
+	new_texture->context = context;
+	new_texture->reference = self;
+	PyObject * result = PyTuple_New(2);
+	PyTuple_SET_ITEM(result, 0, (PyObject *)new_texture);
+	PyTuple_SET_ITEM(result, 1, PyLong_FromLong(new_texture->texture_obj));
+	return result;
 }
 
 PyObject * MGLTexture_release(MGLTexture * self) {

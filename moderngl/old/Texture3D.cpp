@@ -124,6 +124,8 @@ PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
 	texture->repeat_y = true;
 	texture->repeat_z = true;
 
+	texture->reference = nullptr;
+
 	Py_INCREF(self);
 	texture->context = self;
 
@@ -447,6 +449,26 @@ PyObject * MGLTexture3D_release(MGLTexture3D * self) {
 	Py_RETURN_NONE;
 }
 
+PyObject * MGLTexture3D_transfer(MGLTexture3D * self, PyObject * args) {
+	MGLContext* context;
+	bool args_ok = PyArg_ParseTuple(
+			args,
+			"O!",
+			&MGLContext_Type,
+			&context);
+	if (!args_ok) return 0;
+	MGLTexture3D* new_texture = new MGLTexture3D(*self);
+	Py_INCREF(context);
+	Py_INCREF(new_texture);
+	Py_INCREF(self);
+	new_texture->context = context;
+	new_texture->reference = self;
+	PyObject* result = PyTuple_New(2);
+	PyTuple_SET_ITEM(result, 0, (PyObject*)new_texture);
+	PyTuple_SET_ITEM(result, 1, PyLong_FromLong(new_texture->texture_obj));
+	return result;
+}
+
 PyMethodDef MGLTexture3D_tp_methods[] = {
 	{"write", (PyCFunction)MGLTexture3D_write, METH_VARARGS, 0},
 	{"use", (PyCFunction)MGLTexture3D_use, METH_VARARGS, 0},
@@ -454,6 +476,7 @@ PyMethodDef MGLTexture3D_tp_methods[] = {
 	{"read", (PyCFunction)MGLTexture3D_read, METH_VARARGS, 0},
 	{"read_into", (PyCFunction)MGLTexture3D_read_into, METH_VARARGS, 0},
 	{"release", (PyCFunction)MGLTexture3D_release, METH_NOARGS, 0},
+	{"transfer", (PyCFunction)MGLTexture3D_transfer, METH_VARARGS, 0},
 	{0},
 };
 
@@ -686,9 +709,12 @@ void MGLTexture3D_Invalidate(MGLTexture3D * texture) {
 	}
 
 	// TODO: decref
-
-	const GLMethods & gl = texture->context->gl;
-	gl.DeleteTextures(1, (GLuint *)&texture->texture_obj);
+	if (texture->reference) {
+		Py_DECREF(texture->reference);
+	} else {
+		const GLMethods & gl = texture->context->gl;
+		gl.DeleteTextures(1, (GLuint *)&texture->texture_obj);
+	}
 
 	Py_DECREF(texture->context);
 	Py_TYPE(texture) = &MGLInvalidObject_Type;

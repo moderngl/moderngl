@@ -270,3 +270,20 @@ class Buffer:
             (self, index) tuple
         """
         return (self, index)
+
+    def transfer(self, context):
+        '''
+            share the buffer to a new context
+
+            Args:
+                context (:py:class:`Texture`): shared context
+            Returns:
+                :py:class:`Buffer` object
+        '''
+        res = Buffer.__new__(Buffer)
+        res.mglo, res._glo = self.mglo.transfer(context.mglo)
+        res._size = self._size
+        res._dynamic = self._dynamic
+        res.ctx = context
+        res.extra = self.extra
+        return res

@@ -88,6 +88,8 @@ struct MGLBuffer {
 
 	Py_ssize_t size;
 	bool dynamic;
+
+	MGLBuffer* reference;
 };
 
 struct MGLComputeShader {
@@ -292,6 +294,7 @@ struct MGLTexture3D {
 	bool repeat_x;
 	bool repeat_y;
 	bool repeat_z;
+	MGLTexture3D* reference;
 };
 
 struct MGLTextureArray {
@@ -317,6 +320,8 @@ struct MGLTextureArray {
 	bool repeat_x;
 	bool repeat_y;
 	float anisotropy;
+
+	MGLTextureArray* reference;
 };
 
 struct MGLTextureCube {
@@ -337,6 +342,8 @@ struct MGLTextureCube {
 	int mag_filter;
 	int max_level;
 	float anisotropy;
+
+	MGLTextureCube* reference;
 };
 
 struct MGLUniform {

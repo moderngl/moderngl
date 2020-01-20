@@ -278,3 +278,23 @@ class Texture3D:
         '''
 
         self.mglo.release()
+
+    def transfer(self, context) -> 'Texture3D':
+        '''
+            share the texture to a new context
+
+            Args:
+                context (:py:class:`Context`): shared context
+            Returns:
+                :py:class:`Texture3D` object
+        '''
+        res = Texture3D.__new__(Texture3D)
+        res.mglo, res._glo = self.mglo.transfer(context.mglo)
+        res._size = self._size
+        res._components = self._components
+        res._samples = self._samples
+        res._dtype = self._dtype
+        res._depth = self._depth
+        res.ctx = context
+        res.extra = self.extra
+        return res

@@ -69,6 +69,7 @@ PyObject * MGLContext_buffer(MGLContext * self, PyObject * args) {
 
 	Py_INCREF(self);
 	buffer->context = self;
+	buffer->reference = nullptr;
 
 	if (data != Py_None) {
 		PyBuffer_Release(&buffer_view);
@@ -564,6 +565,26 @@ PyObject * MGLBuffer_size(MGLBuffer * self) {
 	return PyLong_FromLong(self->size); 
 }
 
+PyObject * MGLBuffer_transfer(MGLBuffer * self, PyObject * args) {
+	MGLContext* context;
+	bool args_ok = PyArg_ParseTuple(
+			args,
+			"O!",
+			&MGLContext_Type,
+			&context);
+	if (!args_ok) return 0;
+	MGLBuffer* new_buffer = new MGLBuffer(*self);
+	Py_INCREF(context);
+	Py_INCREF(new_buffer);
+	Py_INCREF(self);
+	new_buffer->context = context;
+	new_buffer->reference = self;
+	PyObject* result = PyTuple_New(2);
+	PyTuple_SET_ITEM(result, 0, (PyObject*) new_buffer);
+	PyTuple_SET_ITEM(result, 1, PyLong_FromLong(new_buffer->buffer_obj));
+	return  result;
+}
+
 PyMethodDef MGLBuffer_tp_methods[] = {
 	{"write", (PyCFunction)MGLBuffer_write, METH_VARARGS, 0},
 	{"read", (PyCFunction)MGLBuffer_read, METH_VARARGS, 0},
@@ -666,8 +687,12 @@ void MGLBuffer_Invalidate(MGLBuffer * buffer) {
 
 	// TODO: decref
 
-	const GLMethods & gl = buffer->context->gl;
-	gl.DeleteBuffers(1, (GLuint *)&buffer->buffer_obj);
+	if (buffer->reference) {
+		Py_DECREF(buffer->reference);
+	} else {
+		const GLMethods & gl = buffer->context->gl;
+		gl.DeleteBuffers(1, (GLuint *)&buffer->buffer_obj);
+	}
 
 	Py_TYPE(buffer) = &MGLInvalidObject_Type;
 	Py_DECREF(buffer);

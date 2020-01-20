@@ -207,3 +207,23 @@ class TextureCube:
         '''
 
         self.mglo.release()
+
+    def transfer(self, context) -> 'TextureCube':
+        '''
+            share the texure to a new context
+
+            Args:
+                context (:py:class:`TextureCube`): shared context
+            Returns:
+                :py:class:`TextureCube` object
+        '''
+        res = TextureCube.__new__(TextureCube)
+        res.mglo, res._glo = self.mglo.transfer(context.mglo)
+        res._size = self._size
+        res._components = self._components
+        res._samples = self._samples
+        res._dtype = self._dtype
+        res._depth = self._depth
+        res.ctx = context
+        res.extra = self.extra
+        return res

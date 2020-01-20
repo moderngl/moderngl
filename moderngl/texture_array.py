@@ -287,3 +287,23 @@ class TextureArray:
         '''
 
         self.mglo.release()
+
+    def transfer(self, context) -> 'TextureArray':
+        '''
+            share the texture to a new context
+
+            Args:
+                context (:py:class:`Context`): shared context
+            Returns:
+                :py:class:`TextureArray` object
+        '''
+        res = TextureArray.__new__(TextureArray)
+        res.mglo, res._glo = self.mglo.transfer(context.mglo)
+        res._size = self._size
+        res._components = self._components
+        res._samples = self._samples
+        res._dtype = self._dtype
+        res._depth = self._depth
+        res.ctx = context
+        res.extra = self.extra
+        return res
