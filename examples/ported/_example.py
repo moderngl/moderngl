@@ -9,7 +9,7 @@ class Example(mglw.WindowConfig):
     window_size = (1280, 720)
     aspect_ratio = 16 / 9
     resizable = True
-    samples = 4
+    #samples = 4 #this will cause an error of pyglet.window.nosuchconfigexception on Ubuntu. SO remove it?
 
     resource_dir = os.path.normpath(os.path.join(__file__, '../../data'))
 
