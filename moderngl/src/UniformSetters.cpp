@@ -19,7 +19,11 @@ int MGLUniform_bool_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, &c_value);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, &c_value);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -32,7 +36,11 @@ int MGLUniform_int_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, &c_value);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, &c_value);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -45,7 +53,11 @@ int MGLUniform_uint_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, &c_value);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, &c_value);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -58,7 +70,11 @@ int MGLUniform_float_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, &c_value);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, &c_value);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
 
 	return 0;
 }
@@ -71,7 +87,11 @@ int MGLUniform_double_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, &c_value);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, &c_value);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -84,7 +104,11 @@ int MGLUniform_sampler_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, &c_value);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, &c_value);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -119,7 +143,11 @@ int MGLUniform_bool_array_value_setter(MGLUniform * self, PyObject * value) {
 		}
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -151,7 +179,11 @@ int MGLUniform_int_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -183,7 +215,11 @@ int MGLUniform_uint_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -215,7 +251,11 @@ int MGLUniform_float_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -247,7 +287,11 @@ int MGLUniform_double_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size, c_values);
+	GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -279,7 +323,11 @@ int MGLUniform_sampler_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -314,7 +362,11 @@ int MGLUniform_bvec_value_setter(MGLUniform * self, PyObject * value) {
 		}
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -344,7 +396,11 @@ int MGLUniform_ivec_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -374,7 +430,11 @@ int MGLUniform_uvec_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -404,7 +464,11 @@ int MGLUniform_vec_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -434,7 +498,11 @@ int MGLUniform_dvec_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, 1, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -489,7 +557,11 @@ int MGLUniform_bvec_array_value_setter(MGLUniform * self, PyObject * value) {
 		}
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size * N, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size * N, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -541,7 +613,11 @@ int MGLUniform_ivec_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size * N, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size * N, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -593,7 +669,11 @@ int MGLUniform_uvec_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size * N, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size * N, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -645,7 +725,11 @@ int MGLUniform_vec_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size * N, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size * N, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -697,7 +781,11 @@ int MGLUniform_dvec_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size * N, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, size * N, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;
@@ -728,7 +816,11 @@ int MGLUniform_matrix_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_matrix_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, 1, false, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_matrix_writer_proc)self->gl_value_writer_proc)(self->location, 1, false, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	return 0;
 }
@@ -779,7 +871,11 @@ int MGLUniform_matrix_array_value_setter(MGLUniform * self, PyObject * value) {
 		return -1;
 	}
 
-	((gl_uniform_matrix_writer_proc)self->gl_value_writer_proc)(self->program_obj, self->location, size, false, c_values);
+    GLint current_program;
+    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
+	((gl_uniform_matrix_writer_proc)self->gl_value_writer_proc)(self->location, size, false, c_values);
+    ((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	delete[] c_values;
 	return 0;

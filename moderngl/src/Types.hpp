@@ -351,6 +351,8 @@ struct MGLUniform {
 
 	MGLProc value_getter;
 	MGLProc value_setter;
+	MGLProc gl_get_integer_proc;
+	MGLProc gl_use_program_prog;
 	MGLProc gl_value_reader_proc;
 	MGLProc gl_value_writer_proc;
 
