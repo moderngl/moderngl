@@ -45,17 +45,13 @@ int MGLUniform_set_data(MGLUniform * self, PyObject * value, void * closure) {
 		return -1;
 	}
 
-	GLint current_program;
-    ((gl_get_intergerv_proc) self->gl_get_integer_proc)(GL_CURRENT_PROGRAM, &current_program);
-    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
 
+    ((gl_use_program_proc)self->gl_use_program_prog)(self->program_obj);
 	if (self->matrix) {
 		((gl_uniform_matrix_writer_proc)self->gl_value_writer_proc)(self->location, self->array_length, false, buffer_view.buf);
 	} else {
 		((gl_uniform_vector_writer_proc)self->gl_value_writer_proc)(self->location, self->array_length, buffer_view.buf);
 	}
-
-	((gl_use_program_proc)self->gl_use_program_prog)(current_program);
 
 	PyBuffer_Release(&buffer_view);
 	return 0;
@@ -120,7 +116,6 @@ void MGLUniform_Invalidate(MGLUniform * uniform) {
 }
 
 void MGLUniform_Complete(MGLUniform * self, const GLMethods & gl) {
-    self->gl_get_integer_proc = (MGLProc)gl.GetIntegerv;
     self->gl_use_program_prog = (MGLProc)gl.UseProgram;
 	switch (self->type) {
 		case GL_BOOL:
