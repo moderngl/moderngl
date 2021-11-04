@@ -1,6 +1,3 @@
-"""
-$ python particle_system_advanced -w glfw --vsync 1
-"""
 from typing import Optional, Tuple, Final
 
 import moderngl
@@ -10,6 +7,8 @@ from ported._example import Example
 
 NB_PARTICLES: Final[int] = 2 << 10  # 1024
 POINT_SIZE: Final[int] = 2 << 3  # 16
+# https://www.toutes-les-couleurs.com/code-couleur-rvb.php
+CHAMPAGNE_COLOR: Final[Tuple[float, float, float, float]] = (251 / 255., 242 / 255., 183 / 255., 1.0)
 
 
 class Particles(Example):
@@ -130,7 +129,7 @@ class Particles(Example):
 
         self.color_particle = self.prog['u_color_particle']
         # https://www.toutes-les-couleurs.com/code-couleur-rvb.php
-        self.color_particle.value = (251 / 255., 242 / 255., 183 / 255., 1.0)
+        self.color_particle.value = CHAMPAGNE_COLOR
 
         self.nb_particles = nb_max_particles
 
@@ -182,10 +181,10 @@ class Particles(Example):
         # particle at center with a random velocity
         return np.array(
             [
-                *position,  # position: vec2
-                1.0,  # hotness: float
-                velocity_x, velocity_y,  # velocity: vec2
-                float(id_particle)  # id particle: float
+                *position,  # position[vec2]
+                1.0,  # hotness[float]
+                velocity_x, velocity_y,  # velocity[vec2]
+                float(id_particle)  # id particle[float]
             ]
         ).astype('f4').tobytes()  # encoded float32
 
@@ -208,7 +207,7 @@ class Particles(Example):
         # Physic pass: update particles system
         self.update_particles(time)
         # Rendering pass: render particles system
-        self.ctx.clear(1.0, 1.0, 1.0)
+        self.ctx.clear(*CHAMPAGNE_COLOR)
         self.render_particles()
 
 
