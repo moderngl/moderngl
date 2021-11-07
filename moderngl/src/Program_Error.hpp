@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "GLMethods.hpp"
+#include "gl_methods.hpp"
 
 int print_errors( std::string& errors, const char *log, const char *source );
 int program_print_errors(std::string& errors, const GLMethods & gl, GLint shader_obj);

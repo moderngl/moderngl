@@ -21,7 +21,7 @@ jobs:
         architecture: ['x64']
 
     steps:
-      - uses: actions/checkout@v2      
+      - uses: actions/checkout@v2
       - name: setup
         uses: actions/setup-python@v2
         with:

@@ -101,13 +101,13 @@ PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             }
             else {
                 // old path
-                const char* log_parser_error = "Can't format shader informations logs (build errors)!";
+                const char* log_parser_error = "Can't format shader information logs (build errors)!";
                 // get raw shader info log
                 int log_len = 0;
                 gl.GetShaderiv(shader_obj, GL_INFO_LOG_LENGTH, &log_len);
                 char * log = new char[log_len];
                 gl.GetShaderInfoLog(shader_obj, log_len, &log_len, log);
-                // send raw shader informations logs
+                // send raw shader information logs
                 MGLError_Set("%s\n\n%s\n%s\n%s\n%s\n", message, title, underline, log_parser_error, log);
             }
 
