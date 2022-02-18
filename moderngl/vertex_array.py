@@ -134,6 +134,30 @@ class VertexArray:
     def index_buffer(self) -> 'Buffer':
         '''
             Buffer: The index buffer if the index_buffer is set, otherwise ``None``.
+            
+            Example::
+
+                    import numpy as np
+
+                    vertices = np.array([
+                        # x, y,
+                        # r, g, b, a
+                        #Vertex 0
+                        0.5, 0.5,
+                        1.0, 0.0, 0.5, 1.0,
+                        #Vertex 1
+                        0.5, -0.5,
+                        1.0, 0.5, 0.0, 1.0,
+                        #Vertex 2
+                        -0.5, -0.5,
+                        0.5, 1.0, 0.0, 1.0,
+                        #Vertex 3
+                        -0.5, 0.5,
+                        0.5, 0.0, 1.0, 1.0,
+                    ], dtype='f4')
+                    
+                    ibo = ctx.buffer(np.array([0,1,2, 2,3,0], dtype=np.uint32))
+                    vao = ctx.vertex_array(prog, vbo, 'in_vert', 'in_color', index_buffer=ibo)
         '''
 
         return self._index_buffer
