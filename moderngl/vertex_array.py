@@ -137,8 +137,6 @@ class VertexArray:
             
             Example::
 
-                    import numpy as np
-
                     vertices = np.array([
                         # x, y,
                         # r, g, b, a
@@ -157,6 +155,7 @@ class VertexArray:
                     ], dtype='f4')
                     
                     ibo = ctx.buffer(np.array([0,1,2, 2,3,0], dtype=np.uint32))
+                    vbo = ctx.buffer(vertices)
                     vao = ctx.vertex_array(prog, vbo, 'in_vert', 'in_color', index_buffer=ibo)
         '''
 
