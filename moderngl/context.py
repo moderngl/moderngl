@@ -1481,6 +1481,7 @@ class Context:
         tess_evaluation_shader: Optional[str] = None,
         varyings: Tuple[str, ...] = (),
         fragment_outputs: Optional[Dict[str, int]] = None,
+        varyings_capture_mode: str = 'interleaved',
     ) -> 'Program':
         """
         Create a :py:class:`Program` object.
@@ -1497,6 +1498,10 @@ class Context:
         Returns:
             :py:class:`Program` object
         """
+
+        if varyings_capture_mode not in ('interleaved', 'separate'):
+            raise ValueError('varyings_capture_mode must be interleaved or separate')
+
         if type(varyings) is str:
             varyings = (varyings,)
 
@@ -1508,7 +1513,7 @@ class Context:
         res = Program.__new__(Program)
         res.mglo, ls1, ls2, ls3, ls4, ls5, res._subroutines, res._geom, res._glo = self.mglo.program(
             vertex_shader, fragment_shader, geometry_shader, tess_control_shader, tess_evaluation_shader,
-            varyings, fragment_outputs,
+            varyings, fragment_outputs, varyings_capture_mode == 'interleaved'
         )
 
         members = {}

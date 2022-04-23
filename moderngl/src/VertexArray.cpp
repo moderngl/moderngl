@@ -329,7 +329,7 @@ PyObject * MGLVertexArray_render_indirect(MGLVertexArray * self, PyObject * args
 }
 
 PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args) {
-	MGLBuffer * output;
+	PyObject * outputs;
 	int mode;
 	int vertices;
 	int first;
@@ -339,8 +339,8 @@ PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args) {
 	int args_ok = PyArg_ParseTuple(
 		args,
 		"O!IIIII",
-		&MGLBuffer_Type,
-		&output,
+		&PyList_Type,
+		&outputs,
 		&mode,
 		&vertices,
 		&first,
@@ -448,11 +448,11 @@ PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args) {
 	gl.UseProgram(self->program->program_obj);
 	gl.BindVertexArray(self->vertex_array_obj);
 
-	if (buffer_offset > 0) {
-		gl.BindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, output->buffer_obj, buffer_offset, output->size - buffer_offset);
-	} else {
-		gl.BindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, buffer_offset, output->buffer_obj);
-	}
+    int num_outputs = (int)PyList_Size(outputs);
+    for (int i = 0; i < num_outputs; ++i) {
+        MGLBuffer * output = (MGLBuffer *)PyList_GET_ITEM(outputs, i);
+        gl.BindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, i, output->buffer_obj, buffer_offset, output->size - buffer_offset);
+    }
 
 	gl.Enable(GL_RASTERIZER_DISCARD);
 	gl.BeginTransformFeedback(output_mode);

@@ -1,4 +1,4 @@
-from typing import Any, Optional, TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from moderngl.mgl import InvalidObject  # type: ignore
 
@@ -254,7 +254,7 @@ class VertexArray:
 
     def transform(
         self,
-        buffer: "Buffer",
+        buffer: Union["Buffer", List["Buffer"]],
         mode: int = None,
         vertices: int = -1,
         *,
@@ -282,11 +282,16 @@ class VertexArray:
         if mode is None:
             mode = self._mode
 
+        if isinstance(buffer, (list, tuple)):
+            outputs = [buf.mglo for buf in buffer]
+        else:
+            outputs = [buffer.mglo]
+
         if self.scope:
             with self.scope:
-                self.mglo.transform(buffer.mglo, mode, vertices, first, instances, buffer_offset)
+                self.mglo.transform(outputs, mode, vertices, first, instances, buffer_offset)
         else:
-            self.mglo.transform(buffer.mglo, mode, vertices, first, instances, buffer_offset)
+            self.mglo.transform(outputs, mode, vertices, first, instances, buffer_offset)
 
     def bind(
         self,

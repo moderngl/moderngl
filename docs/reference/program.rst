@@ -8,7 +8,7 @@ Program
 Create
 ------
 
-.. automethod:: Context.program(vertex_shader: str, fragment_shader: Optional[str] = None, geometry_shader: Optional[str] = None, tess_control_shader: Optional[str] = None, tess_evaluation_shader: Optional[str] = None, varyings: Tuple[str, ...] = (), fragment_outputs: Optional[Dict[str, int]] = None) -> Program
+.. automethod:: Context.program(vertex_shader: str, fragment_shader: Optional[str] = None, geometry_shader: Optional[str] = None, tess_control_shader: Optional[str] = None, tess_evaluation_shader: Optional[str] = None, varyings: Tuple[str, ...] = (), fragment_outputs: Optional[Dict[str, int]] = None, varyings_capture_mode: str = 'interleaved') -> Program
     :noindex:
 
 Methods

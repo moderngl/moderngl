@@ -6,17 +6,19 @@ PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
 	PyObject * shaders[5];
 	PyObject * outputs;
 	PyObject * fragment_outputs;
+    int interleaved;
 
 	int args_ok = PyArg_ParseTuple(
 		args,
-		"OOOOOOO",
+		"OOOOOOOp",
 		&shaders[0],
 		&shaders[1],
 		&shaders[2],
 		&shaders[3],
 		&shaders[4],
 		&outputs,
-		&fragment_outputs
+		&fragment_outputs,
+        &interleaved
 	);
 
 	if (!args_ok) {
@@ -115,7 +117,9 @@ PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
 			varyings_array[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(outputs, i));
 		}
 
-		gl.TransformFeedbackVaryings(program_obj, num_outputs, varyings_array, GL_INTERLEAVED_ATTRIBS);
+        int capture_mode = interleaved ? GL_INTERLEAVED_ATTRIBS : GL_SEPARATE_ATTRIBS;
+
+		gl.TransformFeedbackVaryings(program_obj, num_outputs, varyings_array, capture_mode);
 
 		delete[] varyings_array;
 	}
