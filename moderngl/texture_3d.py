@@ -223,7 +223,7 @@ class Texture3D:
 
             # Reading pixel data into a buffer
             data = ctx.buffer(reserve=8)
-            texture = ctx.texture3d((2, 2), 1)
+            texture = ctx.texture3d((2, 2, 2), 1)
             texture.read_into(data)
 
         Args:
