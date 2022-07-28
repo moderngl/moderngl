@@ -28,7 +28,7 @@ Verify that the package is working:
           More configuration might be needed to run moderngl in some cases.
           This is especially true on linux running without X. See the context section.
 
-Development environment
+Development Environment
 -----------------------
 
 Ideally you want to fork the repository first.

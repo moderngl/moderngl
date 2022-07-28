@@ -8,15 +8,15 @@ Scope
 Create
 ------
 
-.. automethod:: Context.scope(framebuffer: Optional[Framebuffer] = None, enable_only: Optional[int] = None, textures: Tuple[Tuple[Texture, int], ...] = (), uniform_buffers: Tuple[Tuple[Buffer, int], ...] = (), storage_buffers: Tuple[Tuple[Buffer, int], ...] = (), samplers: Tuple[Tuple[Sampler, int], ...] = (), enable: Optional[int] = None) -> Scope
-    :noindex:
+.. automethod:: Context.scope
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: Scope.__enter__()
-.. automethod:: Scope.__exit__(*args: Tuple[Any])
-.. automethod:: Scope.release()
+.. automethod:: Scope.__enter__
+.. automethod:: Scope.__exit__
+.. automethod:: Scope.release
 
 Attributes
 ----------

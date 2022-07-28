@@ -8,16 +8,16 @@ Renderbuffer
 Create
 ------
 
-.. automethod:: Context.renderbuffer(size: Tuple[int, int], components: int = 4, samples: int = 0, dtype: str = 'f1') -> Renderbuffer
-    :noindex:
+.. automethod:: Context.renderbuffer
+   :noindex:
 
-.. automethod:: Context.depth_renderbuffer(size: Tuple[int, int], samples: int = 0) -> Renderbuffer
-    :noindex:
+.. automethod:: Context.depth_renderbuffer
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: Renderbuffer.release()
+.. automethod:: Renderbuffer.release
 
 Attributes
 ----------

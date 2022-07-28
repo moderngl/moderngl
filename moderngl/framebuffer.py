@@ -222,7 +222,7 @@ class Framebuffer:
         Clear the framebuffer.
 
         If a `viewport` passed in, a scissor test will be used to clear the given viewport.
-        This viewport take prescense over the framebuffers :py:attr:`~moderngl.Framebuffer.scissor`.
+        This viewport take presence over the framebuffers :py:attr:`~moderngl.Framebuffer.scissor`.
         Clearing can still be done with scissor if no viewport is passed in.
 
         This method also respects the

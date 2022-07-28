@@ -8,15 +8,16 @@ Sampler
 Create
 ------
 
-.. automethod:: Context.sampler(repeat_x: bool = True, repeat_y: bool = True, repeat_z: bool = True, filter: Tuple[int, int] = None, anisotropy: float = 1.0, compare_func: str = '?', border_color: Tuple[float, float, float, float] = None, min_lod: float = -1000.0, max_lod: float = 1000.0, texture: Optional[Texture] = None) -> Sampler
+.. automethod:: Context.sampler
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: Sampler.use(location: int = 0)
-.. automethod:: Sampler.clear(location: int = 0)
-.. automethod:: Sampler.assign(index: int) -> Tuple[ForwardRef('Sampler'), int]
-.. automethod:: Sampler.release()
+.. automethod:: Sampler.use
+.. automethod:: Sampler.clear
+.. automethod:: Sampler.assign
+.. automethod:: Sampler.release
 
 Attributes
 ----------

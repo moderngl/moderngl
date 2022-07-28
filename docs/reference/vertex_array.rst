@@ -14,20 +14,20 @@ VertexArray
 Create
 ------
 
-.. automethod:: Context.simple_vertex_array(program: Program, buffer: Buffer, *attributes: Union[List[str], Tuple[str, ...]], index_buffer: Optional[Buffer] = None, index_element_size: int = 4, mode: Optional[int] = None) -> VertexArray
-    :noindex:
+.. automethod:: Context.simple_vertex_array
+   :noindex:
 
-.. automethod:: Context.vertex_array(*args, **kwargs) -> VertexArray
-    :noindex:
+.. automethod:: Context.vertex_array
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: VertexArray.render(mode: Optional[int] = None, vertices: int = -1, first: int = 0, instances: int = -1)
-.. automethod:: VertexArray.render_indirect(buffer: 'Buffer', mode: Optional[int] = None, count: int = -1, first: int = 0)
-.. automethod:: VertexArray.transform(buffer: Union['Buffer', List['Buffer']], mode: int = None, vertices: int = -1, first: int = 0, instances: int = -1, buffer_offset: int = 0)
-.. automethod:: VertexArray.bind(attribute: int, cls: str, buffer: 'Buffer', fmt: str, offset: int = 0, stride: int = 0, divisor: int = 0, normalize: bool = False)
-.. automethod:: VertexArray.release()
+.. automethod:: VertexArray.render
+.. automethod:: VertexArray.render_indirect
+.. automethod:: VertexArray.transform
+.. automethod:: VertexArray.bind
+.. automethod:: VertexArray.release
 
 Attributes
 ----------

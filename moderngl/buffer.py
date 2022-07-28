@@ -271,7 +271,7 @@ class Buffer:
         Helper method for binding a buffer.
 
         Returns:
-            (self, layout, *attribs) tuple
+            (self, layout, attribs) tuple
         """
         return (self, layout, *attribs)
 

@@ -8,18 +8,18 @@ TextureCube
 Create
 ------
 
-.. automethod:: Context.texture_cube(size: Tuple[int, int], components: int, data: Optional[Any] = None, alignment: int = 1, dtype: str = 'f1') -> TextureCube
-    :noindex:
+.. automethod:: Context.texture_cube
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: TextureCube.read(face: int, alignment: int = 1) -> bytes
-.. automethod:: TextureCube.read_into(buffer: Any, face: int, alignment: int = 1, write_offset: int = 0)
-.. automethod:: TextureCube.write(face: int, data: Any, viewport: Union[Tuple[int, int], Tuple[int, int, int, int], NoneType] = None, alignment: int = 1)
-.. automethod:: TextureCube.bind_to_image(unit: int, read: bool = True, write: bool = True, level: int = 0, format: int = 0)
-.. automethod:: TextureCube.use(location: int = 0)
-.. automethod:: TextureCube.release()
+.. automethod:: TextureCube.read
+.. automethod:: TextureCube.read_into
+.. automethod:: TextureCube.write
+.. automethod:: TextureCube.bind_to_image
+.. automethod:: TextureCube.use
+.. automethod:: TextureCube.release
 
 Attributes
 ----------

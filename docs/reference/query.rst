@@ -8,8 +8,8 @@ Query
 Create
 ------
 
-.. automethod:: Context.query(samples: bool = False, any_samples: bool = False, time: bool = False, primitives: bool = False) -> Query
-    :noindex:
+.. automethod:: Context.query
+   :noindex:
 
 Attributes
 ----------

@@ -36,7 +36,7 @@ jobs:
           output-dir: dist/
         env:
           CIBW_ARCHS_MACOS: "x86_64 universal2"
-          CIBW_BUILD: cp36-* cp37-* cp38-* cp39-* cp310-* pp*
+          CIBW_BUILD: cp37-* cp38-* cp39-* cp310-* pp*
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
           CIBW_SKIP: "*-musllinux*"
 

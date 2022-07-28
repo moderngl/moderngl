@@ -42,13 +42,22 @@ class CrateExample(Example):
                 in vec3 v_norm;
                 in vec2 v_text;
 
-                out vec4 f_color;
+                out vec4 f_color_a;
+                out vec4 f_color_b;
+                out vec4 f_color_c;
 
                 void main() {
                     float lum = clamp(dot(normalize(Light - v_vert), normalize(v_norm)), 0.0, 1.0) * 0.8 + 0.2;
-                    f_color = vec4(texture(Texture, v_text).rgb * lum, 1.0);
+                    f_color_a = vec4(texture(Texture, v_text).rgb * lum, 1.0);
+                    f_color_b = vec4(texture(Texture, v_text).rgb * lum * vec3(0.5, 1.1, 0.6), 1.0);
+                    f_color_c = vec4(texture(Texture, v_text).rgb * lum * vec3(0.5, 0.6, 1.1), 1.0);
                 }
             ''',
+            fragment_outputs={
+                'f_color_a': 1,
+                'f_color_b': 0,
+                'f_color_c': 2,
+            },
         )
 
         self.mvp = self.prog['Mvp']

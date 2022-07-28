@@ -10,7 +10,7 @@ potentially stall rendering a bit, but it's still orders of
 magnitude faster than doing everything on the cpu. using
 transform() with a buffer offset can be used in many creative ways.
 
-This is simliar to pausing and resuming transform feedbacks,
+This is similar to pausing and resuming transform feedbacks,
 but works in GL 3.3 core.
 
 * The geometry shader is used to destroy geometry for expired
@@ -39,7 +39,6 @@ Emit particles from a predetermined path:
     mouse_control = False
 
 """
-import math
 import numpy as np
 
 import moderngl
@@ -139,7 +138,7 @@ class Particles(Example):
         self.mouse_velocity = 0.001, 0.001  # default value must not be 0. any number is fine
         self.prog['projection'].write(self.projection)
         self.transform['gravity'].value = -.01  # affects the velocity of the particles over time
-        self.ctx.point_size = self.wnd.pixel_ratio * 2 # point size
+        self.ctx.point_size = self.wnd.pixel_ratio * 2  # point size
 
         self.N = 25_000  # particle count
         self.active_particles = self.N // 100  # Initial / current number of active particles
@@ -150,7 +149,13 @@ class Particles(Example):
         self.vbo1 = self.ctx.buffer(reserve=self.N * self.stride)
         self.vbo2 = self.ctx.buffer(reserve=self.N * self.stride)
         # Write some initial particles
-        self.vbo1.write(np.fromiter(self.gen_particles(self.active_particles), count=self.active_particles * self.floats, dtype='f4'))
+        self.vbo1.write(
+            np.fromiter(
+                self.gen_particles(self.active_particles),
+                count=self.active_particles * self.floats,
+                dtype='f4',
+            )
+        )
 
         # Transform vaos. We transform data back and forth to avoid buffer copy
         self.transform_vao1 = self.ctx.vertex_array(
@@ -162,7 +167,7 @@ class Particles(Example):
             [(self.vbo2, '2f 2f 3f', 'in_pos', 'in_vel', 'in_color')],
         )
 
-        # Render vaos. The render to screen version of the tranform vaos above
+        # Render vaos. The render to screen version of the transform vaos above
         self.render_vao1 = self.ctx.vertex_array(
             self.prog,
             [(self.vbo1, '2f 2x4 3f', 'in_pos', 'in_color')],
@@ -216,7 +221,10 @@ class Particles(Example):
                 float r = clamp(rand(time + gl_VertexID), 0.1, 0.9);
                 out_pos = mouse_pos;
                 out_vel = vec2(sin(a), cos(a)) * r + mouse_vel;
-                out_color = vec3(rand(time * 1.3 + gl_VertexID), rand(time * 3.4 + gl_VertexID), rand(time * 2.0 + gl_VertexID));
+                out_color = vec3(
+                    rand(time * 1.3 + gl_VertexID), rand(time * 3.4 + gl_VertexID),
+                    rand(time * 2.0 + gl_VertexID)
+                );
             }
             ''',
             varyings=['out_pos', 'out_vel', 'out_color'],
@@ -290,7 +298,11 @@ class Particles(Example):
             self.emit_buffer.write(
                 np.fromiter(self.gen_particles(emit_count), 'f4', count=emit_count * self.floats)
             )
-            self.emit_buffer_vao.transform(self.vbo2, vertices=emit_count, buffer_offset=self.query.primitives * self.stride)
+            self.emit_buffer_vao.transform(
+                self.vbo2,
+                vertices=emit_count,
+                buffer_offset=self.query.primitives * self.stride,
+            )
 
         self.active_particles = self.query.primitives + emit_count
         self.render_vao2.render(moderngl.POINTS, vertices=self.active_particles)
@@ -308,7 +320,11 @@ class Particles(Example):
             self.gpu_emitter_prog['mouse_pos'].value = self.mouse_pos
             self.gpu_emitter_prog['mouse_vel'].value = self.mouse_velocity
             self.gpu_emitter_prog['time'].value = max(time, 0)
-            self.gpu_emitter_vao.transform(self.vbo2, vertices=emit_count, buffer_offset=self.query.primitives * self.stride)
+            self.gpu_emitter_vao.transform(
+                self.vbo2,
+                vertices=emit_count,
+                buffer_offset=self.query.primitives * self.stride,
+            )
 
         self.active_particles = self.query.primitives + emit_count
         self.render_vao2.render(moderngl.POINTS, vertices=self.active_particles)

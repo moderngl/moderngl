@@ -8,22 +8,22 @@ Texture
 Create
 ------
 
-.. automethod:: Context.texture(size: Tuple[int, int], components: int, data: Optional[Any] = None, samples: int = 0, alignment: int = 1, dtype: str = 'f1', internal_format: int = None) -> Texture
-    :noindex:
+.. automethod:: Context.texture
+   :noindex:
 
-.. automethod:: Context.depth_texture(size: Tuple[int, int], data: Optional[Any] = None, samples: int = 0, alignment: int = 4) -> Texture
-    :noindex:
+.. automethod:: Context.depth_texture
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: Texture.read(level: int = 0, alignment: int = 1) -> bytes
-.. automethod:: Texture.read_into(buffer: Any, level: int = 0, alignment: int = 1, write_offset: int = 0)
-.. automethod:: Texture.write(data: Any, viewport: Union[Tuple[int, int], Tuple[int, int, int, int], NoneType] = None, level: int = 0, alignment: int = 1)
-.. automethod:: Texture.build_mipmaps(base: int = 0, max_level: int = 1000)
-.. automethod:: Texture.bind_to_image(unit: int, read: bool = True, write: bool = True, level: int = 0, format: int = 0)
-.. automethod:: Texture.use(location: int = 0)
-.. automethod:: Texture.release()
+.. automethod:: Texture.read
+.. automethod:: Texture.read_into
+.. automethod:: Texture.write
+.. automethod:: Texture.build_mipmaps
+.. automethod:: Texture.bind_to_image
+.. automethod:: Texture.use
+.. automethod:: Texture.release
 
 Attributes
 ----------

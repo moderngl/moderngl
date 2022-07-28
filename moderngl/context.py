@@ -313,16 +313,19 @@ class Context:
         and ``context_gc``. Please see documentation for
         the appropriate configuration.
 
-        Examples:
+        Examples::
 
-            # Disable automatic garbage collection
+            # Disable automatic garbage collection.
+            # Each objects needs to be explicitly released.
             ctx.gc_mode = None
 
-            # Enable collection of dead objects with manual release
+            # Collect all dead objects in the context and
+            # release them by calling Context.gc()
             ctx.gc_mode = "context_gc"
             ctx.gc()  # Deletes the collected objects
 
-            # Enable automatic garbage collection
+            # Enable automatic garbage collection like
+            # we normally expect in python.
             ctx.gc_mode = "auto"
         """
         return self._gc_mode
@@ -349,6 +352,9 @@ class Context:
 
         This method must be called to garbage collect
         OpenGL resources when ``gc_mode`` is ``"context_gc"```.
+
+        Calling this method with any other ``gc_mode`` configuration
+        has no effect and is perfectly safe.
 
         Returns:
             int: Number of objects deleted
@@ -1156,6 +1162,36 @@ class Context:
         res.extra = None
         return res
 
+    def external_texture(
+        self,
+        glo: int,
+        size: Tuple[int, int],
+        components: int,
+        samples: int,
+        dtype: str,
+    ) -> 'Texture':
+        """
+        Create a :py:class:`Texture` object from an existing OpenGL texture object.
+
+        Args:
+            glo (int): External OpenGL texture object.
+            size (tuple): The width and height of the texture.
+            components (int): The number of components 1, 2, 3 or 4.
+            samples (int): The number of samples. Value 0 means no multisample format.
+            dtype (str): Data type.
+        """
+
+        res = Texture.__new__(Texture)
+        res.mglo, res._glo = self.mglo.external_texture(glo, size, components, samples, dtype)
+        res._size = size
+        res._components = components
+        res._samples = samples
+        res._dtype = dtype
+        res._depth = False
+        res.ctx = self
+        res.extra = None
+        return res
+
     def texture(
         self,
         size: Tuple[int, int],
@@ -1486,15 +1522,21 @@ class Context:
         """
         Create a :py:class:`Program` object.
 
-        Only linked programs will be returned.
+        The ``varyings`` are only used when a transform program is created
+        to specify the names of the output varyings to capture in the output buffer.
 
-        A single shader in the `shaders` parameter is also accepted.
-        The varyings are only used when a transform program is created.
+        ``fragment_outputs`` can be used to programmatically map named fragment
+        shader outputs to a framebuffer attachment numbers. This can also be done
+        by using ``layout(location=N)`` in the fragment shader.
 
         Args:
-            shaders (list): A list of :py:class:`Shader` objects.
-            varyings (list): A list of varying names.
-
+            vertex_shader (str): The vertex shader source.
+            fragment_shader (str): The fragment shader source.
+            geometry_shader (str): The geometry shader source.
+            tess_control_shader (str): The tessellation control shader source.
+            tess_evaluation_shader (str): The tessellation evaluation shader source.
+            varyings (list): A list of varyings.
+            fragment_outputs (dict): A dictionary of fragment outputs.
         Returns:
             :py:class:`Program` object
         """
