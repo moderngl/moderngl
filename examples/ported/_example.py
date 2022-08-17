@@ -11,10 +11,3 @@ class Example(mglw.WindowConfig):
     resizable = True
 
     resource_dir = os.path.normpath(os.path.join(__file__, '../../data'))
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    @classmethod
-    def run(cls):
-        mglw.run_window_config(cls)
