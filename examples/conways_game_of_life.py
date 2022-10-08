@@ -2,7 +2,7 @@
 A Game of Life implementation using transform feedback.
 
 We calculate the next state of the map with transform()
-meaning a vertex shader will geneate the new state into a buffer.
+meaning a vertex shader will generate the new state into a buffer.
 This buffer is then written into the texture we display.
 This is a fast vram to vram copy.
 

@@ -1,6 +1,6 @@
 """
 Generates buffer data on the gpu using transform feedback.
-We use an empty VertexArray running it vertices times outputing data to the buffer.
+We use an empty VertexArray running it vertices times outputting data to the buffer.
 
 More fancy calculations can of course be done. This example just shows the concept.
 """

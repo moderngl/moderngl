@@ -34,7 +34,7 @@ class GenerateData(Example):
             ''',
         )
 
-        # Tranform program with geo shader
+        # Transform program with geo shader
         self.transform_prog = self.ctx.program(
             vertex_shader='''
                 #version 330

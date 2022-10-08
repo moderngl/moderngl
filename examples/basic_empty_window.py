@@ -78,7 +78,7 @@ class EmptyWindow(Example):
             if key == keys.C:
                 self.wnd.cursor = not self.wnd.cursor
 
-            # Shuffle window tittle
+            # Shuffle window title
             if key == keys.T:
                 title = list(self.wnd.title)
                 random.shuffle(title)

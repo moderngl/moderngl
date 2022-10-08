@@ -1,5 +1,5 @@
 '''
-    Renders a traingle that has all RGB combinations
+    Renders a triangle that has all RGB combinations
 '''
 
 import numpy as np

@@ -37,7 +37,7 @@ class DrawCanvas(glcanvas.GLCanvas):
             self.ctx.set_viewport(0, 0, self.Size.width, self.Size.height)
 
     def InitGL(self):
-        # Initilize the skia context with the moderngl context
+        # Initialize the skia context with the moderngl context
         self.ctx = moderngl.create_context()
         context = skia.GrDirectContext.MakeGL()
         backend_render_target = skia.GrBackendRenderTarget(

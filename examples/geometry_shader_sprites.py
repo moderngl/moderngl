@@ -3,7 +3,7 @@ Quick and dirty example showing how sprites can be rendered using a geometry sha
 We also show simple scrolling with projection matrix.
 
 The goal is to redice the sprite data on the client as much as possible.
-We can define a sprite by its postion, size and rotation. This can be
+We can define a sprite by its position, size and rotation. This can be
 expressed in 5 32 bit floats. This also opens up for individually rotating
 each sprite in the shader itself. This technique can be extended with more
 sprite parameters.
@@ -160,7 +160,7 @@ class GeoSprites(Example):
 
         self.sprite_data.write(array("f", gen_sprites(time)))
 
-        # calculate scroll offsets. We truncate to intergers here.
+        # calculate scroll offsets. We truncate to integers here.
         # This depends what "look" you want for your game.
         scroll_x, scroll_y = int(math.sin(time) * 100), int(math.cos(time) * 100)
 
