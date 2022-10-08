@@ -61,8 +61,8 @@ this method, to make Moderngl work.
 
 There are essentially two ways,
 
-* Compling Mesa yourselves see https://docs.mesa3d.org/install.html.
-* Using msys2, which provids pre-compiled Mesa binaries.
+* Compiling Mesa yourselves see https://docs.mesa3d.org/install.html.
+* Using msys2, which provides pre-compiled Mesa binaries.
 
 Using MSYS2
 ___________
