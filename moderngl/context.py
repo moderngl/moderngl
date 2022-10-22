@@ -1307,6 +1307,7 @@ class Context:
         *,
         alignment: int = 1,
         dtype: str = 'f1',
+        internal_format: int = None,
     ) -> 'TextureCube':
         """
         Create a :py:class:`TextureCube` object.
@@ -1329,7 +1330,7 @@ class Context:
             :py:class:`TextureCube` object
         """
         res = TextureCube.__new__(TextureCube)
-        res.mglo, res._glo = self.mglo.texture_cube(size, components, data, alignment, dtype)
+        res.mglo, res._glo = self.mglo.texture_cube(size, components, data, alignment, dtype, internal_format or 0)
         res._size = size
         res._components = components
         res._dtype = dtype
