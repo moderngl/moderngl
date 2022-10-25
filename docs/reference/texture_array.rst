@@ -8,19 +8,19 @@ TextureArray
 Create
 ------
 
-.. automethod:: Context.texture_array(size, components, data=None, alignment=1, dtype='f1') -> TextureArray
-    :noindex:
+.. automethod:: Context.texture_array
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: TextureArray.read(alignment=1) -> bytes
-.. automethod:: TextureArray.read_into(buffer, alignment=1, write_offset=0)
-.. automethod:: TextureArray.write(data, viewport=None, alignment=1)
-.. automethod:: TextureArray.bind_to_image(unit: int, read: bool = True, write: bool = True, level: int = 0, format: int = 0)
-.. automethod:: TextureArray.build_mipmaps(base=0, max_level=1000)
-.. automethod:: TextureArray.use(location=0)
-.. automethod:: TextureArray.release()
+.. automethod:: TextureArray.read
+.. automethod:: TextureArray.read_into
+.. automethod:: TextureArray.write
+.. automethod:: TextureArray.bind_to_image
+.. automethod:: TextureArray.build_mipmaps
+.. automethod:: TextureArray.use
+.. automethod:: TextureArray.release
 
 Attributes
 ----------

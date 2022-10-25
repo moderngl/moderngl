@@ -1,98 +1,86 @@
-name: publish
+name: Publish
 
 on:
-  workflow_dispatch:
+  # push:
+  release:
+    types: [created]
+  # workflow_dispatch:
 
 jobs:
-
-  sdist:
-    name: sdist
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: setup
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-
-      - name: deps
-        run: python -m pip install -U pip wheel setuptools
-
-      - name: sdist
-        run: python setup.py sdist
-
-      - name: upload
-        uses: actions/upload-artifact@v2
-        with:
-          name: dist
-          path: "dist/*.tar.gz"
-
-  wheel:
-    name: wheel
+  build_wheels:
+    name: Build Wheels on ${{ matrix.os }}-${{ matrix.cibw_archs }}
     runs-on: ${{ matrix.os }}
-
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10.0-rc.2']
-        architecture: [x64, x86]
-        exclude:
-          - os: ubuntu-latest
-            architecture: x86
-          - os: macos-latest
-            architecture: x86
-
+        os: [ubuntu-18.04, windows-2019, macos-10.15]
+        cibw_archs: ["auto64"]
+        include:
+          - os: ubuntu-18.04
+            cibw_archs: "aarch64"
+          - os: ubuntu-18.04
+            cibw_archs: "auto32"
+          - os: windows-2019
+            cibw_archs: "auto32"
     steps:
-      - uses: actions/checkout@v2
-
-      - name: setup
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - name: Set up QEMU
+        if: matrix.cibw_archs == 'aarch64'
+        uses: docker/setup-qemu-action@v1
         with:
-          python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.architecture }}
+          platforms: arm64
 
-      - name: deps
-        run: python -m pip install -U auditwheel pip wheel setuptools
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
+        with:
+          output-dir: dist/
+        env:
+          CIBW_ARCHS_MACOS: "x86_64 universal2"
+          CIBW_BUILD: cp37-* cp38-* cp39-* cp310-* pp*
+          CIBW_ARCHS: ${{ matrix.cibw_archs }}
+          CIBW_SKIP: "*-musllinux*"
 
-      - name: wheel
-        run: python setup.py bdist_wheel
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./dist/*.whl
+          name: wheels-${{ runner.os }}-${{ matrix.cibw_archs }}
 
-      - name: auditwheel
-        if: contains(matrix.os, 'ubuntu')
-        run: |
-          mv dist temp
-          python -m auditwheel repair -w dist temp/*-linux_x86_64.whl
+  # Build the source distribution under Linux
+  build_sdist:
+    name: Source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
 
-      - name: upload
+      - name: Build source distribution
+        run: pipx run build --sdist
+
+      - name: Store artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: dist
-          path: "dist/*.whl"
+          path: dist/*.tar.gz
 
   publish:
     name: publish
     needs:
-      - sdist
-      - wheel
+      - build_sdist
+      - build_wheels
     runs-on: ubuntu-latest
-
+    # if: ${{ github.event_name == 'release' && github.event.action == 'created' }}
     steps:
-      - name: setup
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-
-      - name: deps
-        run: python -m pip install -U twine
-
       - name: download
         uses: actions/download-artifact@v2
-
-      - name: upload
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        # run: python -m twine upload dist/*
-        run: ls dist/*
+        with:
+          path: temp-dist/
+      # Only copy the wheels and source dist files. Additional lingering
+      # files will cause issues
+      - name: Copy Files to dist
+        shell: bash
+        run: |
+          mkdir dist
+          cp temp-dist/*/*.whl dist/
+          cp temp-dist/*/*.tar.gz dist/
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}

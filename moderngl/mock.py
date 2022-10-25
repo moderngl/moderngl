@@ -1,7 +1,6 @@
+# flake8: noqa
 # type: ignore
-'''
-    Mock linters.
-'''
+"""Mock linters."""
 
 # pylint: skip-file
 
@@ -10,32 +9,21 @@ __all__ = ['mgl']
 
 class Implementation:
     class Error(Exception):
-        '''
-            ModernGL Error
-        '''
-
+        """ModernGL Error."""
         filename = None
         function = None
         line = None
 
     def strsize(self, *args) -> int:
-        '''
-            strsize
-        '''
-
+        """strsize."""
         return 0
 
     def create_context(self, *args) -> 'Context':
-        '''
-            create_context
-        '''
-
+        """create_context."""
         return (None, 0)
 
     def create_standalone_context(self, *args) -> 'Context':
-        '''
-            create_standalone_context
-        '''
+        """create_standalone_context."""
 
         return (None, 0)
 

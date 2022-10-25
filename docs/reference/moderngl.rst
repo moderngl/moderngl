@@ -107,5 +107,8 @@ Functions
 Also see :py:class:`Context`.
 
 .. autofunction:: create_context
+    :noindex:
 .. autofunction:: create_standalone_context
+    :noindex:
 .. autofunction:: detect_format
+    :noindex:

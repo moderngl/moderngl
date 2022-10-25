@@ -14,20 +14,20 @@ VertexArray
 Create
 ------
 
-.. automethod:: Context.simple_vertex_array(program, buffer, *attributes, index_buffer=None, index_element_size=4, mode=None) -> VertexArray
-    :noindex:
+.. automethod:: Context.simple_vertex_array
+   :noindex:
 
-.. automethod:: Context.vertex_array(*args, **kwargs) -> VertexArray
-    :noindex:
+.. automethod:: Context.vertex_array
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: VertexArray.render(mode=None, vertices=-1, first=0, instances=-1)
-.. automethod:: VertexArray.render_indirect(buffer, mode=None, count=-1, first=0)
-.. automethod:: VertexArray.transform(buffer, mode=None, vertices=-1, first=0, instances=-1, buffer_offset=0)
-.. automethod:: VertexArray.bind(attribute, cls, buffer, fmt, offset=0, stride=0, divisor=0, normalize=False)
-.. automethod:: VertexArray.release()
+.. automethod:: VertexArray.render
+.. automethod:: VertexArray.render_indirect
+.. automethod:: VertexArray.transform
+.. automethod:: VertexArray.bind
+.. automethod:: VertexArray.release
 
 Attributes
 ----------

@@ -26,7 +26,7 @@ followed.
 `OpenGL`_ have gone though many versions and it can be confusing when looking
 up resources. Today we separate "Old OpenGL" and "Modern OpenGL".
 From 2008 to 2010 version 3.x of OpenGL evolved until version
-3.3 and 4.1 was released simultaneously 
+3.3 and 4.0 was released simultaneously.
 
 In 2010 version 3.3, 4.0 and 4.1 was released to modernize the api
 (simplified explanation) creating something that would be able
@@ -76,7 +76,7 @@ backwards compatible with existing OpenGL versions.
 
 This doesn't mean OpenGL is not worth learning today. In fact
 learning 3.3+ shaders and understanding the rendering pipeline
-will greatly help you understand `Vulkan`_. In some cases you can
+will greatly help you understand `Vulkan`_. In most cases you can
 pretty much copy paste the shaders over to `Vulkan`_.
 
 Where do ModernGL fit into all this?

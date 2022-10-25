@@ -8,19 +8,18 @@ Program
 Create
 ------
 
-.. automethod:: Context.program(vertex_shader, fragment_shader=None, geometry_shader=None, tess_control_shader=None, tess_evaluation_shader=None, varyings=()) -> Program
-    :noindex:
+.. automethod:: Context.program
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: Program.get(key, default) -> Union[Uniform, UniformBlock, Subroutine, Attribute, Varying]
-.. automethod:: Program.__getitem__(key) -> Union[Uniform, UniformBlock, Subroutine, Attribute, Varying]
-.. automethod:: Program.__setitem__(key, value)
-.. automethod:: Program.__iter__() -> Generator[str, NoneType, NoneType]
-.. automethod:: Program.__eq__(other) -> bool
-.. automethod:: Program.release()
-
+.. automethod:: Program.get
+.. automethod:: Program.__getitem__
+.. automethod:: Program.__setitem__
+.. automethod:: Program.__iter__
+.. automethod:: Program.__eq__
+.. automethod:: Program.release
 
 Attributes
 ----------

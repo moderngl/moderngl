@@ -269,15 +269,37 @@ PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args) {
 			height = src->height < dst_framebuffer->height ? src->height : dst_framebuffer->height;
 		}
 
+		if (dst_framebuffer->draw_buffers_len != src->draw_buffers_len)
+		{
+			MGLError_Set("Destination and source framebuffers have different number of color attachments!");
+			return 0;
+		}
+
+
+		int prev_read_buffer = -1;
+		int prev_draw_buffer = -1;
+		int color_attachment_len = dst_framebuffer->draw_buffers_len;
+		gl.GetIntegerv(GL_READ_BUFFER, &prev_read_buffer);
+		gl.GetIntegerv(GL_DRAW_BUFFER, &prev_draw_buffer);
 		gl.BindFramebuffer(GL_READ_FRAMEBUFFER, src->framebuffer_obj);
 		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, dst_framebuffer->framebuffer_obj);
-		gl.BlitFramebuffer(
-			0, 0, width, height,
-			0, 0, width, height,
-			GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
-			GL_NEAREST
-		);
+
+		for (int i = 0; i < color_attachment_len; ++i)
+		{
+			gl.ReadBuffer(src->draw_buffers[i]);
+			gl.DrawBuffer(dst_framebuffer->draw_buffers[i]);
+
+			gl.BlitFramebuffer(
+				0, 0, width, height,
+				0, 0, width, height,
+				GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+				GL_NEAREST
+			);
+		}
 		gl.BindFramebuffer(GL_FRAMEBUFFER, self->bound_framebuffer->framebuffer_obj);
+		gl.ReadBuffer(prev_read_buffer);
+		gl.DrawBuffer(prev_draw_buffer);
+		gl.DrawBuffers(self->bound_framebuffer->draw_buffers_len, self->bound_framebuffer->draw_buffers);
 
 	} else if (Py_TYPE(dst) == &MGLTexture_Type) {
 
@@ -493,6 +515,7 @@ PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args);
 PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args);
 PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args);
 PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args);
+PyObject * MGLContext_external_texture(MGLContext * self, PyObject * args);
 PyObject * MGLContext_vertex_array(MGLContext * self, PyObject * args);
 PyObject * MGLContext_program(MGLContext * self, PyObject * args);
 PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args);
@@ -536,6 +559,7 @@ PyMethodDef MGLContext_tp_methods[] = {
 	{"texture_array", (PyCFunction)MGLContext_texture_array, METH_VARARGS, 0},
 	{"texture_cube", (PyCFunction)MGLContext_texture_cube, METH_VARARGS, 0},
 	{"depth_texture", (PyCFunction)MGLContext_depth_texture, METH_VARARGS, 0},
+	{"external_texture", (PyCFunction)MGLContext_external_texture, METH_VARARGS, 0},
 	{"vertex_array", (PyCFunction)MGLContext_vertex_array, METH_VARARGS, 0},
 	{"program", (PyCFunction)MGLContext_program, METH_VARARGS, 0},
 	// {"shader", (PyCFunction)MGLContext_shader, METH_VARARGS, 0},

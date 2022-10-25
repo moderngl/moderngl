@@ -3,6 +3,9 @@
 /dist
 /venv
 /.venv
+/.venv310
+/.venv311
+/.venv312
 /env
 /.tox
 /.cache

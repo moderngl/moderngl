@@ -67,7 +67,7 @@ class ColorsAndTexture(Example):
         self.use_texture = self.prog['UseTexture']
 
         # Note: This is a fairly manual way to loading and rendering wavefront files.
-        # There are easier ways when loading mutiple objects in a single obj file.
+        # There are easier ways when loading multiple objects in a single obj file.
 
         # Load obj files
         self.scene_ground = self.load_scene('scene-1-ground.obj')

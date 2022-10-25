@@ -2,9 +2,7 @@ __all__ = ['Subroutine']
 
 
 class Subroutine:
-    '''
-        This class represents a program subroutine.
-    '''
+    """This class represents a program subroutine."""
 
     __slots__ = ['_index', '_name', 'extra']
 
@@ -14,7 +12,7 @@ class Subroutine:
         self.extra = None  #: Any - Attribute for storing user defined objects
         raise TypeError()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<Subroutine: %d>' % self._index
 
     def __hash__(self) -> int:
@@ -22,16 +20,10 @@ class Subroutine:
 
     @property
     def index(self) -> int:
-        '''
-            int: The index of the subroutine.
-        '''
-
+        """int: The index of the subroutine."""
         return self._index
 
     @property
     def name(self) -> str:
-        '''
-            str: The name of the subroutine.
-        '''
-
+        """str: The name of the subroutine."""
         return self._name

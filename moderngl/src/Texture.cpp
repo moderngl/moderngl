@@ -97,6 +97,7 @@ PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
 	gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
 
 	MGLTexture * texture = (MGLTexture *)MGLTexture_Type.tp_alloc(&MGLTexture_Type, 0);
+    texture->external = false;
 
 	texture->texture_obj = 0;
 	gl.GenTextures(1, (GLuint *)&texture->texture_obj);
@@ -222,6 +223,7 @@ PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
 	gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
 
 	MGLTexture * texture = (MGLTexture *)MGLTexture_Type.tp_alloc(&MGLTexture_Type, 0);
+    texture->external = false;
 
 	texture->texture_obj = 0;
 	gl.GenTextures(1, (GLuint *)&texture->texture_obj);
@@ -265,6 +267,66 @@ PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
 
 	texture->repeat_x = false;
 	texture->repeat_y = false;
+
+	Py_INCREF(self);
+	texture->context = self;
+
+	Py_INCREF(texture);
+
+	PyObject * result = PyTuple_New(2);
+	PyTuple_SET_ITEM(result, 0, (PyObject *)texture);
+	PyTuple_SET_ITEM(result, 1, PyLong_FromLong(texture->texture_obj));
+	return result;
+}
+
+PyObject * MGLContext_external_texture(MGLContext * self, PyObject * args) {
+	int glo;
+	int width;
+	int height;
+	int components;
+	int samples;
+	const char * dtype;
+	Py_ssize_t dtype_size;
+
+	int args_ok = PyArg_ParseTuple(
+		args,
+		"I(II)IIs#",
+		&glo,
+		&width,
+		&height,
+		&components,
+		&samples,
+		&dtype,
+		&dtype_size
+	);
+
+	MGLDataType * data_type = from_dtype(dtype, dtype_size);
+
+	if (!data_type) {
+		MGLError_Set("invalid dtype");
+		return 0;
+	}
+
+	MGLTexture * texture = (MGLTexture *)MGLTexture_Type.tp_alloc(&MGLTexture_Type, 0);
+    texture->external = true;
+
+	texture->texture_obj = glo;
+	texture->width = width;
+	texture->height = height;
+	texture->components = components;
+	texture->samples = samples;
+	texture->data_type = data_type;
+
+	texture->max_level = 0;
+	texture->compare_func = 0;
+	texture->anisotropy = 1.0f;
+	texture->depth = false;
+
+	texture->min_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
+	texture->mag_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
+
+	texture->repeat_x = true;
+	texture->repeat_y = true;
 
 	Py_INCREF(self);
 	texture->context = self;

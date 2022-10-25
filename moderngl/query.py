@@ -1,10 +1,10 @@
+from typing import Any, Tuple
+
 __all__ = ['Query']
 
 
 class Query:
-    '''
-        This class represents a Query object.
-    '''
+    """This class represents a Query object."""
 
     __slots__ = ['mglo', 'crender', 'ctx', 'extra']
 
@@ -15,7 +15,7 @@ class Query:
         self.extra = None  #: Any - Attribute for storing user defined objects
         raise TypeError()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<Query>'
 
     def __hash__(self) -> int:
@@ -25,29 +25,20 @@ class Query:
         self.mglo.begin()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Tuple[Any]):
         self.mglo.end()
 
     @property
     def samples(self) -> int:
-        '''
-            int: The number of samples passed.
-        '''
-
+        """int: The number of samples passed."""
         return self.mglo.samples
 
     @property
     def primitives(self) -> int:
-        '''
-            int: The number of primitives generated.
-        '''
-
+        """int: The number of primitives generated."""
         return self.mglo.primitives
 
     @property
     def elapsed(self) -> int:
-        '''
-            int: The time elapsed in nanoseconds.
-        '''
-
+        """int: The time elapsed in nanoseconds."""
         return self.mglo.elapsed

@@ -2,11 +2,11 @@ __all__ = ['ConditionalRender']
 
 
 class ConditionalRender:
-    '''
-        This class represents a ConditionalRender object.
+    """
+    This class represents a ConditionalRender object.
 
-        ConditionalRender objects can only be accessed from :py:class:`Query` objects.
-    '''
+    ConditionalRender objects can only be accessed from :py:class:`Query` objects.
+    """
 
     __slots__ = ['mglo']
 

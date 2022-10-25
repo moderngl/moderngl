@@ -1,0 +1,29 @@
+[flake8]
+exclude = 
+    .git
+    tests
+    docs
+    temp
+    mypy_cache
+    .github
+    temp
+    extras
+    .venv
+max-complexity = 10
+# ANN101: Missing type annotation for self in method
+# ANN204: Missing return type annotation for special method
+# D105: Missing docstring magix method
+# D100: Missing module docstring (public module)
+# D107: Missing docstring in __init__
+# D401 First line should be in imperative mood; try rephrasing
+# D412 No blank lines allowed between a section header and its content
+ignore =
+    ANN101
+    ANN204
+    D107
+    D100
+    D105
+    D401
+    D412
+
+max-line-length = 120

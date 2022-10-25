@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-'''Simple example of using tesselation to render a cubic Bézier curve'''
+'''Simple example of using tessellation to render a cubic Bézier curve'''
 
 import numpy as np
 
@@ -28,7 +28,7 @@ class Tessellation(Example):
             layout(vertices = 4) out;
 
             void main() {
-            // set tesselation levels, TODO compute dynamically
+            // set tessellation levels, TODO compute dynamically
             gl_TessLevelOuter[0] = 1;
             gl_TessLevelOuter[1] = 32;
 

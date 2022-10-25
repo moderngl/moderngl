@@ -198,7 +198,7 @@ padding for alignment:
 |       |       | byte     | byte     | byte     |         |
 +-------+-------+----------+----------+----------+---------+
 
-Such a buffer, however you choose to contruct it, would then be passed into
+Such a buffer, however you choose to construct it, would then be passed into
 a VAO using::
 
     vao = ctx.vertex_array(
@@ -254,7 +254,7 @@ call::
     )
 
 So, the vertices and normals, using ``/v``, are passed to each vertex within
-an instance. This fulfills the rule tha the first VBO in a VAO must have usage
+an instance. This fulfills the rule that the first VBO in a VAO must have usage
 ``/v``. These are passed to vertex attributes as::
 
     in vec3 in_vert;

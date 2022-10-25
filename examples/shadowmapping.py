@@ -188,7 +188,7 @@ class ShadowMappingSample(Example):
             target=(0, 0, 0),
             up=(0.0, 0.0, 1.0),
         )
-        # light projection matrix (scene dependant)
+        # light projection matrix (scene dependent)
         light_proj = Matrix44.perspective_projection(
             fovy=90.0 / 4,  # smaller value increase shadow precision
             aspect=self.wnd.aspect_ratio,

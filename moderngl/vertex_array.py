@@ -1,6 +1,4 @@
-import logging
-from moderngl.buffer import LOG
-from typing import Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from moderngl.mgl import InvalidObject  # type: ignore
 
@@ -37,43 +35,71 @@ TRIANGLE_STRIP = 0x0005
 #: of triangles like so: (0, 1, 2) (0, 2, 3), (0, 3, 4), etc. A vertex stream of
 #: n length will generate n-2 triangles.
 TRIANGLE_FAN = 0x0006
-#: These are special primitives that are expected to be used specifically with 
+#: These are special primitives that are expected to be used specifically with
 #: geomtry shaders. These primitives give the geometry shader more vertices
 #: to work with for each input primitive. Data needs to be duplicated in buffers.
 LINES_ADJACENCY = 0x000A
-#: These are special primitives that are expected to be used specifically with 
+#: These are special primitives that are expected to be used specifically with
 #: geomtry shaders. These primitives give the geometry shader more vertices
 #: to work with for each input primitive. Data needs to be duplicated in buffers.
 LINE_STRIP_ADJACENCY = 0x000B
-#: These are special primitives that are expected to be used specifically with 
+#: These are special primitives that are expected to be used specifically with
 #: geomtry shaders. These primitives give the geometry shader more vertices
 #: to work with for each input primitive. Data needs to be duplicated in buffers.
 TRIANGLES_ADJACENCY = 0x000C
-#: These are special primitives that are expected to be used specifically with 
+#: These are special primitives that are expected to be used specifically with
 #: geomtry shaders. These primitives give the geometry shader more vertices
 #: to work with for each input primitive. Data needs to be duplicated in buffers.
 TRIANGLE_STRIP_ADJACENCY = 0x0000D
 #: primitive type can only be used when Tessellation is active. It is a primitive
 #: with a user-defined number of vertices, which is then tessellated based on the
 #: control and evaluation shaders into regular points, lines, or triangles, depending
-#: on the TES's settings. 
+#: on the TES's settings.
 PATCHES = 0x000E
 
+
 class VertexArray:
-    '''
-        A VertexArray object is an OpenGL object that stores all of the state
-        needed to supply vertex data. It stores the format of the vertex data
-        as well as the Buffer objects providing the vertex data arrays.
+    """
+    A VertexArray object is an OpenGL object that stores all of the state needed to supply vertex data.
 
-        In ModernGL, the VertexArray object also stores a reference
-        for a :py:class:`Program` object, and some Subroutine information.
+    It stores the format of the vertex data
+    as well as the Buffer objects providing the vertex data arrays.
 
-        A VertexArray object cannot be instantiated directly, it requires a context.
-        Use :py:meth:`Context.vertex_array` or :py:meth:`Context.simple_vertex_array`
-        to create one.
-    '''
+    In ModernGL, the VertexArray object also stores a reference
+    for a :py:class:`Program` object, and some Subroutine information.
 
-    __slots__ = ['mglo', '_program', '_index_buffer', '_content', '_index_element_size', '_glo', '_mode', 'ctx', 'extra', 'scope']
+    A VertexArray object cannot be instantiated directly, it requires a context.
+    Use :py:meth:`Context.vertex_array` or :py:meth:`Context.simple_vertex_array`
+    to create one.
+
+    Example::
+
+        vertices = np.array([
+            # x, y,
+            # r, g, b, a
+            #Vertex 0
+            0.5, 0.5,
+            1.0, 0.0, 0.5, 1.0,
+            #Vertex 1
+            0.5, -0.5,
+            1.0, 0.5, 0.0, 1.0,
+            #Vertex 2
+            -0.5, -0.5,
+            0.5, 1.0, 0.0, 1.0,
+            #Vertex 3
+            -0.5, 0.5,
+            0.5, 0.0, 1.0, 1.0,
+        ], dtype='f4')
+
+        ibo = ctx.buffer(np.array([0,1,2, 2,3,0], dtype=np.uint32))
+        vbo = ctx.buffer(vertices)
+        vao = ctx.vertex_array(prog, vbo, 'in_vert', 'in_color', index_buffer=ibo)
+    """
+
+    __slots__ = [
+        'mglo', '_program', '_index_buffer', '_content', '_index_element_size',
+        '_glo', '_mode', 'ctx', 'extra', 'scope'
+    ]
 
     def __init__(self):
         self.mglo = None  #: Internal representation for debug purposes only.
@@ -88,146 +114,128 @@ class VertexArray:
         self.scope = None  #: The :py:class:`moderngl.Scope`.
         raise TypeError()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if hasattr(self, 'mglo'):
             return '<VertexArray: %d>' % self.glo
         else:
             return '<VertexArray: INCOMPLETE>'
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return type(self) is type(other) and self.mglo is other.mglo
 
     def __hash__(self) -> int:
         return id(self)
 
-    def __del__(self):
-        LOG.debug("VertexArray.__del__: %s", self)
-        if hasattr(self, "ctx") and self.ctx.gc_mode == "auto":
+    def __del__(self) -> None:
+        if not hasattr(self, "ctx"):
+            return
+
+        if self.ctx.gc_mode == "auto":
             self.release()
+        elif self.ctx.gc_mode == "context_gc":
+            self.ctx.objects.append(self.mglo)
 
     @property
     def mode(self) -> int:
-        '''
-            int: Get or set the default rendering mode.
-            This value is used when ``mode`` is not passed in rendering calls.
+        """
+        int: Get or set the default rendering mode.
 
-            Examples::
+        This value is used when ``mode`` is not passed in rendering calls.
 
-                vao.mode = moderngl.TRIANGLE_STRIPS
-        '''
+        Examples::
+
+            vao.mode = moderngl.TRIANGLE_STRIPS
+        """
         return self._mode
 
     @mode.setter
-    def mode(self, value: int):
+    def mode(self, value: int) -> None:
         self._mode = value
 
     @property
     def program(self) -> 'Program':
-        '''
-            Program: The program assigned to the VertexArray.
-            The program used when rendering or transforming primitives.
-        '''
+        """
+        Program: The program assigned to the VertexArray.
 
+        The program used when rendering or transforming primitives.
+        """
         return self._program
 
     @property
     def index_buffer(self) -> 'Buffer':
-        '''
-            Buffer: The index buffer if the index_buffer is set, otherwise ``None``.
-            
-            Example::
-
-                    vertices = np.array([
-                        # x, y,
-                        # r, g, b, a
-                        #Vertex 0
-                        0.5, 0.5,
-                        1.0, 0.0, 0.5, 1.0,
-                        #Vertex 1
-                        0.5, -0.5,
-                        1.0, 0.5, 0.0, 1.0,
-                        #Vertex 2
-                        -0.5, -0.5,
-                        0.5, 1.0, 0.0, 1.0,
-                        #Vertex 3
-                        -0.5, 0.5,
-                        0.5, 0.0, 1.0, 1.0,
-                    ], dtype='f4')
-                    
-                    ibo = ctx.buffer(np.array([0,1,2, 2,3,0], dtype=np.uint32))
-                    vbo = ctx.buffer(vertices)
-                    vao = ctx.vertex_array(prog, vbo, 'in_vert', 'in_color', index_buffer=ibo)
-        '''
-
+        """Buffer: The index buffer if the index_buffer is set, otherwise ``None``."""
         return self._index_buffer
 
     @property
     def index_element_size(self) -> int:
-        '''
-            int: The byte size of each element in the index buffer
-        '''
+        """int: The byte size of each element in the index buffer."""
         return self._index_element_size
 
     @property
     def vertices(self) -> int:
-        '''
-            int: The number of vertices detected.
-            This is the minimum of the number of vertices possible per Buffer.
-            The size of the index_buffer determines the number of vertices.
-            Per instance vertex attributes does not affect this number.
-        '''
+        """
+        int: The number of vertices detected.
 
+        This is the minimum of the number of vertices possible per Buffer.
+        The size of the index_buffer determines the number of vertices.
+        Per instance vertex attributes does not affect this number.
+        """
         return self.mglo.vertices
 
     @vertices.setter
-    def vertices(self, value):
+    def vertices(self, value: int) -> None:
         self.mglo.vertices = int(value)
 
     @property
     def instances(self) -> int:
-        """int: Get or set the number of instances to render"""
+        """int: Get or set the number of instances to render."""
         return self.mglo.instances
 
     @instances.setter
-    def instances(self, value):
+    def instances(self, value: int) -> None:
         self.mglo.instances = int(value)
 
     @property
     def subroutines(self) -> Tuple[int, ...]:
-        '''
-            tuple: The subroutines assigned to the VertexArray.
-            The subroutines used when rendering or transforming primitives.
-        '''
+        """
+        tuple: The subroutines assigned to the VertexArray.
 
+        The subroutines used when rendering or transforming primitives.
+        """
         return self.mglo.subroutines
 
     @subroutines.setter
-    def subroutines(self, value):
+    def subroutines(self, value: Tuple[int, ...]) -> None:
         self.mglo.subroutines = tuple(value)
 
     @property
     def glo(self) -> int:
-        '''
-            int: The internal OpenGL object.
-            This values is provided for debug purposes only.
-        '''
+        """
+        int: The internal OpenGL object.
 
+        This values is provided for debug purposes only.
+        """
         return self._glo
 
-    def render(self, mode=None, vertices=-1, *, first=0, instances=-1) -> None:
-        '''
-            The render primitive (mode) must be the same as
-            the input primitive of the GeometryShader.
+    def render(
+        self,
+        mode: Optional[int] = None,
+        vertices: int = -1,
+        *,
+        first: int = 0,
+        instances: int = -1,
+    ) -> None:
+        """
+        The render primitive (mode) must be the same as the input primitive of the GeometryShader.
 
-            Args:
-                mode (int): By default :py:data:`TRIANGLES` will be used.
-                vertices (int): The number of vertices to transform.
+        Args:
+            mode (int): By default :py:data:`TRIANGLES` will be used.
+            vertices (int): The number of vertices to transform.
 
-            Keyword Args:
-                first (int): The index of the first vertex to start with.
-                instances (int): The number of instances.
-        '''
-
+        Keyword Args:
+            first (int): The index of the first vertex to start with.
+            instances (int): The number of instances.
+        """
         if mode is None:
             mode = self._mode
 
@@ -237,22 +245,27 @@ class VertexArray:
         else:
             self.mglo.render(mode, vertices, first, instances)
 
-    def render_indirect(self, buffer, mode=None, count=-1, *, first=0) -> None:
-        '''
-            The render primitive (mode) must be the same as
-            the input primitive of the GeometryShader.
+    def render_indirect(
+        self,
+        buffer: "Buffer",
+        mode: Optional[int] = None,
+        count: int = -1,
+        *,
+        first: int = 0,
+    ) -> None:
+        """
+        The render primitive (mode) must be the same as the input primitive of the GeometryShader.
 
-            The draw commands are 5 integers: (count, instanceCount, firstIndex, baseVertex, baseInstance).
+        The draw commands are 5 integers: (count, instanceCount, firstIndex, baseVertex, baseInstance).
 
-            Args:
-                buffer (Buffer): Indirect drawing commands.
-                mode (int): By default :py:data:`TRIANGLES` will be used.
-                count (int): The number of draws.
+        Args:
+            buffer (Buffer): Indirect drawing commands.
+            mode (int): By default :py:data:`TRIANGLES` will be used.
+            count (int): The number of draws.
 
-            Keyword Args:
-                first (int): The index of the first indirect draw command.
-        '''
-
+        Keyword Args:
+            first (int): The index of the first indirect draw command.
+        """
         if mode is None:
             mode = self._mode
 
@@ -262,57 +275,78 @@ class VertexArray:
         else:
             self.mglo.render_indirect(buffer.mglo, mode, count, first)
 
-    def transform(self, buffer, mode=None, vertices=-1, *, first=0, instances=-1, buffer_offset=0) -> None:
-        '''
-            Transform vertices.
-            Stores the output in a single buffer.
-            The transform primitive (mode) must be the same as
-            the input primitive of the GeometryShader.
+    def transform(
+        self,
+        buffer: Union["Buffer", List["Buffer"]],
+        mode: int = None,
+        vertices: int = -1,
+        *,
+        first: int = 0,
+        instances: int = -1,
+        buffer_offset: int = 0,
+    ) -> None:
+        """
+        Transform vertices.
 
-            Args:
-                buffer (Buffer): The buffer to store the output.
-                mode (int): By default :py:data:`POINTS` will be used.
-                vertices (int): The number of vertices to transform.
+        Stores the output in a single buffer.
+        The transform primitive (mode) must be the same as
+        the input primitive of the GeometryShader.
 
-            Keyword Args:
-                first (int): The index of the first vertex to start with.
-                instances (int): The number of instances.
-                buffer_offset (int): Byte offset for the output buffer
-        '''
+        Args:
+            buffer (Buffer): The buffer to store the output.
+            mode (int): By default :py:data:`POINTS` will be used.
+            vertices (int): The number of vertices to transform.
 
+        Keyword Args:
+            first (int): The index of the first vertex to start with.
+            instances (int): The number of instances.
+            buffer_offset (int): Byte offset for the output buffer
+        """
         if mode is None:
             mode = self._mode
 
+        if isinstance(buffer, (list, tuple)):
+            outputs = [buf.mglo for buf in buffer]
+        else:
+            outputs = [buffer.mglo]
+
         if self.scope:
             with self.scope:
-                self.mglo.transform(buffer.mglo, mode, vertices, first, instances, buffer_offset)
+                self.mglo.transform(outputs, mode, vertices, first, instances, buffer_offset)
         else:
-            self.mglo.transform(buffer.mglo, mode, vertices, first, instances, buffer_offset)
+            self.mglo.transform(outputs, mode, vertices, first, instances, buffer_offset)
 
-    def bind(self, attribute, cls, buffer, fmt, *, offset=0, stride=0, divisor=0, normalize=False) -> None:
-        '''
-            Bind individual attributes to buffers.
+    def bind(
+        self,
+        attribute: int,
+        cls: str,
+        buffer: "Buffer",
+        fmt: str,
+        *,
+        offset: int = 0,
+        stride: int = 0,
+        divisor: int = 0,
+        normalize: bool = False,
+    ) -> None:
+        """
+        Bind individual attributes to buffers.
 
-            Args:
-                location (int): The attribute location.
-                cls (str): The attribute class. Valid values are ``f``, ``i`` or ``d``.
-                buffer (Buffer): The buffer.
-                format (str): The buffer format.
+        Args:
+            location (int): The attribute location.
+            cls (str): The attribute class. Valid values are ``f``, ``i`` or ``d``.
+            buffer (Buffer): The buffer.
+            format (str): The buffer format.
 
-            Keyword Args:
-                offset (int): The offset.
-                stride (int): The stride.
-                divisor (int): The divisor.
-                normalize (bool): The normalize parameter, if applicable.
-        '''
-
+        Keyword Args:
+            offset (int): The offset.
+            stride (int): The stride.
+            divisor (int): The divisor.
+            normalize (bool): The normalize parameter, if applicable.
+        """
         self.mglo.bind(attribute, cls, buffer.mglo, fmt, offset, stride, divisor, normalize)
 
     def release(self) -> None:
-        '''
-            Release the ModernGL object.
-        '''
-        LOG.debug("VertexArray.release: %s", self)
+        """Release the ModernGL object."""
         if not isinstance(self, InvalidObject) and hasattr(self, "ctx"):
             self._program = None
             self._index_buffer = None

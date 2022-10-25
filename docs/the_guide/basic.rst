@@ -53,7 +53,7 @@ All of the objects above can only be created from a :py:class:`Context` object:
 * :py:meth:`Context.vertex_array`
 * :py:meth:`Context.texture`
 * :py:meth:`Context.texture_array`
-* :py:meth:`Context.texture_3d`
+* :py:meth:`Context.texture3d`
 * :py:meth:`Context.texture_cube`
 * :py:meth:`Context.framebuffer`
 

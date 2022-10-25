@@ -8,53 +8,55 @@ Context
 Create
 ------
 
-.. autofunction:: moderngl.create_context(require=None) -> Context
-.. autofunction:: moderngl.create_standalone_context(require=None) -> Context
+.. autofunction:: moderngl.create_context
+.. autofunction:: moderngl.create_standalone_context
 
 ModernGL Objects
 ----------------
 
-.. automethod:: Context.program(vertex_shader, fragment_shader=None, geometry_shader=None, tess_control_shader=None, tess_evaluation_shader=None, varyings=()) -> Program
-.. automethod:: Context.simple_vertex_array(program, buffer, *attributes, index_buffer=None, index_element_size=4, mode=None) -> VertexArray
-.. automethod:: Context.vertex_array(*args, **kwargs) -> VertexArray
-.. automethod:: Context.buffer(data=None, reserve=0, dynamic=False) -> Buffer
-.. automethod:: Context.texture(size, components, data=None, samples=0, alignment=1, dtype='f1', internal_format=None) -> Texture
-.. automethod:: Context.depth_texture(size, data=None, samples=0, alignment=4) -> Texture
-.. automethod:: Context.texture3d(size, components, data=None, alignment=1, dtype='f1') -> Texture3D
-.. automethod:: Context.texture_array(size, components, data=None, alignment=1, dtype='f1') -> TextureArray
-.. automethod:: Context.texture_cube(size, components, data=None, alignment=1, dtype='f1') -> TextureCube
-.. automethod:: Context.simple_framebuffer(size, components=4, samples=0, dtype='f1') -> Framebuffer
-.. automethod:: Context.framebuffer(color_attachments=(), depth_attachment=None) -> Framebuffer
-.. automethod:: Context.renderbuffer(size, components=4, samples=0, dtype='f1') -> Renderbuffer
-.. automethod:: Context.depth_renderbuffer(size, samples=0) -> Renderbuffer
-.. automethod:: Context.scope(framebuffer=None, enable_only=None, textures=(), uniform_buffers=(), storage_buffers=(), samplers=(), enable=None) -> Scope
-.. automethod:: Context.query(samples=False, any_samples=False, time=False, primitives=False) -> Query
-.. automethod:: Context.compute_shader(source) -> ComputeShader
-.. automethod:: Context.sampler(repeat_x=True, repeat_y=True, repeat_z=True, filter=None, anisotropy=1.0, compare_func='?', border_color=None, min_lod=-1000.0, max_lod=1000.0, texture=None) -> Sampler
-.. automethod:: Context.clear_samplers(start=0, end=-1)
-.. automethod:: Context.release()
-
+.. automethod:: Context.program
+.. automethod:: Context.simple_vertex_array
+.. automethod:: Context.vertex_array
+.. automethod:: Context.buffer
+.. automethod:: Context.texture
+.. automethod:: Context.depth_texture
+.. automethod:: Context.texture3d
+.. automethod:: Context.texture_array
+.. automethod:: Context.texture_cube
+.. automethod:: Context.external_texture
+.. automethod:: Context.simple_framebuffer
+.. automethod:: Context.framebuffer
+.. automethod:: Context.renderbuffer
+.. automethod:: Context.depth_renderbuffer
+.. automethod:: Context.scope
+.. automethod:: Context.query
+.. automethod:: Context.compute_shader
+.. automethod:: Context.sampler
+.. automethod:: Context.clear_samplers
+.. automethod:: Context.release
 
 Methods
 -------
 
-.. automethod:: Context.clear(red=0.0, green=0.0, blue=0.0, alpha=0.0, depth=1.0, viewport=None, color=None)
-.. automethod:: Context.enable_only(flags)
-.. automethod:: Context.enable(flags: int)
-.. automethod:: Context.disable(flags: int)
-.. automethod:: Context.enable_direct(enum: int)
-.. automethod:: Context.disable_direct(enum: int)
-.. automethod:: Context.finish()
-.. automethod:: Context.copy_buffer(dst, src, size=-1, read_offset=0, write_offset=0)
-.. automethod:: Context.copy_framebuffer(dst, src)
-.. automethod:: Context.detect_framebuffer(glo=None) -> Framebuffer
-.. automethod:: Context.__enter__()
-.. automethod:: Context.__exit__(exc_type, exc_val, exc_tb)
+.. automethod:: Context.clear
+.. automethod:: Context.enable_only
+.. automethod:: Context.enable
+.. automethod:: Context.disable
+.. automethod:: Context.enable_direct
+.. automethod:: Context.disable_direct
+.. automethod:: Context.finish
+.. automethod:: Context.copy_buffer
+.. automethod:: Context.copy_framebuffer
+.. automethod:: Context.detect_framebuffer
+.. automethod:: Context.gc
+.. automethod:: Context.__enter__
+.. automethod:: Context.__exit__
 
 Attributes
 ----------
 
 .. autoattribute:: Context.gc_mode
+.. autoattribute:: Context.objects
 .. autoattribute:: Context.line_width
 .. autoattribute:: Context.point_size
 .. autoattribute:: Context.depth_func

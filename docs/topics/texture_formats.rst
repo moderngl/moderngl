@@ -45,7 +45,7 @@ Float Textures
 The ``f1`` texture is the most commonly used textures in OpenGL
 and is currently the default. Each component takes 1 byte (4 bytes for RGBA).
 This is not really a "real" float format, but a shader will read
-normalized values from these textures. ``0-255`` (byte rage) is read
+normalized values from these textures. ``0-255`` (byte range) is read
 as a value from ``0.0`` to ``1.0`` in shaders.
 
 In shaders the sampler type should be ``sampler2D``, ``sampler2DArray``

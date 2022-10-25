@@ -1,7 +1,6 @@
 Buffer
 ======
 
-.. py:module:: moderngl
 .. py:currentmodule:: moderngl
 
 .. autoclass:: moderngl.Buffer
@@ -9,26 +8,25 @@ Buffer
 Create
 ------
 
-.. automethod:: Context.buffer(data=None, reserve=0, dynamic=False) -> Buffer
+.. automethod:: Context.buffer
     :noindex:
 
 Methods
 -------
 
-.. automethod:: Buffer.assign(index)
-.. automethod:: Buffer.bind(*attribs, layout=None)
-.. automethod:: Buffer.write(data, offset=0)
-.. automethod:: Buffer.write_chunks(data, start, step, count)
-.. automethod:: Buffer.read(size=-1, offset=0) -> bytes
-.. automethod:: Buffer.read_into(buffer, size=-1, offset=0, write_offset=0)
-.. automethod:: Buffer.read_chunks(chunk_size, start, step, count) -> bytes
-.. automethod:: Buffer.read_chunks_into(buffer, chunk_size, start, step, count, write_offset=0)
-.. automethod:: Buffer.clear(size=-1, offset=0, chunk=None)
-.. automethod:: Buffer.bind_to_uniform_block(binding=0, offset=0, size=-1)
-.. automethod:: Buffer.bind_to_storage_buffer(binding=0, offset=0, size=-1)
-.. automethod:: Buffer.orphan(size=-1)
-.. automethod:: Buffer.release()
-
+.. automethod:: Buffer.assign
+.. automethod:: Buffer.bind
+.. automethod:: Buffer.write
+.. automethod:: Buffer.write_chunks
+.. automethod:: Buffer.read
+.. automethod:: Buffer.read_into
+.. automethod:: Buffer.read_chunks
+.. automethod:: Buffer.read_chunks_into
+.. automethod:: Buffer.clear
+.. automethod:: Buffer.bind_to_uniform_block
+.. automethod:: Buffer.bind_to_storage_buffer
+.. automethod:: Buffer.orphan
+.. automethod:: Buffer.release
 
 Attributes
 ----------

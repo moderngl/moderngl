@@ -128,5 +128,5 @@ A example configuration for Github Actions:
 macOS
 -----
 
-You won't need any specialy configuration to run on macOS.
+You won't need any special configuration to run on macOS.
 

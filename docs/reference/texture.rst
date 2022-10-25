@@ -8,22 +8,22 @@ Texture
 Create
 ------
 
-.. automethod:: Context.texture(size, components, data=None, samples=0, alignment=1, dtype='f1', internal_format=None) -> Texture
-    :noindex:
+.. automethod:: Context.texture
+   :noindex:
 
-.. automethod:: Context.depth_texture(size, data=None, samples=0, alignment=4) -> Texture
-    :noindex:
+.. automethod:: Context.depth_texture
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: Texture.read(level=0, alignment=1) -> bytes
-.. automethod:: Texture.read_into(buffer, level=0, alignment=1, write_offset=0)
-.. automethod:: Texture.write(data, viewport=None, level=0, alignment=1)
-.. automethod:: Texture.build_mipmaps(base=0, max_level=1000)
-.. automethod:: Texture.bind_to_image(unit: int, read: bool = True, write: bool = True, level: int = 0, format: int = 0)
-.. automethod:: Texture.use(location=0)
-.. automethod:: Texture.release()
+.. automethod:: Texture.read
+.. automethod:: Texture.read_into
+.. automethod:: Texture.write
+.. automethod:: Texture.build_mipmaps
+.. automethod:: Texture.bind_to_image
+.. automethod:: Texture.use
+.. automethod:: Texture.release
 
 Attributes
 ----------

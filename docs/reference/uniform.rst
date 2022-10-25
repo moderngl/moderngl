@@ -8,8 +8,8 @@ Uniform
 Methods
 -------
 
-.. automethod:: Uniform.read() -> bytes
-.. automethod:: Uniform.write(data)
+.. automethod:: Uniform.read
+.. automethod:: Uniform.write
 
 Attributes
 ----------

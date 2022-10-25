@@ -609,7 +609,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 
 - It was a tool for me to develop games in python
 
-[5.6.4]: https://github.com/moderngl/moderngl/compare/5.6.4...5.6.4
+[5.6.4]: https://github.com/moderngl/moderngl/compare/5.6.3...5.6.4
 [5.6.3]: https://github.com/moderngl/moderngl/compare/5.6.2...5.6.3
 [5.6.2]: https://github.com/moderngl/moderngl/compare/5.6.1...5.6.2
 [5.6.1]: https://github.com/moderngl/moderngl/compare/5.6.0...5.6.1

@@ -8,15 +8,15 @@ Scope
 Create
 ------
 
-.. automethod:: Context.scope(framebuffer=None, enable_only=None, textures=(), uniform_buffers=(), storage_buffers=(), samplers=(), enable=None) -> Scope
-    :noindex:
+.. automethod:: Context.scope
+   :noindex:
 
 Methods
 -------
 
-.. automethod:: Scope.__enter__()
-.. automethod:: Scope.__exit__(*args)
-.. automethod:: Scope.release()
+.. automethod:: Scope.__enter__
+.. automethod:: Scope.__exit__
+.. automethod:: Scope.release
 
 Attributes
 ----------

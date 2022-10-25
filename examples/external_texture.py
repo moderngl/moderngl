@@ -1,0 +1,96 @@
+import ctypes
+import os
+
+import moderngl
+import numpy as np
+from OpenGL import GL
+from pyrr import Matrix44
+
+from ported._example import Example
+
+
+class CrateExample(Example):
+    title = "Crate"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.prog = self.ctx.program(
+            vertex_shader='''
+                #version 330
+
+                uniform mat4 Mvp;
+
+                in vec3 in_position;
+                in vec3 in_normal;
+                in vec2 in_texcoord_0;
+
+                out vec3 v_vert;
+                out vec3 v_norm;
+                out vec2 v_text;
+
+                void main() {
+                    gl_Position = Mvp * vec4(in_position, 1.0);
+                    v_vert = in_position;
+                    v_norm = in_normal;
+                    v_text = in_texcoord_0;
+                }
+            ''',
+            fragment_shader='''
+                #version 330
+
+                uniform vec3 Light;
+                uniform sampler2D Texture;
+
+                in vec3 v_vert;
+                in vec3 v_norm;
+                in vec2 v_text;
+
+                out vec4 f_color;
+
+                void main() {
+                    float lum = clamp(dot(normalize(Light - v_vert), normalize(v_norm)), 0.0, 1.0) * 0.8 + 0.2;
+                    f_color = vec4(texture(Texture, v_text).rgb * lum, 1.0);
+                }
+            ''',
+        )
+
+        self.mvp = self.prog['Mvp']
+        self.light = self.prog['Light']
+
+        self.scene = self.load_scene('crate.obj')
+        self.vao = self.scene.root_nodes[0].mesh.vao.instance(self.prog)
+
+        width, height = 16, 16
+        pixels = os.urandom(width * height * 4)
+        texture = ctypes.c_uint32()
+        GL.glGenTextures(1, ctypes.byref(texture))
+        # GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, texture)
+        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA8, width, height, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, pixels)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
+        self.texture = self.ctx.external_texture(texture.value, (width, height), 4, 0, 'f1')
+
+    def render(self, time, frame_time):
+        angle = time
+        self.ctx.clear(1.0, 1.0, 1.0)
+        self.ctx.enable(moderngl.DEPTH_TEST)
+
+        camera_pos = (np.cos(angle) * 3.0, np.sin(angle) * 3.0, 2.0)
+
+        proj = Matrix44.perspective_projection(45.0, self.aspect_ratio, 0.1, 100.0)
+        lookat = Matrix44.look_at(
+            camera_pos,
+            (0.0, 0.0, 0.5),
+            (0.0, 0.0, 1.0),
+        )
+
+        self.mvp.write((proj * lookat).astype('f4'))
+        self.light.value = camera_pos
+        self.texture.use()
+        self.vao.render()
+
+
+if __name__ == '__main__':
+    CrateExample.run()

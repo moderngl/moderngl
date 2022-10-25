@@ -1,4 +1,6 @@
 from unittest import TestCase
+
+import pytest
 import moderngl
 import numpy
 import platform
@@ -170,3 +172,99 @@ class ContextTests(TestCase):
         self.assertEqual(ctx.polygon_offset, (1.0, 0.0))
         ctx.polygon_offset = -1.0, -1.0
         self.assertEqual(ctx.polygon_offset, (-1.0, -1.0))
+
+    def test_context_gc_modes(self):
+        """Check gc mode default and set different modes"""
+        ctx = moderngl.create_context(standalone=True)
+        # gc mode should be None by default
+        self.assertIsNone(ctx.gc_mode)
+        ctx.gc_mode = None
+        ctx.gc_mode = "auto"
+        ctx.gc_mode = "context_gc"
+        with pytest.raises(ValueError):
+            ctx.gc_mode = "something"
+        ctx.release()
+
+    def test_context_gc(self):
+        """Simple usage of context_gc"""
+        ctx = moderngl.create_context(standalone=True)
+        ctx.gc_mode = "context_gc"
+
+        # Buffer
+        buff = ctx.buffer(reserve=1024)
+        buff = None
+        self.assertEqual(ctx.gc(), 1)
+
+        # Texture
+        tex = ctx.texture((10, 10), 4)
+        tex = None
+        self.assertEqual(ctx.gc(), 1)
+
+        # Texture Arrray
+        tex_array = ctx.texture_array((10, 10, 10), 4)
+        tex_array = None
+        self.assertEqual(ctx.gc(), 1)
+
+        # Texture cube
+        tex_cube = ctx.texture_cube((10, 10), 4)
+        tex_cube = None
+        self.assertEqual(ctx.gc(), 1)
+
+        # Texture3D
+        tex_3d = ctx.texture3d((10, 10, 10), 4)
+        tex_3d = None
+        self.assertEqual(ctx.gc(), 1)
+
+        # Sampler
+        samp = ctx.sampler()
+        samp = None
+        self.assertEqual(ctx.gc(), 1)
+
+        # Renderbuffer
+        rb = ctx.renderbuffer((10, 19))
+        rb = None
+        self.assertEqual(ctx.gc(), 1)
+
+        # Program
+        prog = ctx.program(
+            vertex_shader="""
+            #version 330
+            out float value;
+            void main() {
+                value = float(gl_VertexID);
+            }
+            """
+        )
+        prog = None
+        self.assertEqual(ctx.gc(), 1)
+
+        # Framebuffer
+        fbo = ctx.framebuffer(
+            color_attachments=[ctx.texture((10, 10), 4)],
+            depth_attachment=ctx.depth_texture((10, 10))
+        )
+        fbo = None
+        self.assertEqual(ctx.gc(), 3)
+
+        # # Compute Shader
+        # cs = ctx.compute_shader(
+        #     """
+        #     #version 450
+            
+        #     layout(local_size_x=4, local_size_y=4) in;
+
+        #     layout(rgba8, binding=0) uniform imageCube img_in;
+        #     layout(rgba8, binding=1) uniform imageCube img_out;
+
+        #     void main() {
+        #         for (int i = 0; i < 6; i++) {
+        #             vec4 fragment = imageLoad(img_in, ivec3(gl_LocalInvocationID.xy, i));
+        #             imageStore(img_out, ivec3(gl_LocalInvocationID.xy, i), fragment);
+        #         }
+        #     }
+        #     """
+        # )
+        # cs = None
+        # self.assertEqual(ctx.gc(), 1)
+
+        ctx.release()

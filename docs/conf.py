@@ -20,8 +20,6 @@
 import os
 import sys
 
-import sphinx_rtd_theme
-
 sys.path.insert(0, os.path.abspath('..'))
 
 
@@ -51,7 +49,7 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.githubpages',
-    'sphinxcontrib.napoleon',
+    'sphinx.ext.napoleon',
     'sphinx_copybutton',
 ]
 
@@ -105,7 +103,8 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+# html_theme = 'sphinx_rtd_theme'
+html_theme = 'furo'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -119,19 +118,6 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 html_logo = "_static/logo.png"
 html_favicon = "_static/favicon.ico"
-
-# Custom sidebar templates, must be a dictionary that maps document names
-# to template names.
-#
-# This is required for the alabaster theme
-# refs: http://alabaster.readthedocs.io/en/latest/installation.html#sidebars
-html_sidebars = {
-    '**': [
-        'relations.html',  # needs 'show_related': True theme option to display
-        'searchbox.html',
-    ]
-}
-
 
 # -- Options for HTMLHelp output ------------------------------------------
 
@@ -190,5 +176,5 @@ texinfo_documents = [
 ]
 
 
-def setup(app):
-    app.add_css_file('css/custom.css')
+# def setup(app):
+#     app.add_css_file('css/custom.css')

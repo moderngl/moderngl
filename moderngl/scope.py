@@ -1,31 +1,32 @@
-import logging
+from typing import Any, Tuple
 
 from moderngl.mgl import InvalidObject  # type: ignore
 
 __all__ = ['Scope']
 
-LOG = logging.getLogger(__name__)
-
 
 class Scope:
-    '''
-        This class represents a Scope object.
+    """
+    This class represents a Scope object.
 
-        Responsibilities on enter:
+    Responsibilities on enter:
 
-        - Set the enable flags.
-        - Bind the framebuffer.
-        - Assigning textures to texture locations.
-        - Assigning buffers to uniform buffers.
-        - Assigning buffers to shader storage buffers.
+    - Set the enable flags.
+    - Bind the framebuffer.
+    - Assigning textures to texture locations.
+    - Assigning buffers to uniform buffers.
+    - Assigning buffers to shader storage buffers.
 
-        Responsibilities on exit:
+    Responsibilities on exit:
 
-        - Restore the enable flags.
-        - Restore the framebuffer.
-    '''
+    - Restore the enable flags.
+    - Restore the framebuffer.
+    """
 
-    __slots__ = ['mglo', 'ctx', '_framebuffer', '_textures', '_uniform_buffers', '_storage_buffers', '_samplers', 'extra']
+    __slots__ = [
+        'mglo', 'ctx', '_framebuffer', '_textures', '_uniform_buffers',
+        '_storage_buffers', '_samplers', 'extra',
+    ]
 
     def __init__(self):
         self.mglo = None  #: Internal representation for debug purposes only.
@@ -49,16 +50,20 @@ class Scope:
         self.mglo.begin()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Tuple[Any]):
         self.mglo.end()
 
     def __del__(self):
-        LOG.debug(f"{self.__class__.__name__}.__del__ {self}")
-        if hasattr(self, "ctx") and self.ctx.gc_mode == "auto":
-            self.release()
+        if not hasattr(self, "ctx"):
+            return
 
-    def release(self):
-        LOG.debug(f"{self.__class__.__name__}.release() {self}")
+        if self.ctx.gc_mode == "auto":
+            self.release()
+        elif self.ctx.gc_mode == "context_gc":
+            self.ctx.objects.append(self.mglo)
+
+    def release(self) -> None:
+        """Destroy the Scope object."""
         if not isinstance(self.mglo, InvalidObject):
             self._framebuffer = None
             self._textures = None

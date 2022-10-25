@@ -278,6 +278,8 @@ struct MGLTexture {
 
 	bool repeat_x;
 	bool repeat_y;
+
+    bool external;
 };
 
 struct MGLTexture3D {
