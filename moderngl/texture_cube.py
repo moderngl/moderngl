@@ -1,5 +1,7 @@
 from typing import Any, Optional, Tuple, Union
 
+from _moderngl import InvalidObject
+
 from .buffer import Buffer
 
 __all__ = ['TextureCube']
@@ -321,4 +323,4 @@ class TextureCube:
         """Release the ModernGL object."""
         if self.mglo is not None:
             self.mglo.release()
-            self.mglo = None
+            self.mglo = InvalidObject()

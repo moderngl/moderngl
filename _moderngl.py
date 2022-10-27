@@ -631,3 +631,7 @@ def make_varying(name, number, array_length, dimension):
     res._array_length = array_length
     res._dimension = dimension
     return res
+
+
+class InvalidObject:
+    pass

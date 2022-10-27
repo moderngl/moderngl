@@ -2,6 +2,8 @@ import warnings
 from collections import deque
 from typing import Any, Deque, Dict, List, Optional, Set, Tuple, Union
 
+from _moderngl import InvalidObject
+
 from .buffer import Buffer
 from .compute_shader import ComputeShader
 from .conditional_render import ConditionalRender
@@ -1916,7 +1918,7 @@ class Context:
         """
         if self.mglo is not None:
             self.mglo.release()
-            self.mglo = None
+            self.mglo = InvalidObject()
 
 
 def create_context(

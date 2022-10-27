@@ -1,5 +1,7 @@
 from typing import Any, Tuple
 
+from _moderngl import InvalidObject
+
 __all__ = ['Scope']
 
 
@@ -69,4 +71,4 @@ class Scope:
             self._storage_buffers = None
             self._samplers = None
             self.mglo.release()
-            self.mglo = None
+            self.mglo = InvalidObject()

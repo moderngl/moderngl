@@ -1,5 +1,7 @@
 from typing import Tuple
 
+from _moderngl import InvalidObject
+
 __all__ = ['Sampler']
 
 
@@ -74,7 +76,7 @@ class Sampler:
         """Release/destroy the ModernGL object."""
         if self.mglo is not None:
             self.mglo.release()
-            self.mglo = None
+            self.mglo = InvalidObject()
 
     @property
     def repeat_x(self) -> bool:

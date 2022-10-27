@@ -1,5 +1,7 @@
 from typing import Any, Dict, Optional, TYPE_CHECKING, Tuple, Union
 
+from _moderngl import InvalidObject
+
 from .buffer import Buffer
 from .renderbuffer import Renderbuffer
 from .texture import Texture
@@ -332,4 +334,4 @@ class Framebuffer:
             self._color_attachments = None
             self._depth_attachment = None
             self.mglo.release()
-            self.mglo = None
+            self.mglo = InvalidObject()

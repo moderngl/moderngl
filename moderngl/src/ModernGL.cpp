@@ -986,5 +986,9 @@ extern "C" PyObject * PyInit_mgl() {
     MGLVertexArray_type = (PyTypeObject *)PyType_FromSpec(&MGLVertexArray_spec);
     MGLSampler_type = (PyTypeObject *)PyType_FromSpec(&MGLSampler_spec);
 
+    PyObject * InvalidObject = PyObject_GetAttrString(helper, "InvalidObject");
+    PyModule_AddObject(module, "InvalidObject", InvalidObject);
+    Py_INCREF(InvalidObject);
+
 	return module;
 }

@@ -101,4 +101,4 @@ class Renderbuffer:
         """Release the ModernGL object."""
         if self.mglo is not None:
             self.mglo.release()
-            self.mglo = None
+            self.mglo = InvalidObject()

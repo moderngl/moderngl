@@ -1,5 +1,7 @@
 from typing import Any, Generator, Union
 
+from _moderngl import InvalidObject
+
 from .program_members import (
     Attribute,
     Subroutine,
@@ -148,4 +150,4 @@ class ComputeShader:
         """Release the ModernGL object."""
         if self.mglo is not None:
             self.mglo.release()
-            self.mglo = None
+            self.mglo = InvalidObject()
