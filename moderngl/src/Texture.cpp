@@ -598,6 +598,7 @@ PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
 	int texture_target = self->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
 	int pixel_type = self->data_type->gl_type;
 	int format = self->data_type->base_format[self->components];
+	if (self->depth) format = GL_DEPTH_COMPONENT;
 
 	if (Py_TYPE(data) == MGLBuffer_type) {
 
