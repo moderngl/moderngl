@@ -595,8 +595,6 @@ PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
 	expected_size = (expected_size + alignment - 1) / alignment * alignment;
 	expected_size = expected_size * height;
 
-	int texture_target = GL_TEXTURE_2D;
-	//int texture_target = self->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
 	int pixel_type = self->data_type->gl_type;
 	int format = self->depth ? GL_DEPTH_COMPONENT : self->data_type->base_format[self->components];
 
@@ -608,10 +606,10 @@ PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
 
 		gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer_obj);
 		gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-		gl.BindTexture(texture_target, self->texture_obj);
+		gl.BindTexture(GL_TEXTURE_2D, self->texture_obj);
 		gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
 		gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
-		gl.TexSubImage2D(texture_target, level, x, y, width, height, format, pixel_type, 0);
+		gl.TexSubImage2D(GL_TEXTURE_2D, level, x, y, width, height, format, pixel_type, 0);
 		gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
 	} else {
@@ -633,10 +631,10 @@ PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
 		const GLMethods & gl = self->context->gl;
 
 		gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-		gl.BindTexture(texture_target, self->texture_obj);
+		gl.BindTexture(GL_TEXTURE_2D, self->texture_obj);
 		gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
 		gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
-		gl.TexSubImage2D(texture_target, level, x, y, width, height, format, pixel_type, buffer_view.buf);
+		gl.TexSubImage2D(GL_TEXTURE_2D, level, x, y, width, height, format, pixel_type, buffer_view.buf);
 
 		PyBuffer_Release(&buffer_view);
 
