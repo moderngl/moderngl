@@ -1,6 +1,7 @@
 import struct
 import unittest
 from array import array
+import struct
 import platform
 
 import moderngl
@@ -207,6 +208,26 @@ class TestCase(unittest.TestCase):
         ni2.use()
         self.vao.render()
         self.assertEqual(fbo.read(viewport=(0, 0, 1, 1), components=4, dtype="f1"), b'\xff\xff\xff\xff')
+
+    def test_depth_texture_write(self):
+        """Write data into depth texture"""
+        size = 4, 4
+        fbo = self.ctx.framebuffer(
+            color_attachments=[self.ctx.texture(size, 4)],
+            depth_attachment=self.ctx.depth_texture(size),
+        )
+        fbo.clear(depth=1.0)
+
+        first = struct.unpack("16f", fbo.depth_attachment.read())
+        second = (1.0,) * 16
+        for a, b in zip(first, second):
+            self.assertAlmostEqual(a, b, places=6)
+
+        fbo.depth_attachment.write(struct.pack("16f", *([0.5] * 16)))
+        first = struct.unpack("16f", fbo.depth_attachment.read())
+        second = (0.5,) * 16
+        for a, b in zip(first, second):
+            self.assertAlmostEqual(a, b, places=5)
 
 
 if __name__ == '__main__':
