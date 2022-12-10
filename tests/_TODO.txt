@@ -1,3 +1,6 @@
+Misc:
+
+In some cases we need to enforce software rendering "export LIBGL_ALWAYS_SOFTWARE=true"
 
 Small issues:
 

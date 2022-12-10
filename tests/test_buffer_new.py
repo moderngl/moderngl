@@ -24,23 +24,23 @@ def test_3(ctx):
     assert buf.read(10, offset=10) == b'ababababab'
     assert buf.read(10, offset=20) == b'uuuuuuuuuu'
 
-# def test_4(ctx):
-#     buf = ctx.buffer(reserve=10)
-#     buf.write_chunks(b'00000', 0, 2, 5)
-#     buf.write_chunks(b'11111', 1, 2, 5)
-#     assert buf.read(10, offset=0) == b'0101010101'
+def test_4(ctx):
+    buf = ctx.buffer(reserve=10)
+    buf.write_chunks(b'00000', 0, 2, 5)
+    buf.write_chunks(b'11111', 1, 2, 5)
+    assert buf.read(10, offset=0) == b'0101010101'
 
-# def test_5(ctx):
-#     buf = ctx.buffer(b'123456789')
-#     buf.write_chunks(b'AABBCC', 0, 3, 3)
-#     assert buf.read() == b'AA3BB6CC9'
-#     assert buf.read_chunks(2, 0, 3, 3) == b'AABBCC'
+def test_5(ctx):
+    buf = ctx.buffer(b'123456789')
+    buf.write_chunks(b'AABBCC', 0, 3, 3)
+    assert buf.read() == b'AA3BB6CC9'
+    assert buf.read_chunks(2, 0, 3, 3) == b'AABBCC'
 
-# def test_6(ctx):
-#     buf = ctx.buffer(b'123456789')
-#     buf.write_chunks(b'XYZ', -1, -3, 3)
-#     assert buf.read() == b'12Z45Y78X'
-#     assert buf.read_chunks(1, -1, -3, 3) == b'XYZ'
+def test_6(ctx):
+    buf = ctx.buffer(b'123456789')
+    buf.write_chunks(b'XYZ', -1, -3, 3)
+    assert buf.read() == b'12Z45Y78X'
+    assert buf.read_chunks(1, -1, -3, 3) == b'XYZ'
 
 def test_7(ctx):
     buf = ctx.buffer(b'123456789')
