@@ -2,6 +2,6 @@ Misc:
 
 In some cases we need to enforce software rendering "export LIBGL_ALWAYS_SOFTWARE=true"
 
-Small issues:
+issues:
 
-* test_buffer_new: write_chunks test failing
+* Possibly run ctx.error check after every function using the ctx fixture
