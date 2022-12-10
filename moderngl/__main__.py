@@ -24,7 +24,13 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument('--info', action='store_true', default=False)
     args = parser.parse_args(argv)
 
-    ctx = moderngl.create_standalone_context()
+    try:
+        ctx = moderngl.create_standalone_context()
+    except Exception:
+        if sys.platform == 'linux':
+            ctx = moderngl.create_standalone_context(backend='egl')
+        else:
+            raise
 
     if args.info:
         print(json.dumps(ctx.info, sort_keys=True, indent=4))
