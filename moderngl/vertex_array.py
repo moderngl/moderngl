@@ -324,7 +324,7 @@ class VertexArray:
 
     def release(self) -> None:
         """Release the ModernGL object."""
-        if self.mglo is not None:
+        if isinstance(self.mglo, InvalidObject):
             self._program = None
             self._index_buffer = None
             self._content = None

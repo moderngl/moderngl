@@ -376,6 +376,6 @@ class TextureArray:
 
     def release(self) -> None:
         """Release the ModernGL object."""
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()

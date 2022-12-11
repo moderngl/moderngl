@@ -64,7 +64,7 @@ class Scope:
 
     def release(self) -> None:
         """Destroy the Scope object."""
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self._framebuffer = None
             self._textures = None
             self._uniform_buffers = None

@@ -332,7 +332,7 @@ class Framebuffer:
 
     def release(self) -> None:
         """Release the ModernGL object."""
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self._color_attachments = None
             self._depth_attachment = None
             self.mglo.release()
