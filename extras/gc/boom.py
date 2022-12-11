@@ -207,7 +207,7 @@ def test_vertex_array_creation_failure():
         buffer = ctx.buffer(reserve=1024)
         prog = ctx.program(**prog_src)
         vao = ctx.vertex_array(prog, [(buffer, "2f", "in_pos_invalid")])
-    except moderngl.error.Error:
+    except moderngl.Error:
         pass
 
 

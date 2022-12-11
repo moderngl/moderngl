@@ -37,7 +37,7 @@ class ContextTests(TestCase):
         with ctx1 as ctx:
             ctx.buffer(reserve=1024)
 
-        # Will error out if no context is active "moderngl.error.Error: cannot create buffer"
+        # Will error out if no context is active "moderngl.Error: cannot create buffer"
         ctx1.buffer(reserve=1024)
 
         ctx1.release()
