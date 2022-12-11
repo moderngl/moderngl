@@ -5,9 +5,27 @@ import moderngl
 VERSION_CODE = 330
 _ctx = None
 
+
 @pytest.fixture(scope="session")
+def ctx_static():
+    """Session context"""
+    return _create_context()
+
+
+@pytest.fixture(scope="function")
 def ctx():
-    """Create a context with the latest version of OpenGL available."""
+    """
+    Per function context.
+
+    The same context is reused, but the context is cleaned before and after each test.
+    """
+    ctx = _create_context()
+    _clean_ctx(ctx)
+    yield ctx
+    _clean_ctx(ctx)
+
+
+def _create_context():
     global _ctx
     if _ctx is None:
         try:
@@ -23,25 +41,29 @@ def ctx():
             )
         _ctx.gc_mode = "auto"
         return _ctx
-
-    # Reset the context
-    _ctx.blend_func = moderngl.DEFAULT_BLENDING
-    _ctx.blend_equation = moderngl.FUNC_ADD
-    _ctx.enable_only(moderngl.NOTHING)
-    _ctx.point_size = 1.0
-    _ctx.line_width = 1.0
-    _ctx.front_face = 'ccw'
-    _ctx.cull_face = 'back'
-    _ctx.wireframe = False
-    _ctx.provoking_vertex = moderngl.FIRST_VERTEX_CONVENTION
-    _ctx.polygon_offset = 0.0, 0.0    
     return _ctx
 
 
+def _clean_ctx(ctx):
+    """Clean the context"""
+    # Reset the context
+    ctx.blend_func = moderngl.DEFAULT_BLENDING
+    ctx.blend_equation = moderngl.FUNC_ADD
+    ctx.enable_only(moderngl.NOTHING)
+    ctx.point_size = 1.0
+    ctx.line_width = 1.0
+    ctx.front_face = 'ccw'
+    ctx.cull_face = 'back'
+    ctx.wireframe = False
+    ctx.provoking_vertex = moderngl.FIRST_VERTEX_CONVENTION
+    ctx.polygon_offset = 0.0, 0.0    
+    ctx.gc()
+
+
 @pytest.fixture(scope="session")
-def color_prog(ctx):
+def color_prog(ctx_static):
     """A simple program that renders a solid color."""
-    return ctx.program(
+    return ctx_static.program(
         vertex_shader='''
             #version 330
 
@@ -65,7 +87,7 @@ def color_prog(ctx):
 
 
 @pytest.fixture(scope="session")
-def ndc_quad(ctx):
+def ndc_quad(ctx_static):
     """Creates a buffer with an NDC quad."""
     quad = [
         -1.0,  1.0,
@@ -73,4 +95,4 @@ def ndc_quad(ctx):
         1.0, 1.0,
         1.0, -1.0,
     ]
-    return ctx.buffer(np.array(quad, dtype='f4').tobytes())
+    return ctx_static.buffer(np.array(quad, dtype='f4'))
