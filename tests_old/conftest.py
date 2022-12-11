@@ -15,7 +15,7 @@ def standalone_context():
     # # HACK for CI
     # if os.environ.get("CI"):
     #     return None
-    return mgl.create_standalone_context()
+    return mgl.create_standalone_context(backend='egl')
 
 
 @pytest.fixture
