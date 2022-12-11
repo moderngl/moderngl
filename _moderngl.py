@@ -369,6 +369,7 @@ def make_subroutine(name, index):
 
 def make_varying(name, number, array_length, dimension):
     res = Varying()
+    res._number = number
     res._name = name
     res._array_length = array_length
     res._dimension = dimension
