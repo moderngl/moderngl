@@ -141,16 +141,9 @@ project_urls = {
     'Bug Tracker': 'https://github.com/moderngl/moderngl/issues/',
 }
 
-package_data = {}
-packages = ['moderngl']
-
-if False:
-    package_data = {'moderngl-stubs': ['__init__.pyi']}
-    packages += ['moderngl-stubs']
-
 setup(
     name='moderngl',
-    version='5.7.3',
+    version='5.8.0',
     description=short_description,
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -162,8 +155,8 @@ setup(
     classifiers=classifiers,
     keywords=keywords,
     include_package_data=True,
-    package_data=package_data,
-    packages=packages,
+    package_data={'moderngl-stubs': ['__init__.pyi']},
+    packages=['moderngl', 'moderngl-stubs'],
     py_modules=['_moderngl'],
     ext_modules=[mgl],
     platforms=['any'],

@@ -5,7 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-# [5.7.0]
+## [5.8.0](https://github.com/moderngl/moderngl/compare/5.7.4...master)
+
+This version includes the following structural changes in moderngl:
+
+- The typehints and inline documentation was moved to moderngl-stubs.
+- The Python layer was concatenated but moderngl itself stays a package.
+- Most of the protected class members were removed.
+- Most of the property aliases became ordinary class members.
+- Slots were removed.
+
+## [5.7.4](https://github.com/moderngl/moderngl/compare/5.7.3...5.7.4)
+
+...
+
+## [5.7.3](https://github.com/moderngl/moderngl/compare/5.7.2...5.7.3)
+
+...
+
+## [5.7.2](https://github.com/moderngl/moderngl/compare/5.7.1...5.7.2)
+
+...
+
+## [5.7.1](https://github.com/moderngl/moderngl/compare/5.7.0...5.7.1)
+
+...
+
+## [5.7.0](https://github.com/moderngl/moderngl/compare/5.6.4...5.7.0)
 
 * Python 3.11 support
 * Added support for configurable garbage collection mode. ``Context.gc_mode`` controls this.
@@ -48,7 +74,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 * Docstring improvements
 * Documentation improvements
 
-# [5.6.4]
+## [5.6.4](https://github.com/moderngl/moderngl/compare/5.6.3...5.6.4)
 
 * Transform feedback now supports all primitive modes both for
   vertex and geometry shaders
@@ -62,7 +88,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   For example: `ctx.NEAREST` and `ctx.LINEAR`
 * Docstring and documentation improvements
 
-# [5.6.3]
+## [5.6.3](https://github.com/moderngl/moderngl/compare/5.6.2...5.6.3)
 
 * Added `Context.extensions`. This is a `set` containing the
   OpenGL extensions supported by the context.
@@ -70,31 +96,32 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   This opens up for sRGB and compressed formats if needed.
 * Docstring and documentation improvements
 
-# [5.6.2]
-## Bugs
+## [5.6.2](https://github.com/moderngl/moderngl/compare/5.6.1...5.6.2)
+
+### Bugs
 
 * `TextureArray.build_mimpmaps()` used the wrong target when building mipmaps.
   This caused the texture to corrupt with some drivers. Thanks to [Nir Aides](https://github.com/nir)
   for discovering this bug.
 * Docstring improvements
 
-# [5.6.1]
+## [5.6.1](https://github.com/moderngl/moderngl/compare/5.6.0...5.6.1)
 
-## Improvements
+### Improvements
 
 * Added `Context.cull_face`. (`glCullFace`). An alternative to `Context.front_face` (`glFrontFace`)
 * Added support for signed and unsigned integer sampler uniforms (`isampler*`, `usampler*`)
 * Added support for multisampled texture array samplers
 * Doc improvements
 
-## Bugs
+### Bugs
 
 * Transform feedback with geo shader should now property set the out primitive type.
   It incorrectly assumed `POINTS` in some cases causing a gl error.
 * Moderngl will now propagate the default error messages when objects cannot
   be read using the buffer protocol.
 
-# [5.6.0] - 2020-02-01
+## [5.6.0](https://github.com/moderngl/moderngl/compare/5.5.4...5.6.0) - 2020-02-01
 
 From ModernGL 5.6 context creation is done by the [glcontext](https://github.com/moderngl/glcontext)
 package. This means we can keep improving context creation without releasing new
@@ -145,7 +172,7 @@ Still we have a lot more work to do in this area.
 - Fixed an issue with attribute format detection causing integer and double types to fail
 - Several minor bug fixes
 
-## [5.5.4] - 2019-11-10
+## [5.5.4](https://github.com/moderngl/moderngl/compare/5.5.3...5.5.4) - 2019-11-10
 
 This version was originally meant to only add python 3.8 support,
 but a few additions and fixes where cherry-picked from the 5.6 branch.
@@ -155,25 +182,25 @@ but a few additions and fixes where cherry-picked from the 5.6 branch.
 - `Context.blend_func` now supports separate blend functions for rgb and alpha.
 - Added `Context.blend_equation` supporting separate blend equations for rgb and alpha.
 
-## [5.5.3] - 2019-08-16
+## [5.5.3](https://github.com/moderngl/moderngl/compare/5.5.2...5.5.3) - 2019-08-16
 
 ### Fixed
 
 - Scope object uniform buffer bindings.
 
-## [5.5.2] - 2019-06-13
+## [5.5.2](https://github.com/moderngl/moderngl/compare/5.5.1...5.5.2) - 2019-06-13
 
 ### Fixed
 
 - missing package in setup.py
 
-## [5.5.1] - 2019-06-12
+## [5.5.1](https://github.com/moderngl/moderngl/compare/5.5.0...5.5.1) - 2019-06-12
 
 ### Fixed
 
 - offset fix for vao render
 
-## [5.5.0] - 2019-01-22
+## [5.5.0](https://github.com/moderngl/moderngl/compare/5.4.2...5.5.0) - 2019-01-22
 
 ### Fixed
 
@@ -188,19 +215,19 @@ but a few additions and fixes where cherry-picked from the 5.6 branch.
 - improved documentation
 - improved build on Mac
 
-## [5.4.2] - 2018-08-01
+## [5.4.2](https://github.com/moderngl/moderngl/compare/5.4.1...5.4.2) - 2018-08-01
 
 ### Fixed
 
 - included `moderngl.program_members` in the package list
 
-## [5.4.1] - 2018-07-30
+## [5.4.1](https://github.com/moderngl/moderngl/compare/5.4.0...5.4.1) - 2018-07-30
 
 ### Fixed
 
 - broken description on PyPI
 
-## [5.4.0] - 2018-07-30
+## [5.4.0](https://github.com/moderngl/moderngl/compare/5.3.0...5.4.0) - 2018-07-30
 
 ### Added
 
@@ -220,7 +247,7 @@ but a few additions and fixes where cherry-picked from the 5.6 branch.
 - reading depth values from textures
 - broken compare functions
 
-## [5.3.0] - 2018-06-27
+## [5.3.0](https://github.com/moderngl/moderngl/compare/5.2.1...5.3.0) - 2018-06-27
 
 ### Added
 
@@ -230,13 +257,13 @@ but a few additions and fixes where cherry-picked from the 5.6 branch.
 
 - comapre fuctions
 
-## [5.2.1] - 2018-05-10
+## [5.2.1](https://github.com/moderngl/moderngl/compare/5.2.0...5.2.1) - 2018-05-10
 
 ### Fixed
 
 - markdown readme issues
 
-## [5.2.0] - 2018-05-10
+## [5.2.0](https://github.com/moderngl/moderngl/compare/5.1.0...5.2.0) - 2018-05-10
 
 ### Added
 
@@ -250,7 +277,7 @@ but a few additions and fixes where cherry-picked from the 5.6 branch.
 
 - tesselation control and tesselation evaluation shader being swapped when creating a program
 
-## [5.1.0] - 2018-04-28
+## [5.1.0](https://github.com/moderngl/moderngl/compare/5.0.7...5.1.0) - 2018-04-28
 
 ### Added
 
@@ -258,31 +285,31 @@ but a few additions and fixes where cherry-picked from the 5.6 branch.
 - offset and size parameter to `Buffer.bind_to_storage_buffer`
 - `GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT` to `Context.info`
 
-## [5.0.7] - 2018-04-08
+## [5.0.7](https://github.com/moderngl/moderngl/compare/5.0.6...5.0.7) - 2018-04-08
 
 ### Fixed
 
 - minor bugs in Buffer Format
 
-## [5.0.6] - 2018-03-22
+## [5.0.6](https://github.com/moderngl/moderngl/compare/5.0.5...5.0.6) - 2018-03-22
 
 ### Fixed
 
 - `standalone_context` on linux [issue #173](https://github.com/moderngl/moderngl/issues/173)
 
-## [5.0.5] - 2018-03-21
+## [5.0.5](https://github.com/moderngl/moderngl/compare/5.0.4...5.0.5) - 2018-03-21
 
 ### Fixed
 
 - Standalone context on linux fails when the default display is nonzero.
 
-## [5.0.4] - 2018-03-07
+## [5.0.4](https://github.com/moderngl/moderngl/compare/5.0.3...5.0.4) - 2018-03-07
 
 ### Fixed
 
 - Standalone context on windows fails when old GPU driver is installed.
 
-## [5.0.3] - 2018-02-28
+## [5.0.3](https://github.com/moderngl/moderngl/compare/5.0.2...5.0.3) - 2018-02-28
 
 ### Added
 
@@ -297,19 +324,19 @@ but a few additions and fixes where cherry-picked from the 5.6 branch.
 
 - Properly set subroutines in VertexArray render
 
-## [5.0.2] - 2018-02-20
+## [5.0.2](https://github.com/moderngl/moderngl/compare/5.0.1...5.0.2) - 2018-02-20
 
 ### Fixed
 
 - Wrong module name in some windows based wheel files
 
-## [5.0.1] - 2018-02-19
+## [5.0.1](https://github.com/moderngl/moderngl/compare/5.0.0...5.0.1) - 2018-02-19
 
 ### Fixed
 
 - Build errors and warnings for older python versions
 
-## [5.0.0] - 2018-02-18
+## [5.0.0](https://github.com/moderngl/moderngl/tree/5.0.0) - 2018-02-18
 
 For more information please see: [Differences between ModernGL5 and ModernGL4](https://moderngl.readthedocs.io/en/stable/misc/mgl5_vs_mgl4.html)
 
@@ -336,13 +363,13 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 
 - Classes and methods that are no longer needed
 
-## [4.2.2] - 2018-01-06
+## [4.2.2](https://github.com/moderngl/moderngl/compare/4.2.1...4.2.2) - 2018-01-06
 
 ### Added
 
 - Program.\_\_getitem\_\_ returns Uniforms, UniformBuffers, Attributes and Varyings
 
-## [4.2.1] - 2017-11-25
+## [4.2.1](https://github.com/moderngl/moderngl/compare/4.2.0...4.2.1) - 2017-11-25
 
 ### Added
 
@@ -354,7 +381,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Missing TextureCube class
 - Buffer.clear return type hint
 
-## [4.2.0] - 2017-10-17
+## [4.2.0](https://github.com/moderngl/moderngl/compare/4.1.12...4.2.0) - 2017-10-17
 
 ### Added
 
@@ -367,7 +394,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Standalone context on linux requires 24 bits for the depth buffer at least
 - Bound framebuffer reference count
 
-## [4.1.12] - 2017-08-22
+## [4.1.12](https://github.com/moderngl/moderngl/compare/4.1.11...4.1.12) - 2017-08-22
 
 ### Added
 
@@ -388,7 +415,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 
 - Texture3D created with wrong type
 
-## [4.1.11] - 2017-07-02
+## [4.1.11](https://github.com/moderngl/moderngl/compare/4.1.10...4.1.11) - 2017-07-02
 
 ### Added
 
@@ -402,7 +429,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Compile warnings (strict-prototypes)
 - Initial value of `wireframe`
 
-## [4.1.10] - 2017-06-23
+## [4.1.10](https://github.com/moderngl/moderngl/compare/4.1.9...4.1.10) - 2017-06-23
 
 ### Added
 
@@ -413,7 +440,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 
 - Validate the number of samples using wrong values
 
-## [4.1.9] - 2017-06-23
+## [4.1.9](https://github.com/moderngl/moderngl/compare/4.1.8...4.1.9) - 2017-06-23
 
 ### Added
 
@@ -425,7 +452,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 
 - 3D texture `depth` attribute type
 
-## [4.1.8] - 2017-06-19
+## [4.1.8](https://github.com/moderngl/moderngl/compare/4.1.7...4.1.8) - 2017-06-19
 
 ### Added
 
@@ -443,7 +470,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Segmentation fault when creating a texture using string data by mistake
 - Validate Renderbuffer and Texture samples
 
-## [4.1.7] - 2017-06-13
+## [4.1.7](https://github.com/moderngl/moderngl/compare/4.1.6...4.1.7) - 2017-06-13
 
 ### Added
 
@@ -460,19 +487,19 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Framebuffer non zero viewport settings
 - Uniform setter error messages
 
-## [4.1.6] - 2017-06-12
+## [4.1.6](https://github.com/moderngl/moderngl/compare/4.1.5...4.1.6) - 2017-06-12
 
 ### Fixed
 
 - Broken uniform setter in 4.1.5
 
-## [4.1.5] - 2017-06-09
+## [4.1.5](https://github.com/moderngl/moderngl/compare/4.1.4...4.1.5) - 2017-06-09
 
 ### Fixed
 
 - Modifying framebuffer properties has no effect unless the framebuffer is explicitly bound
 
-## [4.1.4] - 2017-06-07
+## [4.1.4](https://github.com/moderngl/moderngl/compare/4.1.3...4.1.4) - 2017-06-07
 
 ### Added
 
@@ -494,7 +521,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Invalid texture sampling parameters for multisample textures
 - Invalid texture sampling parameters for depth textures
 
-## [4.1.3] - 2017-06-04
+## [4.1.3](https://github.com/moderngl/moderngl/compare/4.1.2...4.1.3) - 2017-06-04
 
 ### Added
 
@@ -503,7 +530,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Texture `repeat_x`, `repeat_y` and `filter` attributes
 - Texture `swizzle` getter
 
-## [4.1.2] - 2017-05-31
+## [4.1.2](https://github.com/moderngl/moderngl/compare/4.1.1...4.1.2) - 2017-05-31
 
 ### Added
 
@@ -525,7 +552,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - `bind_to_uniform_block` `location` parameter was renamed to `binding`
 - `bind_to_storage_buffer` `location` parameter was renamed to `binding`
 
-## [4.1.1] - 2017-05-27
+## [4.1.1](https://github.com/moderngl/moderngl/compare/4.1.0...4.1.1) - 2017-05-27
 
 ### Added
 
@@ -552,7 +579,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Binding buffer to a UniformBlock
 - Broken RTD docs
 
-## [4.1.0] - 2017-05-24
+## [4.1.0](https://github.com/moderngl/moderngl/compare/4.0.0...4.1.0) - 2017-05-24
 
 ### Added
 
@@ -576,7 +603,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - `Framebuffer` and `Texture` can have uninitialized x, y values
 - Uniform setters
 
-## [4.0.0] - 2017-05-20
+## [4.0.0](https://github.com/moderngl/moderngl/tree/4.0.0) - 2017-05-20
 
 ### Added
 
@@ -593,7 +620,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Rename internal module to avoid ambiguosity
 - Rename class like members from the Context class
 
-## [3.1.5] - 2017-05-07
+## [3.1.5](https://github.com/moderngl/moderngl/compare/3.1.0...3.1.5) - 2017-05-07
 
 ### Added
 
@@ -602,7 +629,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 - Linting with pylint mock file
 - Mac OSX support
 
-## [3.1.0] - 2017-03-01
+## [3.1.0](https://github.com/moderngl/moderngl/tree/3.1.0) - 2017-03-01
 
 ### Added
 
@@ -616,7 +643,7 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 
 - Direct access to OpenGL objects
 
-## [2.4.1] - 2016-08-30
+## [2.4.1](https://github.com/moderngl/moderngl/tree/2.4.1) - 2016-08-30
 
 ### Added
 
@@ -627,50 +654,3 @@ For more information please see: [Differences between ModernGL5 and ModernGL4](h
 ## 1.0.0 - 2016-03-03
 
 - It was a tool for me to develop games in python
-
-[5.7.0]: https://github.com/moderngl/moderngl/compare/5.6.4...5.7.0
-[5.6.4]: https://github.com/moderngl/moderngl/compare/5.6.3...5.6.4
-[5.6.3]: https://github.com/moderngl/moderngl/compare/5.6.2...5.6.3
-[5.6.2]: https://github.com/moderngl/moderngl/compare/5.6.1...5.6.2
-[5.6.1]: https://github.com/moderngl/moderngl/compare/5.6.0...5.6.1
-[5.6.0]: https://github.com/moderngl/moderngl/compare/5.5.4...5.6.0
-[5.5.4]: https://github.com/moderngl/moderngl/compare/5.5.3...5.5.4
-[5.5.3]: https://github.com/moderngl/moderngl/compare/5.5.2...5.5.3
-[5.5.2]: https://github.com/moderngl/moderngl/compare/5.5.1...5.5.2
-[5.5.1]: https://github.com/moderngl/moderngl/compare/5.5.0...5.5.1
-[5.5.0]: https://github.com/moderngl/moderngl/compare/5.4.2...5.5.0
-[5.4.2]: https://github.com/moderngl/moderngl/compare/5.4.1...5.4.2
-[5.4.1]: https://github.com/moderngl/moderngl/compare/5.4.0...5.4.1
-[5.4.0]: https://github.com/moderngl/moderngl/compare/5.3.0...5.4.0
-[5.3.0]: https://github.com/moderngl/moderngl/compare/5.2.1...5.3.0
-[5.2.1]: https://github.com/moderngl/moderngl/compare/5.2.0...5.2.1
-[5.2.0]: https://github.com/moderngl/moderngl/compare/5.1.0...5.2.0
-[5.1.0]: https://github.com/moderngl/moderngl/compare/5.0.7...5.1.0
-[5.0.7]: https://github.com/moderngl/moderngl/compare/5.0.6...5.0.7
-[5.0.6]: https://github.com/moderngl/moderngl/compare/5.0.5...5.0.6
-[5.0.5]: https://github.com/moderngl/moderngl/compare/5.0.4...5.0.5
-[5.0.4]: https://github.com/moderngl/moderngl/compare/5.0.3...5.0.4
-[5.0.3]: https://github.com/moderngl/moderngl/compare/5.0.2...5.0.3
-[5.0.2]: https://github.com/moderngl/moderngl/compare/5.0.1...5.0.2
-[5.0.1]: https://github.com/moderngl/moderngl/compare/5.0.0...5.0.1
-[5.0.0]: https://github.com/moderngl/moderngl/tree/5.0.0
-[4.2.2]: https://github.com/moderngl/moderngl/compare/4.2.1...4.2.2
-[4.2.1]: https://github.com/moderngl/moderngl/compare/4.2.0...4.2.1
-[4.2.0]: https://github.com/moderngl/moderngl/compare/4.1.12...4.2.0
-[4.1.12]: https://github.com/moderngl/moderngl/compare/4.1.11...4.1.12
-[4.1.11]: https://github.com/moderngl/moderngl/compare/4.1.10...4.1.11
-[4.1.10]: https://github.com/moderngl/moderngl/compare/4.1.9...4.1.10
-[4.1.9]: https://github.com/moderngl/moderngl/compare/4.1.8...4.1.9
-[4.1.8]: https://github.com/moderngl/moderngl/compare/4.1.7...4.1.8
-[4.1.7]: https://github.com/moderngl/moderngl/compare/4.1.6...4.1.7
-[4.1.6]: https://github.com/moderngl/moderngl/compare/4.1.5...4.1.6
-[4.1.5]: https://github.com/moderngl/moderngl/compare/4.1.4...4.1.5
-[4.1.4]: https://github.com/moderngl/moderngl/compare/4.1.3...4.1.4
-[4.1.3]: https://github.com/moderngl/moderngl/compare/4.1.2...4.1.3
-[4.1.2]: https://github.com/moderngl/moderngl/compare/4.1.1...4.1.2
-[4.1.1]: https://github.com/moderngl/moderngl/compare/4.1.0...4.1.1
-[4.1.0]: https://github.com/moderngl/moderngl/compare/4.0.0...4.1.0
-[4.0.0]: https://github.com/moderngl/moderngl/tree/4.0.0
-[3.1.5]: https://github.com/moderngl/moderngl/compare/3.1.0...3.1.5
-[3.1.0]: https://github.com/moderngl/moderngl/tree/3.1.0
-[2.4.1]: https://github.com/moderngl/moderngl/tree/2.4.1
