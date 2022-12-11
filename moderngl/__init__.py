@@ -158,7 +158,7 @@ class Buffer:
         self.mglo.orphan(size)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -269,7 +269,7 @@ class ComputeShader:
         return self._members.get(key, default)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -434,7 +434,7 @@ class Framebuffer:
         return self.mglo.read_into(buffer, viewport, components, attachment, alignment, dtype, write_offset)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self._color_attachments = None
             self._depth_attachment = None
             self.mglo.release()
@@ -511,7 +511,7 @@ class Program:
         return self._members.get(key, default)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -583,7 +583,7 @@ class Renderbuffer:
         return self._glo
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -624,7 +624,7 @@ class Sampler:
         self.mglo.clear(location)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -740,7 +740,7 @@ class Scope:
             self.ctx.objects.append(self.mglo)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self._framebuffer = None
             self._textures = None
             self._uniform_buffers = None
@@ -903,7 +903,7 @@ class Texture:
         self.mglo.bind(unit, read, write, level, format)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -1046,7 +1046,7 @@ class Texture3D:
         self.mglo.bind(unit, read, write, level, format)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -1159,7 +1159,7 @@ class TextureCube:
         self.mglo.bind(unit, read, write, level, format)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -1303,7 +1303,7 @@ class TextureArray:
         self.mglo.bind(unit, read, write, level, format)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
@@ -1464,7 +1464,7 @@ class VertexArray:
         self.mglo.bind(attribute, cls, buffer.mglo, fmt, offset, stride, divisor, normalize)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self._program = None
             self._index_buffer = None
             self._content = None
@@ -2230,7 +2230,7 @@ class Context:
         self.mglo.__exit__(exc_type, exc_val, exc_tb)
 
     def release(self) -> None:
-        if self.mglo is not None:
+        if not isinstance(self.mglo, InvalidObject):
             self.mglo.release()
             self.mglo = InvalidObject()
 
