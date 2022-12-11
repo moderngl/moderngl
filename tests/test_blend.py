@@ -10,19 +10,19 @@ import moderngl
 
 class TestBlend:
 
-    @pytest.fixture(scope="class", autouse=True)
+    @pytest.fixture(autouse=True)
     def ctx_inject(self, ctx):
         self.__class__.ctx = ctx
 
-    @pytest.fixture(scope="class", autouse=True)
+    @pytest.fixture(autouse=True)
     def vao_inject(self, ctx, color_prog, ndc_quad):
         self.__class__.prog = color_prog
         self.__class__.vao = ctx.simple_vertex_array(color_prog, ndc_quad, 'in_vert')
 
     @pytest.fixture(scope="class", autouse=True)
-    def fbo_inject(self, ctx):
-        self.__class__.fbo = ctx.framebuffer(color_attachments=[
-            ctx.texture((1, 1), 4, dtype='f4'),
+    def fbo_inject(self, ctx_static):
+        self.__class__.fbo = ctx_static.framebuffer(color_attachments=[
+            ctx_static.texture((1, 1), 4, dtype='f4'),
         ])
 
     def unpack_fbo(self):
