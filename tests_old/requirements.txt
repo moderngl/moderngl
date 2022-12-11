@@ -1,4 +1,0 @@
-numpy
-pytest
-pycodestyle
-scipy>=1.2.1
