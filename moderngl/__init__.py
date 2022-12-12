@@ -2276,7 +2276,7 @@ def create_context(
 def create_standalone_context(
     require: Optional[int] = None,
     share: bool = False,
-    **settings: Dict[str, Any],
+    **settings,
 ) -> 'Context':
     if require is None:
         require = 330
