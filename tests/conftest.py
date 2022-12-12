@@ -1,3 +1,15 @@
+"""
+Global fixtures for moderngl tests.
+
+We rely on Context.gc_mode = "auto" to clean up resources.
+Mainly a global context is used it test, but some test needs a new context
+
+* ctx_static: A global context that is reused for all tests
+* ctx: Also a global context, but it is cleaned before and after each test
+* ctx_new: A new context for each test
+
+Context creation can be refined in _create_context if issues arise
+"""
 import pytest
 import numpy as np
 import moderngl
@@ -20,7 +32,6 @@ def ctx():
     The same context is reused, but the context is cleaned before and after each test.
     """
     ctx = _get_context()
-    ctx.__enter__()
     _clean_ctx(ctx)
     yield ctx
     _clean_ctx(ctx)
@@ -42,6 +53,7 @@ def _get_context():
         _ctx.gc_mode = "auto"
         _fbo = _ctx.simple_framebuffer((2, 2))
 
+    _ctx.__enter__()
     _fbo.use()
     return _ctx
 
