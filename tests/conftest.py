@@ -2,14 +2,14 @@ import pytest
 import numpy as np
 import moderngl
 
-VERSION_CODE = 330
+VERSION_CODES = 430, 410, 330
 _ctx = None
 _fbo = None  # Fake framebuffer to avoid errors during transforms
 
 @pytest.fixture(scope="session")
 def ctx_static():
     """Session context"""
-    return _create_context()
+    return _get_context()
 
 
 @pytest.fixture(scope="function")
@@ -19,32 +19,64 @@ def ctx():
 
     The same context is reused, but the context is cleaned before and after each test.
     """
-    ctx = _create_context()
+    ctx = _get_context()
+    ctx.__enter__()
     _clean_ctx(ctx)
     yield ctx
     _clean_ctx(ctx)
 
 
-def _create_context():
+@pytest.fixture(scope="function")
+def ctx_new():
+    """Returns a new context for each test"""
+    ctx = _create_context()
+    yield ctx
+    ctx.release()
+
+
+def _get_context():
+    """Get the global test context"""
     global _ctx, _fbo
     if _ctx is None:
-        try:
-            _ctx = moderngl.create_context(
-                require=VERSION_CODE,
-                standalone=True,
-            )
-        except Exception:
-            _ctx = moderngl.create_context(
-                require=VERSION_CODE,
-                standalone=True,
-                backend="egl",
-            )
+        _ctx = _create_context()
         _ctx.gc_mode = "auto"
         _fbo = _ctx.simple_framebuffer((2, 2))
 
     _fbo.use()
     return _ctx
 
+def _create_context():
+    """
+    Create a new context.
+
+    This is the only place context creation should happen.
+    For now we just brute force context creation.
+    """
+    # Attempt standard standalone context
+    try:
+        for VERSION_CODE in VERSION_CODES:
+            try:
+                return moderngl.create_context(
+                    require=VERSION_CODE,
+                    standalone=True,
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Attempt EGL standalone context
+    try:
+        for VERSION_CODE in VERSION_CODES:
+            return moderngl.create_context(
+                require=VERSION_CODE,
+                standalone=True,
+                backend="egl",
+            )
+    except Exception:
+        pass
+
+    raise RuntimeError("Unable to create a context")
 
 def _clean_ctx(ctx):
     """Clean the context"""
