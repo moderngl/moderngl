@@ -1,12 +1,8 @@
 import struct
-import unittest
-import warnings
-
+import pytest
 import moderngl
 
-from common import get_context
-
-vtypes = [
+v_types = [
     {
         'version': 330,
         'type': 'int',
@@ -136,79 +132,63 @@ vtypes = [
 ]
 
 
-class TestCase(unittest.TestCase):
+@pytest.mark.parametrize('v_type', v_types)
+def test_simple(ctx, v_type):
+    vert_src = '''
+        #version %(version)s
 
-    @classmethod
-    def setUpClass(cls):
-        cls.ctx = get_context(require=330)
+        in %(type)s v_in;
+        out %(type)s v_out;
 
-    def test_simple(self):
-        vert_src = '''
-            #version %(version)s
+        void main() {
+            v_out = v_in + v_in;
+        }
+    '''
 
-            in %(type)s v_in;
-            out %(type)s v_out;
+    if ctx.version_code < v_type['version']:
+        pytest.skip('skipping version %s' % v_type['version'])
 
-            void main() {
-                v_out = v_in + v_in;
-            }
-        '''
+    prog = ctx.program(vertex_shader=vert_src % v_type, varyings=['v_out'])
 
-        for vtype in vtypes:
-            with self.subTest(vert_src=vert_src, vtype=vtype):
-                if self.ctx.version_code < vtype['version']:
-                    warnings.warn('skipping version %s' % vtype['version'])
-                    continue
+    if prog.get('v_in', None) is None:
+        pytest.skip('skipping %s' % v_type['type'])
 
-                prog = self.ctx.program(vertex_shader=vert_src % vtype, varyings=['v_out'])
+    fmt = moderngl.detect_format(prog, ['v_in'], mode='struct')
+    vbo1 = ctx.buffer(struct.pack(fmt, *v_type['input']))
+    vbo2 = ctx.buffer(b'\xAA' * struct.calcsize(fmt))
+    vao = ctx.simple_vertex_array(prog, vbo1, 'v_in')
+    vao.transform(vbo2, moderngl.POINTS, 1)
 
-                if prog.get('v_in', None) is None:
-                    warnings.warn('skipping %s' % vtype['type'])
-                    continue
+    for a, b in zip(struct.unpack(fmt, vbo2.read()), v_type['output']):
+        assert pytest.approx(a) == b
 
-                fmt = moderngl.detect_format(prog, ['v_in'], mode='struct')
-                vbo1 = self.ctx.buffer(struct.pack(fmt, *vtype['input']))
-                vbo2 = self.ctx.buffer(b'\xAA' * struct.calcsize(fmt))
-                vao = self.ctx.simple_vertex_array(prog, vbo1, 'v_in')
-                vao.transform(vbo2, moderngl.POINTS, 1)
+@pytest.mark.parametrize('v_type', v_types)
+def test_arrays(ctx, v_type):
+    vert_src = '''
+        #version %(version)s
 
-                for a, b in zip(struct.unpack(fmt, vbo2.read()), vtype['output']):
-                    self.assertAlmostEqual(a, b)
+        in %(type)s v_in[2];
+        out %(type)s v_out[2];
 
-    def test_arrays(self):
-        vert_src = '''
-            #version %(version)s
+        void main() {
+            v_out[0] = v_in[0] + v_in[0];
+            v_out[1] = v_in[1] + v_in[1];
+        }
+    '''
 
-            in %(type)s v_in[2];
-            out %(type)s v_out[2];
+    if ctx.version_code < v_type['version']:
+        pytest.skip('skipping version %s' % v_type['version'])
 
-            void main() {
-                v_out[0] = v_in[0] + v_in[0];
-                v_out[1] = v_in[1] + v_in[1];
-            }
-        '''
+    prog = ctx.program(vertex_shader=vert_src % v_type, varyings=['v_out'])
 
-        for vtype in vtypes:
-            with self.subTest(vert_src=vert_src, vtype=vtype):
-                if self.ctx.version_code < vtype['version']:
-                    warnings.warn('skipping version %s' % vtype['version'])
-                    continue
+    if prog.get('v_in', None) is None:
+        pytest.skip('skipping %s' % v_type['type'])
 
-                prog = self.ctx.program(vertex_shader=vert_src % vtype, varyings=['v_out'])
+    fmt = moderngl.detect_format(prog, ['v_in'], mode='struct')
+    vbo1 = ctx.buffer(struct.pack(fmt, *(v_type['input'] * 2)))
+    vbo2 = ctx.buffer(b'\xAA' * struct.calcsize(fmt))
+    vao = ctx.simple_vertex_array(prog, vbo1, 'v_in')
+    vao.transform(vbo2, moderngl.POINTS, 1)
 
-                if prog.get('v_in', None) is None:
-                    warnings.warn('skipping %s' % vtype['type'])
-                    continue
-
-                fmt = moderngl.detect_format(prog, ['v_in'], mode='struct')
-                vbo1 = self.ctx.buffer(struct.pack(fmt, *(vtype['input'] * 2)))
-                vbo2 = self.ctx.buffer(b'\xAA' * struct.calcsize(fmt))
-                vao = self.ctx.simple_vertex_array(prog, vbo1, 'v_in')
-                vao.transform(vbo2, moderngl.POINTS, 1)
-
-                for a, b in zip(struct.unpack(fmt, vbo2.read()), vtype['output'] * 2):
-                    self.assertAlmostEqual(a, b)
-
-
-if __name__ == '__main__':
-    unittest.main()
+    for a, b in zip(struct.unpack(fmt, vbo2.read()), v_type['output'] * 2):
+        assert pytest.approx(a) == b

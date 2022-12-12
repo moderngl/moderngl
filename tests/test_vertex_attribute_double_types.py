@@ -1,6 +1,5 @@
 import struct
 import pytest
-import warnings
 import moderngl
 
 
