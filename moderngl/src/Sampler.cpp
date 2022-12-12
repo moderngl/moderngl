@@ -197,6 +197,8 @@ PyObject * MGLSampler_get_anisotropy(MGLSampler * self) {
 }
 
 int MGLSampler_set_anisotropy(MGLSampler * self, PyObject * value) {
+	// Avoid context error if anisotropy is not supported.
+	if (self->context->max_anisotropy == 0) return 0;
 	self->anisotropy = (float)min(max(PyFloat_AsDouble(value), 1.0), self->context->max_anisotropy);
 
 	const GLMethods & gl = self->context->gl;
