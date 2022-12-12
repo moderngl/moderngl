@@ -8,7 +8,7 @@ def test_renderbuffer(ctx):
 
 def test_multisample_renderbuffer(ctx):
     if ctx.max_samples < 2:
-        self.skipTest('multisampling is not supported')
+        pytest.skip('multisampling is not supported')
 
     rbo = ctx.renderbuffer((4, 4), samples=2)
     assert rbo.size == (4, 4)
