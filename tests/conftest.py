@@ -4,7 +4,7 @@ import moderngl
 
 VERSION_CODE = 330
 _ctx = None
-
+_fbo = None  # Fake framebuffer to avoid errors during transforms
 
 @pytest.fixture(scope="session")
 def ctx_static():
@@ -26,7 +26,7 @@ def ctx():
 
 
 def _create_context():
-    global _ctx
+    global _ctx, _fbo
     if _ctx is None:
         try:
             _ctx = moderngl.create_context(
@@ -40,7 +40,9 @@ def _create_context():
                 backend="egl",
             )
         _ctx.gc_mode = "auto"
-        return _ctx
+        _fbo = _ctx.simple_framebuffer((2, 2))
+
+    _fbo.use()
     return _ctx
 
 
