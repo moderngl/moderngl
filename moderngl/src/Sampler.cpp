@@ -20,7 +20,7 @@ PyObject * MGLContext_sampler(MGLContext * self, PyObject * args) {
 
 	sampler->min_filter = GL_LINEAR;
 	sampler->mag_filter = GL_LINEAR;
-	sampler->anisotropy = 1.0;
+	sampler->anisotropy = 0.0;
 	sampler->repeat_x = true;
 	sampler->repeat_y = true;
 	sampler->repeat_z = true;
