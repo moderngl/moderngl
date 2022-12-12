@@ -32,8 +32,14 @@ def ctx():
     The same context is reused, but the context is cleaned before and after each test.
     """
     ctx = _get_context()
+    error = ctx.error
+    if error != "GL_NO_ERROR":
+        raise RuntimeError("Context has error before use: {}".format(error))
     _clean_ctx(ctx)
     yield ctx
+    error = ctx.error
+    if error != "GL_NO_ERROR":
+        raise RuntimeError("Context has error after use: {}".format(error))
     _clean_ctx(ctx)
 
 
