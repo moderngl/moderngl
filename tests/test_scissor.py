@@ -39,9 +39,11 @@ def vao(ctx_static, prog):
 
 
 def create_fbo(ctx, size, components=3):
-    return ctx.framebuffer(
+    fbo = ctx.framebuffer(
         color_attachments=[ctx.texture(size, components)],
     )
+    fbo.clear()
+    return fbo
 
 def test_default_value(ctx):
     """Ensure default value of the scissor matches the framebuffer size"""
