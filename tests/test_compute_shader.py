@@ -46,18 +46,27 @@ def test_1(ctx):
     assert pytest.approx(d) == 1.0
 
 def test_image(ctx):
+    if ctx.version_code < 430:
+        pytest.skip('compute shaders not supported')
+
     texture = ctx.texture((100, 100), 4)
     texture.bind_to_image(0, read=True, write=True)
     assert ctx.error == 'GL_NO_ERROR'
     texture.release()
 
 def test_image_float(ctx):
+    if ctx.version_code < 430:
+        pytest.skip('compute shaders not supported')
+
     texture = ctx.texture((100, 100), 4, dtype='f4')
     texture.bind_to_image(0, read=True, write=True)
     assert ctx.error == 'GL_NO_ERROR'
     texture.release()
 
 def test_image_wrong_format(ctx):
+    if ctx.version_code < 430:
+        pytest.skip('compute shaders not supported')
+
     texture = ctx.texture((100, 100), 4)
     texture.bind_to_image(0, read=True, write=True, format=13371337)
     assert ctx.error == 'GL_INVALID_VALUE'

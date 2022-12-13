@@ -103,6 +103,9 @@ def test_texture_default_filter(ctx):
         assert texture.filter == (moderngl.NEAREST, moderngl.NEAREST)
 
 def test_bind_to_image(ctx):
+    if ctx.version_code < 430:
+        pytest.skip('compute shaders not supported')
+
     tex = ctx.texture3d((4, 4, 4), 4)
     tex.bind_to_image(0, read=True, write=False)
     tex.bind_to_image(1, read=False, write=True)
