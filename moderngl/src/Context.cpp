@@ -1375,12 +1375,6 @@ PyObject * MGLContext_get_info(MGLContext * self, void * closure) {
 		int gl_max_vertex_uniform_blocks = 0;
 		gl.GetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &gl_max_vertex_uniform_blocks);
 
-		int gl_max_vertex_attrib_relative_offset = 0;
-		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIB_RELATIVE_OFFSET, &gl_max_vertex_attrib_relative_offset);
-
-		int gl_max_vertex_attrib_bindings = 0;
-		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &gl_max_vertex_attrib_bindings);
-
 		PyDict_SetItemString(info, "GL_MAX_3D_TEXTURE_SIZE", PyLong_FromLong(gl_max_3d_texture_size));
 		PyDict_SetItemString(info, "GL_MAX_ARRAY_TEXTURE_LAYERS", PyLong_FromLong(gl_max_array_texture_layers));
 		PyDict_SetItemString(info, "GL_MAX_CLIP_DISTANCES", PyLong_FromLong(gl_max_clip_distances));
@@ -1426,8 +1420,6 @@ PyObject * MGLContext_get_info(MGLContext * self, void * closure) {
 		PyDict_SetItemString(info, "GL_MAX_VERTEX_UNIFORM_VECTORS", PyLong_FromLong(gl_max_vertex_uniform_vectors));
 		PyDict_SetItemString(info, "GL_MAX_VERTEX_OUTPUT_COMPONENTS", PyLong_FromLong(gl_max_vertex_output_components));
 		PyDict_SetItemString(info, "GL_MAX_VERTEX_UNIFORM_BLOCKS", PyLong_FromLong(gl_max_vertex_uniform_blocks));
-		PyDict_SetItemString(info, "GL_MAX_VERTEX_ATTRIB_RELATIVE_OFFSET", PyLong_FromLong(gl_max_vertex_attrib_relative_offset));
-		PyDict_SetItemString(info, "GL_MAX_VERTEX_ATTRIB_BINDINGS", PyLong_FromLong(gl_max_vertex_attrib_bindings));
 	}
 
 	if (self->version_code >= 410) {
@@ -1587,6 +1579,12 @@ PyObject * MGLContext_get_info(MGLContext * self, void * closure) {
 			gl.GetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &gl_max_shader_storage_block_size);
 		}
 
+		int gl_max_vertex_attrib_relative_offset = 0;
+		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIB_RELATIVE_OFFSET, &gl_max_vertex_attrib_relative_offset);
+
+		int gl_max_vertex_attrib_bindings = 0;
+		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &gl_max_vertex_attrib_bindings);
+
 		PyDict_SetItemString(info, "GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS", PyLong_FromLong(gl_max_shader_storage_buffer_bindings));
 		PyDict_SetItemString(info, "GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS", PyLong_FromLong(gl_max_combined_shader_storage_blocks));
 		PyDict_SetItemString(info, "GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS", PyLong_FromLong(gl_max_vertex_shader_storage_blocks));
@@ -1609,6 +1607,8 @@ PyObject * MGLContext_get_info(MGLContext * self, void * closure) {
 		PyDict_SetItemString(info, "GL_MAX_UNIFORM_LOCATIONS", PyLong_FromLong(gl_max_uniform_locations));
 		PyDict_SetItemString(info, "GL_MAX_ELEMENT_INDEX", PyLong_FromLongLong(gl_max_element_index));
 		PyDict_SetItemString(info, "GL_MAX_SHADER_STORAGE_BLOCK_SIZE", PyLong_FromLongLong(gl_max_shader_storage_block_size));
+		PyDict_SetItemString(info, "GL_MAX_VERTEX_ATTRIB_BINDINGS", PyLong_FromLong(gl_max_vertex_attrib_bindings));
+		PyDict_SetItemString(info, "GL_MAX_VERTEX_ATTRIB_RELATIVE_OFFSET", PyLong_FromLong(gl_max_vertex_attrib_relative_offset));
 	}
 
 	return info;
