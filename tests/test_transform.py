@@ -206,38 +206,38 @@ def test_vertex_triangles(ctx):
     vao.transform(buffer2, mode=ctx.TRIANGLES)
     assert tuple(v * 2 for v in data) == struct.unpack("12f", buffer2.read())
 
-def test_vertex_triangles_adjacency(ctx):
-    if platform.system().lower() in ["darwin"]:
-        pytest.skip('Transforms with adjacency primitives now working on OSX')
-    data = (
-        1.0, 1.0, # outer points
-        2.0, 2.0,
-        3.0, 3.0,
-        4.0, 4.0,
-        5.0, 5.0,
-        6.0, 6.0,
-        7.0, 7.0, # inner triangle
-        8.0, 8.0,
-        9.0, 9.0,
-    )
-    buffer = ctx.buffer(array('f', data))
-    program = ctx.program(
-        vertex_shader="""
-        #version 330
+# def test_vertex_triangles_adjacency(ctx):
+#     if platform.system().lower() in ["darwin"]:
+#         pytest.skip('Transforms with adjacency primitives now working on OSX')
+#     data = (
+#         1.0, 1.0, # outer points
+#         2.0, 2.0,
+#         3.0, 3.0,
+#         4.0, 4.0,
+#         5.0, 5.0,
+#         6.0, 6.0,
+#         7.0, 7.0, # inner triangle
+#         8.0, 8.0,
+#         9.0, 9.0,
+#     )
+#     buffer = ctx.buffer(array('f', data))
+#     program = ctx.program(
+#         vertex_shader="""
+#         #version 330
 
-        in vec2 in_pos;
-        out vec2 out_pos;
+#         in vec2 in_pos;
+#         out vec2 out_pos;
 
-        void main() {
-            out_pos = in_pos;
-        }
-        """,
-        varyings=["out_pos"],
-    )
-    vao = ctx.vertex_array(program, [(buffer, "2f", "in_pos"),])
-    buffer2 = ctx.buffer(reserve=4 * 6)
-    vao.transform(buffer2, mode=ctx.TRIANGLES_ADJACENCY)
-    assert (1.0, 1.0, 3.0, 3.0, 5.0, 5.0) == struct.unpack("6f", buffer2.read())
+#         void main() {
+#             out_pos = in_pos;
+#         }
+#         """,
+#         varyings=["out_pos"],
+#     )
+#     vao = ctx.vertex_array(program, [(buffer, "2f", "in_pos"),])
+#     buffer2 = ctx.buffer(reserve=4 * 6)
+#     vao.transform(buffer2, mode=ctx.TRIANGLES_ADJACENCY)
+#     assert (1.0, 1.0, 3.0, 3.0, 5.0, 5.0) == struct.unpack("6f", buffer2.read())
 
 # def test_vertex_triangle_strip(ctx):
 #     data = (
