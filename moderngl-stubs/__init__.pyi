@@ -574,6 +574,42 @@ class UniformBlock:
     '''
 
 
+class StorageBlock:
+    '''
+    Storage Block metadata
+    '''
+
+    binding: int
+    '''
+    int: The binding of the storage block
+    '''
+
+    value: int
+    '''
+    int: The value of the storage block.
+    '''
+
+    name: str
+    '''
+    str: The name of the storage block.
+    '''
+
+    index: int
+    '''
+    int: The index of the storage block.
+    '''
+
+    extra: Any
+    '''
+    Attribute for storing user defined objects
+    '''
+
+    mglo: Any
+    '''
+    Internal moderngl core object
+    '''
+
+
 class Subroutine:
     '''
     This class represents a program subroutine.
