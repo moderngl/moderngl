@@ -1551,9 +1551,11 @@ PyObject * MGLContext_compute_shader(MGLContext * self, PyObject * args) {
 
     int num_uniforms = 0;
     int num_uniform_blocks = 0;
+    int num_storage_blocks = 0;
 
     gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORMS, &num_uniforms);
     gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORM_BLOCKS, &num_uniform_blocks);
+    gl.GetProgramInterfaceiv(program_obj, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &num_storage_blocks);
 
     PyObject * members_dict = PyDict_New();
 
@@ -1595,6 +1597,23 @@ PyObject * MGLContext_compute_shader(MGLContext * self, PyObject * args) {
         PyObject * item = PyObject_CallMethod(
             helper, "make_uniform_block", "(siiiO)",
             name, program_obj, index, size, self
+        );
+
+        PyDict_SetItemString(members_dict, name, item);
+        Py_DECREF(item);
+    }
+
+    for(int i = 0; i < num_storage_blocks; ++i) {
+        int size = 0;
+        int name_len = 0;
+        char name[256];
+
+        gl.GetProgramResourceName(program_obj, GL_SHADER_STORAGE_BLOCK, i, 256, &name_len, name);
+        clean_glsl_name(name, name_len);
+
+        PyObject * item = PyObject_CallMethod(
+            helper, "make_storage_block", "(siiO)",
+            name, program_obj, i, self
         );
 
         PyDict_SetItemString(members_dict, name, item);
@@ -8295,6 +8314,30 @@ PyObject * MGLContext_set_ubo_binding(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
+PyObject * MGLContext_get_storage_block_binding(MGLContext * self, PyObject * args) {
+    int program_obj;
+    int index;
+    if (!PyArg_ParseTuple(args, "II", &program_obj, &index)) {
+        return NULL;
+    }
+    int binding = 0;
+    GLenum prop = GL_BUFFER_BINDING;
+    self->gl.GetProgramResourceiv(program_obj, GL_SHADER_STORAGE_BLOCK, index, 1, &prop, 1, NULL, &binding);
+    return PyLong_FromLong(binding);
+}
+
+PyObject * MGLContext_set_storage_block_binding(MGLContext * self, PyObject * args) {
+    int program_obj;
+    int index;
+    int binding;
+    if (!PyArg_ParseTuple(args, "III", &program_obj, &index, &binding)) {
+        return NULL;
+    }
+    self->gl.ShaderStorageBlockBinding(program_obj, index, binding);
+    Py_RETURN_NONE;
+}
+
+
 PyObject * MGLContext_read_uniform(MGLContext * self, PyObject * args) {
     int program_obj;
     int location;
@@ -9391,6 +9434,8 @@ PyMethodDef MGLContext_methods[] = {
 
     {(char *)"_get_ubo_binding", (PyCFunction)MGLContext_get_ubo_binding, METH_VARARGS},
     {(char *)"_set_ubo_binding", (PyCFunction)MGLContext_set_ubo_binding, METH_VARARGS},
+    {(char *)"_get_storage_block_binding", (PyCFunction)MGLContext_get_storage_block_binding, METH_VARARGS},
+    {(char *)"_set_storage_block_binding", (PyCFunction)MGLContext_set_storage_block_binding, METH_VARARGS},
     {(char *)"_write_uniform", (PyCFunction)MGLContext_write_uniform, METH_VARARGS},
     {(char *)"_read_uniform", (PyCFunction)MGLContext_read_uniform, METH_VARARGS},
     {},

@@ -2,7 +2,7 @@ import warnings
 from collections import deque
 from typing import Any, Deque, Dict, Generator, List, Optional, Set, Tuple, Union
 
-from _moderngl import Attribute, Error, InvalidObject, Subroutine, Uniform, UniformBlock, Varying  # noqa
+from _moderngl import Attribute, Error, InvalidObject, Subroutine, Uniform, UniformBlock, Varying, StorageBlock  # noqa
 
 try:
     from moderngl import mgl  # type: ignore

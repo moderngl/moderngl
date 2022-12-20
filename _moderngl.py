@@ -118,6 +118,38 @@ class UniformBlock:
         self.ctx._set_ubo_binding(self.program_obj, self.index, value)
 
 
+class StorageBlock:
+    def __init__(self):
+        self.program_obj = None
+        self.index = None
+        self.name = None
+        self.ctx = None
+        self.extra = None
+
+    def __repr__(self):
+        return f'<StorageBlock: {self.index}>'
+
+    @property
+    def mglo(self):
+        return self
+
+    @property
+    def binding(self):
+        return self.ctx._get_storage_block_binding(self.program_obj, self.index)
+
+    @binding.setter
+    def binding(self, binding):
+        self.ctx._set_storage_block_binding(self.program_obj, self.index, binding)
+
+    @property
+    def value(self):
+        return self.ctx._get_storage_block_binding(self.program_obj, self.index)
+
+    @value.setter
+    def value(self, value):
+        self.ctx._set_storage_block_binding(self.program_obj, self.index, value)
+
+
 class Subroutine:
     def __init__(self):
         self.index = None
@@ -297,6 +329,15 @@ def make_uniform_block(name, program_obj, index, size, ctx):
     res.program_obj = program_obj
     res.index = index
     res.size = size
+    res.ctx = ctx
+    return res
+
+
+def make_storage_block(name, program_obj, index, ctx):
+    res = StorageBlock()
+    res.name = name
+    res.program_obj = program_obj
+    res.index = index
     res.ctx = ctx
     return res
 
