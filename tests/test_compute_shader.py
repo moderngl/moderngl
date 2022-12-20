@@ -171,3 +171,41 @@ def test_texture_cube_image(ctx):
 
     for face in range(0, 6):
         assert struct.unpack("64B", tex_in.read(face)) == struct.unpack("64B", tex_out.read(face))
+
+
+def test_ssbo_binding(ctx):
+    if ctx.version_code < 430:
+        pytest.skip('compute shaders not supported')
+
+    program = ctx.compute_shader(
+        """
+        #version 430
+
+        layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
+
+        layout(std430, binding=0) buffer ssbo_in {
+            float data[4];
+        } in_data;
+
+        layout(std430, binding=1) buffer ssbo_out {
+            float data[4];
+        } out_data;
+
+        void main() {
+            out_data.data[gl_LocalInvocationIndex] = in_data.data[gl_LocalInvocationIndex];
+        }
+        """
+    )
+    ssbo_in = program['ssbo_in']
+    ssbo_out = program['ssbo_out']
+    assert ssbo_in.binding == 0
+    assert ssbo_in.value == 0
+    assert ssbo_out.binding == 1
+    assert ssbo_out.value == 1
+
+    ssbo_in.binding = 2
+    ssbo_out.binding = 3
+    assert ssbo_in.binding == 2
+    assert ssbo_in.value == 2
+    assert ssbo_out.binding == 3
+    assert ssbo_out.value == 3

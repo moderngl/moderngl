@@ -55,5 +55,5 @@ def test_compute_shader(ctx):
     compute_shader.run()
     assert compute_shader.get('multiplier', None) is not None
     assert compute_shader == compute_shader
-    assert [i for i in compute_shader] == ['multiplier']
+    assert [i for i in compute_shader] == ['multiplier', 'something_in', 'something_out']
     compute_shader.release()
