@@ -79,7 +79,7 @@ learning 3.3+ shaders and understanding the rendering pipeline
 will greatly help you understand `Vulkan`_. In most cases you can
 pretty much copy paste the shaders over to `Vulkan`_.
 
-Where do ModernGL fit into all this?
+Where does ModernGL fit into all this?
 ------------------------------------
 
 The ModernGL library exposes the **Programmable Pipeline**
