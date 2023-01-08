@@ -101,7 +101,7 @@ Each type above also has a 2, 3 and 4 component version::
 More about GLSL `data types`_ can be found in the Khronos wiki.
 
 The available functions are for example: ``radians``, ``degrees``
-``sin``, ```cos``, ``tan``, ``asin``, ``acos``, ``atan``, ``pow``
+``sin``, ``cos``, ``tan``, ``asin``, ``acos``, ``atan``, ``pow``
 ``exp``, ``log``, ``exp2``, ``log2``, ``sqrt``, ``inversesqrt``,
 ``abs``, ``sign``, ``floor``, ``ceil``, ``fract``, ``mod``,
 ``min``, ``max``, ``clamp``, ``mix``, ``step``, ``smoothstep``,
