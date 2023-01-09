@@ -80,7 +80,7 @@ will greatly help you understand `Vulkan`_. In most cases you can
 pretty much copy paste the shaders over to `Vulkan`_.
 
 Where does ModernGL fit into all this?
-------------------------------------
+--------------------------------------
 
 The ModernGL library exposes the **Programmable Pipeline**
 using OpenGL 3.3 core or higher. However, we don't expose OpenGL
