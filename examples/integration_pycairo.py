@@ -13,7 +13,6 @@ from array import array
 
 import cairo
 import moderngl
-from moderngl_window import geometry
 from ported._example import Example
 
 
