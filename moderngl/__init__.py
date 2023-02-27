@@ -7,6 +7,7 @@ from _moderngl import Attribute, Error, InvalidObject, Subroutine, Uniform, Unif
 from moderngl import mgl
 
 Framebuffer = mgl.Framebuffer
+Program = mgl.Program
 
 __version__ = '6.0.0a1'
 
@@ -283,81 +284,6 @@ class ComputeShader:
 
     def run_indirect(self, buffer: 'Buffer', offset: int = 0) -> None:
         return self.mglo.run(buffer, offset)
-
-    def get(self, key: str, default: Any) -> Union[Uniform, UniformBlock, Subroutine, Attribute, Varying]:
-        return self._members.get(key, default)
-
-    def release(self) -> None:
-        if not isinstance(self.mglo, InvalidObject):
-            self.mglo.release()
-            self.mglo = InvalidObject()
-
-
-class Program:
-    def __init__(self):
-        self.mglo = None
-        self._members = {}
-        self._subroutines = None
-        self._geom = (None, None, None)
-        self._glo = None
-        self._is_transform = None
-        self.ctx = None
-        self.extra = None
-        raise TypeError()
-
-    def __repr__(self):
-        if hasattr(self, '_glo'):
-            return f"<{self.__class__.__name__}: {self._glo}>"
-        else:
-            return f"<{self.__class__.__name__}: INCOMPLETE>"
-
-    def __eq__(self, other: Any) -> bool:
-        return type(self) is type(other) and self.mglo is other.mglo
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def __del__(self):
-        if not hasattr(self, "ctx"):
-            return
-
-        if self.ctx.gc_mode == "auto":
-            self.release()
-        elif self.ctx.gc_mode == "context_gc":
-            self.ctx.objects.append(self.mglo)
-
-    def __getitem__(self, key: str) -> Union[Uniform, UniformBlock, Subroutine, Attribute, Varying]:
-        return self._members[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self._members[key].value = value
-
-    def __iter__(self) -> Generator[str, None, None]:
-        yield from self._members
-
-    @property
-    def is_transform(self) -> bool:
-        return self._is_transform
-
-    @property
-    def geometry_input(self) -> int:
-        return self._geom[0]
-
-    @property
-    def geometry_output(self) -> int:
-        return self._geom[1]
-
-    @property
-    def geometry_vertices(self) -> int:
-        return self._geom[2]
-
-    @property
-    def subroutines(self) -> Tuple[str, ...]:
-        return self._subroutines
-
-    @property
-    def glo(self) -> int:
-        return self._glo
 
     def get(self, key: str, default: Any) -> Union[Uniform, UniformBlock, Subroutine, Attribute, Varying]:
         return self._members.get(key, default)
@@ -1841,7 +1767,7 @@ class Context:
 
     def _vertex_array(
         self,
-        program: Program,
+        program: 'Program',
         content: Any,
         index_buffer: Optional[Buffer] = None,
         index_element_size: int = 4,
@@ -1876,7 +1802,7 @@ class Context:
 
     def simple_vertex_array(
         self,
-        program: Program,
+        program: 'Program',
         buffer: Buffer,
         *attributes: Union[List[str], Tuple[str, ...]],
         index_buffer: Optional[Buffer] = None,
@@ -1901,28 +1827,10 @@ class Context:
         fragment_outputs: Optional[Dict[str, int]] = None,
         varyings_capture_mode: str = 'interleaved',
     ) -> 'Program':
-
-        if varyings_capture_mode not in ('interleaved', 'separate'):
-            raise ValueError('varyings_capture_mode must be interleaved or separate')
-
-        if type(varyings) is str:
-            varyings = (varyings,)  # type: ignore
-
-        varyings = tuple(varyings)
-
-        if fragment_outputs is None:
-            fragment_outputs = {}
-
-        res = Program.__new__(Program)
-        res.mglo, res._members, res._subroutines, res._geom, res._glo = self.mglo.program(
+        return self.mglo.program(
             vertex_shader, fragment_shader, geometry_shader, tess_control_shader, tess_evaluation_shader,
-            varyings, fragment_outputs, varyings_capture_mode == 'interleaved'
+            varyings, fragment_outputs, varyings_capture_mode
         )
-
-        res._is_transform = fragment_shader is None
-        res.ctx = self
-        res.extra = None
-        return res
 
     def query(
         self,
@@ -2179,7 +2087,7 @@ def create_standalone_context(
 
 
 def detect_format(
-    program: Program,
+    program: 'Program',
     attributes: Any,
     mode: str = 'mgl',
 ) -> str:

@@ -156,6 +156,7 @@ struct MGLContext {
 struct MGLFramebuffer {
     PyObject_HEAD
     MGLContext * context;
+    MGLContext * extra;
     PyObject * size_tuple;
     int num_color_attachments;
     bool color_mask[64][4];
@@ -176,6 +177,9 @@ struct MGLFramebuffer {
 struct MGLProgram {
     PyObject_HEAD
     MGLContext * context;
+    MGLContext * extra;
+    PyObject * members;
+    int is_transform;
     int geometry_input;
     int geometry_output;
     int program_obj;
@@ -214,6 +218,7 @@ struct MGLQuery {
 struct MGLRenderbuffer {
     PyObject_HEAD
     MGLContext * context;
+    MGLContext * extra;
     MGLDataType * data_type;
     PyObject * size_tuple;
     int renderbuffer_obj;
@@ -243,6 +248,7 @@ struct MGLScope {
 struct MGLTexture {
     PyObject_HEAD
     MGLContext * context;
+    MGLContext * extra;
     MGLDataType * data_type;
     PyObject * size_tuple;
     int texture_obj;
@@ -1870,6 +1876,7 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     framebuffer->scissor_enabled = false;
     framebuffer->scissor = {0, 0, width, height};
 
+    framebuffer->extra = NULL;
     framebuffer->size_tuple = Py_BuildValue("(ii)", width, height);
     framebuffer->width = width;
     framebuffer->height = height;
@@ -1938,6 +1945,7 @@ PyObject * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args) {
     framebuffer->scissor_enabled = false;
     framebuffer->scissor = {0, 0, width, height};
 
+    framebuffer->extra = NULL;
     framebuffer->size_tuple = Py_BuildValue("(ii)", width, height);
     framebuffer->width = width;
     framebuffer->height = height;
@@ -2536,15 +2544,29 @@ PyObject * MGLFramebuffer_get_bits(MGLFramebuffer * self, void * closure) {
     return result;
 }
 
-PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
-    PyObject * shaders[5];
-    PyObject * outputs;
-    PyObject * fragment_outputs;
-    int interleaved;
+MGLProgram * MGLContext_program(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {
+        "vertex_shader",
+        "fragment_shader",
+        "geometry_shader",
+        "tess_control_shader",
+        "tess_evaluation_shader",
+        "varyings",
+        "fragment_outputs",
+        "varyings_capture_mode",
+        NULL,
+    };
+
+    static PyObject * empty_tuple = PyTuple_New(0); // TODO: move
+
+    PyObject * shaders[5] = {Py_None, Py_None, Py_None, Py_None, Py_None};
+    PyObject * outputs = empty_tuple;
+    PyObject * fragment_outputs = Py_None;
+    const char * varyings_capture_mode = "interleaved";
 
     int args_ok = PyArg_ParseTuple(
         args,
-        "OOOOOOOp",
+        "|OOOOOOOs",
         &shaders[0],
         &shaders[1],
         &shaders[2],
@@ -2552,12 +2574,14 @@ PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         &shaders[4],
         &outputs,
         &fragment_outputs,
-        &interleaved
+        &varyings_capture_mode
     );
 
     if (!args_ok) {
         return 0;
     }
+
+    int interleaved = !strcmp(varyings_capture_mode, "interleaved");
 
     int num_outputs = (int)PyTuple_GET_SIZE(outputs);
 
@@ -2571,6 +2595,7 @@ PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
 
     MGLProgram * program = PyObject_New(MGLProgram, MGLProgram_type);
     program->released = false;
+    program->extra = NULL;
 
     Py_INCREF(self);
     program->context = self;
@@ -2674,7 +2699,7 @@ PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         delete[] varyings_array;
     }
 
-    {
+    if (fragment_outputs != Py_None) {
         PyObject * key = NULL;
         PyObject * value = NULL;
         Py_ssize_t pos = 0;
@@ -3126,13 +3151,11 @@ PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
     }
     PyTuple_SET_ITEM(geom_info, 2, PyLong_FromLong(program->geometry_vertices));
 
-    PyObject * result = PyTuple_New(5);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)program);
-    PyTuple_SET_ITEM(result, 1, members_dict);
-    PyTuple_SET_ITEM(result, 2, subroutine_uniforms_lst);
-    PyTuple_SET_ITEM(result, 3, geom_info);
-    PyTuple_SET_ITEM(result, 4, PyLong_FromLong(program->program_obj));
-    return result;
+    program->is_transform = shaders[1] == Py_None;
+    program->members = members_dict;
+
+    Py_INCREF(program);
+    return program;
 }
 
 PyObject * MGLProgram_release(MGLProgram * self, PyObject * args) {
@@ -3146,6 +3169,20 @@ PyObject * MGLProgram_release(MGLProgram * self, PyObject * args) {
 
     Py_DECREF(self);
     Py_RETURN_NONE;
+}
+
+PyObject * MGLProgram_getitem(MGLProgram * self, PyObject * key) {
+    PyObject * res = PyDict_GetItem(self->members, key);
+    Py_XINCREF(res);
+    return res;
+}
+
+int MGLProgram_setitem(MGLProgram * self, PyObject * key, PyObject * value) {
+    PyObject * res = PyDict_GetItem(self->members, key);
+    if (!res) {
+        return -1;
+    }
+    return PyObject_SetAttrString(res, "value", value);
 }
 
 PyObject * MGLContext_query(MGLContext * self, PyObject * args) {
@@ -3426,6 +3463,7 @@ PyObject * MGLContext_renderbuffer(MGLContext * self, PyObject * args) {
         gl.RenderbufferStorageMultisample(GL_RENDERBUFFER, samples, format, width, height);
     }
 
+    renderbuffer->extra = NULL;
     renderbuffer->size_tuple = Py_BuildValue("(ii)", width, height);
     renderbuffer->width = width;
     renderbuffer->height = height;
@@ -3490,6 +3528,7 @@ PyObject * MGLContext_depth_renderbuffer(MGLContext * self, PyObject * args) {
         gl.RenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, width, height);
     }
 
+    renderbuffer->extra = NULL;
     renderbuffer->size_tuple = Py_BuildValue("(ii)", width, height);
     renderbuffer->width = width;
     renderbuffer->height = height;
@@ -4210,6 +4249,7 @@ PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
         PyBuffer_Release(&buffer_view);
     }
 
+    texture->extra = NULL;
     texture->size_tuple = Py_BuildValue("(ii)", width, height);
     texture->width = width;
     texture->height = height;
@@ -4335,6 +4375,7 @@ PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
         PyBuffer_Release(&buffer_view);
     }
 
+    texture->extra = NULL;
     texture->size_tuple = Py_BuildValue("(ii)", width, height);
     texture->width = width;
     texture->height = height;
@@ -4400,6 +4441,7 @@ PyObject * MGLContext_external_texture(MGLContext * self, PyObject * args) {
     texture->external = true;
 
     texture->texture_obj = glo;
+    texture->extra = NULL;
     texture->size_tuple = Py_BuildValue("(ii)", width, height);
     texture->width = width;
     texture->height = height;
@@ -8173,6 +8215,7 @@ MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * arg
     framebuffer->scissor_enabled = false;
     framebuffer->scissor = {0, 0, width, height};
 
+    framebuffer->extra = NULL;
     framebuffer->size_tuple = Py_BuildValue("(ii)", width, height);
     framebuffer->width = width;
     framebuffer->height = height;
@@ -9270,6 +9313,7 @@ PyObject * create_context(PyObject * self, PyObject * args, PyObject * kwargs) {
         framebuffer->scissor_enabled = false;
         framebuffer->scissor = {scissor_box[0], scissor_box[1], scissor_box[2], scissor_box[3]};
 
+        framebuffer->extra = NULL;
         framebuffer->size_tuple = Py_BuildValue("(ii)", scissor_box[2], scissor_box[3]);
         framebuffer->width = scissor_box[2];
         framebuffer->height = scissor_box[3];
@@ -9448,6 +9492,8 @@ PyMethodDef MGLFramebuffer_methods[] = {
 
 PyMemberDef MGLFramebuffer_members[] = {
     {(char *)"size", T_OBJECT, offsetof(MGLFramebuffer, size_tuple), READONLY},
+    {(char *)"extra", T_OBJECT_EX, offsetof(MGLFramebuffer, extra), 0},
+    {(char *)"glo", T_INT, offsetof(MGLFramebuffer, framebuffer_obj), READONLY},
     {(char *)"width", T_INT, offsetof(MGLFramebuffer, width), READONLY},
     {(char *)"height", T_INT, offsetof(MGLFramebuffer, height), READONLY},
     {(char *)"samples", T_INT, offsetof(MGLFramebuffer, samples), READONLY},
@@ -9456,6 +9502,19 @@ PyMemberDef MGLFramebuffer_members[] = {
 
 PyMethodDef MGLProgram_methods[] = {
     {(char *)"release", (PyCFunction)MGLProgram_release, METH_NOARGS},
+    {},
+};
+
+PyGetSetDef MGLProgram_getset[] = {
+    {(char *)"mglo", (getter)return_self, NULL},
+    {},
+};
+
+PyMemberDef MGLProgram_members[] = {
+    {(char *)"extra", T_OBJECT_EX, offsetof(MGLTexture, extra), 0},
+    {(char *)"glo", T_INT, offsetof(MGLProgram, program_obj), READONLY},
+    {(char *)"_members", T_OBJECT, offsetof(MGLProgram, members), READONLY},
+    {(char *)"is_transform", T_BOOL, offsetof(MGLProgram, is_transform), READONLY},
     {},
 };
 
@@ -9482,6 +9541,8 @@ PyMethodDef MGLRenderbuffer_methods[] = {
 
 PyMemberDef MGLRenderbuffer_members[] = {
     {(char *)"size", T_OBJECT, offsetof(MGLRenderbuffer, size_tuple), READONLY},
+    {(char *)"extra", T_OBJECT_EX, offsetof(MGLRenderbuffer, extra), 0},
+    {(char *)"glo", T_INT, offsetof(MGLRenderbuffer, renderbuffer_obj), READONLY},
     {(char *)"width", T_INT, offsetof(MGLRenderbuffer, width), READONLY},
     {(char *)"height", T_INT, offsetof(MGLRenderbuffer, height), READONLY},
     {(char *)"samples", T_INT, offsetof(MGLRenderbuffer, samples), READONLY},
@@ -9539,6 +9600,8 @@ PyMethodDef MGLTexture_methods[] = {
 
 PyMemberDef MGLTexture_members[] = {
     {(char *)"size", T_OBJECT, offsetof(MGLTexture, size_tuple), READONLY},
+    {(char *)"extra", T_OBJECT_EX, offsetof(MGLTexture, extra), 0},
+    {(char *)"glo", T_INT, offsetof(MGLTexture, texture_obj), READONLY},
     {(char *)"width", T_INT, offsetof(MGLTexture, width), READONLY},
     {(char *)"height", T_INT, offsetof(MGLTexture, height), READONLY},
     {(char *)"samples", T_INT, offsetof(MGLTexture, samples), READONLY},
@@ -9656,6 +9719,10 @@ PyType_Slot MGLFramebuffer_slots[] = {
 
 PyType_Slot MGLProgram_slots[] = {
     {Py_tp_methods, MGLProgram_methods},
+    {Py_tp_getset, MGLProgram_getset},
+    {Py_tp_members, MGLProgram_members},
+    {Py_mp_subscript, MGLProgram_getitem},
+    {Py_mp_ass_subscript, MGLProgram_setitem},
     {Py_tp_dealloc, (void *)default_dealloc},
     {},
 };
