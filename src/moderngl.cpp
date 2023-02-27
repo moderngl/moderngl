@@ -2436,7 +2436,7 @@ PyObject * MGLFramebuffer_get_color_mask(MGLFramebuffer * self, void * closure) 
 int MGLFramebuffer_set_color_mask(MGLFramebuffer * self, PyObject * value, void * closure) {
     if (!PySequence_Check(value)) {
         PyErr_Format(PyExc_ValueError, "invalid color_mask");
-        return NULL;
+        return -1;
     }
     if (!PySequence_Check(PySequence_GetItem(value, 0))) {
         PyObject * wrapped = Py_BuildValue("(N)", value);
@@ -2448,14 +2448,14 @@ int MGLFramebuffer_set_color_mask(MGLFramebuffer * self, PyObject * value, void 
         PyObject * item = PySequence_GetItem(value, i);
         if (!PySequence_Check(item) || PySequence_Size(item) != 4) {
             PyErr_Format(PyExc_ValueError, "invalid color_mask");
-            return NULL;
+            return -1;
         }
         self->color_mask[i][0] = !!PyObject_IsTrue(PySequence_GetItem(item, 0));
         self->color_mask[i][1] = !!PyObject_IsTrue(PySequence_GetItem(item, 1));
         self->color_mask[i][2] = !!PyObject_IsTrue(PySequence_GetItem(item, 2));
         self->color_mask[i][3] = !!PyObject_IsTrue(PySequence_GetItem(item, 3));
         if (PyErr_Occurred()) {
-            return NULL;
+            return -1;
         }
     }
 
