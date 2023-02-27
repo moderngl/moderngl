@@ -9,7 +9,7 @@ try:
 except ImportError:
     pass
 
-__version__ = '5.8.1'
+__version__ = '6.0.0a1'
 
 # Context Flags
 

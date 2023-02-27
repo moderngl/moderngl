@@ -128,7 +128,7 @@ project_urls = {
 
 setup(
     name='moderngl',
-    version='5.8.1',
+    version='6.0.0a1',
     description=short_description,
     long_description=long_description,
     long_description_content_type='text/markdown',
