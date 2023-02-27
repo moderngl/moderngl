@@ -156,6 +156,7 @@ struct MGLContext {
 struct MGLFramebuffer {
     PyObject_HEAD
     MGLContext * context;
+    PyObject * size_tuple;
     int num_color_attachments;
     bool color_mask[64][4];
     int framebuffer_obj;
@@ -1755,7 +1756,7 @@ PyObject * MGLComputeShader_release(MGLComputeShader * self) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
+MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     PyObject * color_attachments;
     PyObject * depth_attachment;
 
@@ -1869,6 +1870,7 @@ PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     framebuffer->scissor_enabled = false;
     framebuffer->scissor = {0, 0, width, height};
 
+    framebuffer->size_tuple = Py_BuildValue("(ii)", width, height);
     framebuffer->width = width;
     framebuffer->height = height;
     framebuffer->samples = samples;
@@ -1877,18 +1879,7 @@ PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     framebuffer->context = self;
 
     Py_INCREF(framebuffer);
-
-    PyObject * size = PyTuple_New(2);
-    PyTuple_SET_ITEM(size, 0, PyLong_FromLong(framebuffer->width));
-    PyTuple_SET_ITEM(size, 1, PyLong_FromLong(framebuffer->height));
-
-    Py_INCREF(framebuffer);
-    PyObject * result = PyTuple_New(4);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)framebuffer);
-    PyTuple_SET_ITEM(result, 1, size);
-    PyTuple_SET_ITEM(result, 2, PyLong_FromLong(framebuffer->samples));
-    PyTuple_SET_ITEM(result, 3, PyLong_FromLong(framebuffer->framebuffer_obj));
-    return result;
+    return framebuffer;
 }
 
 PyObject * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args) {
@@ -1947,6 +1938,7 @@ PyObject * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args) {
     framebuffer->scissor_enabled = false;
     framebuffer->scissor = {0, 0, width, height};
 
+    framebuffer->size_tuple = Py_BuildValue("(ii)", width, height);
     framebuffer->width = width;
     framebuffer->height = height;
     framebuffer->samples = samples;
@@ -1984,22 +1976,12 @@ PyObject * MGLFramebuffer_release(MGLFramebuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
-    float r, g, b, a, depth;
-    PyObject * viewport;
+PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"red", "green", "blue", "alpha", "viewport", "depth", NULL};
+    float r = 0.0f, g = 0.0f, b = 0.0f, a = 0.0f, depth = 1.0f;
+    PyObject * viewport = Py_None;
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "fffffO",
-        &r,
-        &g,
-        &b,
-        &a,
-        &depth,
-        &viewport
-    );
-
-    if (!args_ok) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|fffffO", (char **)keywords, &r, &g, &b, &a, &depth, &viewport)) {
         return 0;
     }
 
@@ -2116,19 +2098,23 @@ PyObject * MGLFramebuffer_use(MGLFramebuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLFramebuffer_read(MGLFramebuffer * self, PyObject * args) {
-    PyObject * viewport;
-    int components;
-    int alignment;
-    int attachment;
-    int clamp;
+PyObject * MGLFramebuffer_read(MGLFramebuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"viewport", "components", "attachment", "alignment", "clamp", "dtype", NULL};
 
-    const char * dtype;
-    Py_ssize_t dtype_size;
+    PyObject * viewport = Py_None;
+    int components = 3;
+    int attachment = 0;
+    int alignment = 1;
+    int clamp = false;
 
-    int args_ok = PyArg_ParseTuple(
+    const char * dtype = "f1";
+    Py_ssize_t dtype_size = 2;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "OIIIps#",
+        kwargs,
+        "|OIIIps#",
+        (char **)keywords,
         &viewport,
         &components,
         &attachment,
@@ -2231,24 +2217,30 @@ PyObject * MGLFramebuffer_read(MGLFramebuffer * self, PyObject * args) {
     return result;
 }
 
-PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * args) {
-    PyObject * data;
-    PyObject * viewport;
-    int components;
-    int attachment;
-    int alignment;
-    const char * dtype;
-    Py_ssize_t dtype_size;
-    Py_ssize_t write_offset;
+PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"data", "viewport", "components", "attachment", "alignment", "clamp", "dtype", "write_offset", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data;
+    PyObject * viewport = Py_None;
+    int components = 3;
+    int attachment = 0;
+    int alignment = 1;
+    int clamp = false;
+    const char * dtype = "f1";
+    Py_ssize_t dtype_size = 2;
+    Py_ssize_t write_offset = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "OOIIIs#n",
+        kwargs,
+        "O|OIIIps#n",
+        (char **)keywords,
         &data,
         &viewport,
         &components,
         &attachment,
         &alignment,
+        &clamp,
         &dtype,
         &dtype_size,
         &write_offset
@@ -2261,6 +2253,14 @@ PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * args) {
     if (alignment != 1 && alignment != 2 && alignment != 4 && alignment != 8) {
         MGLError_Set("the alignment must be 1, 2, 4 or 8");
         return 0;
+    }
+
+    const GLMethods & gl = self->context->gl;
+
+    if (clamp) {
+        gl.ClampColor(GL_CLAMP_READ_COLOR, GL_TRUE);
+    } else {
+        gl.ClampColor(GL_CLAMP_READ_COLOR, GL_FIXED_ONLY);
     }
 
     MGLDataType * data_type = from_dtype(dtype, dtype_size);
@@ -2325,8 +2325,6 @@ PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * args) {
 
         MGLBuffer * buffer = (MGLBuffer *)data;
 
-        const GLMethods & gl = self->context->gl;
-
         gl.BindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer_obj);
         gl.BindFramebuffer(GL_FRAMEBUFFER, self->framebuffer_obj);
         gl.ReadBuffer(read_depth ? GL_NONE : (GL_COLOR_ATTACHMENT0 + attachment));
@@ -2353,8 +2351,6 @@ PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * args) {
         }
 
         char * ptr = (char *)buffer_view.buf + write_offset;
-
-        const GLMethods & gl = self->context->gl;
 
         gl.BindFramebuffer(GL_FRAMEBUFFER, self->framebuffer_obj);
         gl.ReadBuffer(read_depth ? GL_NONE : (GL_COLOR_ATTACHMENT0 + attachment));
@@ -8096,7 +8092,7 @@ PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args) {
+MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args) {
     PyObject * glo;
 
     if (!PyArg_ParseTuple(args, "O", &glo)) {
@@ -8118,17 +8114,8 @@ PyObject * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args) {
     }
 
     if (!framebuffer_obj) {
-        PyObject * size = PyTuple_New(2);
-        PyTuple_SET_ITEM(size, 0, PyLong_FromLong(self->default_framebuffer->width));
-        PyTuple_SET_ITEM(size, 1, PyLong_FromLong(self->default_framebuffer->height));
-
         Py_INCREF(self->default_framebuffer);
-        PyObject * result = PyTuple_New(4);
-        PyTuple_SET_ITEM(result, 0, (PyObject *)self->default_framebuffer);
-        PyTuple_SET_ITEM(result, 1, size);
-        PyTuple_SET_ITEM(result, 2, PyLong_FromLong(self->default_framebuffer->samples));
-        PyTuple_SET_ITEM(result, 3, PyLong_FromLong(self->default_framebuffer->framebuffer_obj));
-        return result;
+        return self->default_framebuffer;
     }
 
     gl.BindFramebuffer(GL_FRAMEBUFFER, framebuffer_obj);
@@ -8186,6 +8173,7 @@ PyObject * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args) {
     framebuffer->scissor_enabled = false;
     framebuffer->scissor = {0, 0, width, height};
 
+    framebuffer->size_tuple = Py_BuildValue("(ii)", width, height);
     framebuffer->width = width;
     framebuffer->height = height;
     framebuffer->dynamic = true;
@@ -8193,18 +8181,7 @@ PyObject * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args) {
     gl.BindFramebuffer(GL_FRAMEBUFFER, bound_framebuffer);
 
     Py_INCREF(framebuffer);
-
-    PyObject * size = PyTuple_New(2);
-    PyTuple_SET_ITEM(size, 0, PyLong_FromLong(framebuffer->width));
-    PyTuple_SET_ITEM(size, 1, PyLong_FromLong(framebuffer->height));
-
-    Py_INCREF(framebuffer);
-    PyObject * result = PyTuple_New(4);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)framebuffer);
-    PyTuple_SET_ITEM(result, 1, size);
-    PyTuple_SET_ITEM(result, 2, PyLong_FromLong(framebuffer->samples));
-    PyTuple_SET_ITEM(result, 3, PyLong_FromLong(framebuffer->framebuffer_obj));
-    return result;
+    return framebuffer;
 }
 
 PyObject * MGLContext_clear_samplers(MGLContext * self, PyObject * args) {
@@ -9293,6 +9270,7 @@ PyObject * create_context(PyObject * self, PyObject * args, PyObject * kwargs) {
         framebuffer->scissor_enabled = false;
         framebuffer->scissor = {scissor_box[0], scissor_box[1], scissor_box[2], scissor_box[3]};
 
+        framebuffer->size_tuple = Py_BuildValue("(ii)", scissor_box[2], scissor_box[3]);
         framebuffer->width = scissor_box[2];
         framebuffer->height = scissor_box[3];
         framebuffer->dynamic = true;
@@ -9335,6 +9313,10 @@ PyObject * create_context(PyObject * self, PyObject * args, PyObject * kwargs) {
 
 void default_dealloc(PyObject * self) {
     Py_TYPE(self)->tp_free(self);
+}
+
+PyObject * return_self(PyObject * self) {
+    return self;
 }
 
 PyMethodDef MGL_module_methods[] = {
@@ -9446,21 +9428,29 @@ PyGetSetDef MGLContext_getset[] = {
 };
 
 PyGetSetDef MGLFramebuffer_getset[] = {
+    {(char *)"mglo", (getter)return_self, NULL},
     {(char *)"viewport", (getter)MGLFramebuffer_get_viewport, (setter)MGLFramebuffer_set_viewport},
     {(char *)"scissor", (getter)MGLFramebuffer_get_scissor, (setter)MGLFramebuffer_set_scissor},
     {(char *)"color_mask", (getter)MGLFramebuffer_get_color_mask, (setter)MGLFramebuffer_set_color_mask},
     {(char *)"depth_mask", (getter)MGLFramebuffer_get_depth_mask, (setter)MGLFramebuffer_set_depth_mask},
-
     {(char *)"bits", (getter)MGLFramebuffer_get_bits, NULL},
     {},
 };
 
 PyMethodDef MGLFramebuffer_methods[] = {
-    {(char *)"clear", (PyCFunction)MGLFramebuffer_clear, METH_VARARGS},
+    {(char *)"clear", (PyCFunction)MGLFramebuffer_clear, METH_VARARGS | METH_KEYWORDS},
     {(char *)"use", (PyCFunction)MGLFramebuffer_use, METH_NOARGS},
-    {(char *)"read", (PyCFunction)MGLFramebuffer_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLFramebuffer_read_into, METH_VARARGS},
+    {(char *)"read", (PyCFunction)MGLFramebuffer_read, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read_into", (PyCFunction)MGLFramebuffer_read_into, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLFramebuffer_release, METH_NOARGS},
+    {},
+};
+
+PyMemberDef MGLFramebuffer_members[] = {
+    {(char *)"size", T_OBJECT, offsetof(MGLFramebuffer, size_tuple), READONLY},
+    {(char *)"width", T_INT, offsetof(MGLFramebuffer, width), READONLY},
+    {(char *)"height", T_INT, offsetof(MGLFramebuffer, height), READONLY},
+    {(char *)"samples", T_INT, offsetof(MGLFramebuffer, samples), READONLY},
     {},
 };
 
@@ -9492,6 +9482,8 @@ PyMethodDef MGLRenderbuffer_methods[] = {
 
 PyMemberDef MGLRenderbuffer_members[] = {
     {(char *)"size", T_OBJECT, offsetof(MGLRenderbuffer, size_tuple), READONLY},
+    {(char *)"width", T_INT, offsetof(MGLRenderbuffer, width), READONLY},
+    {(char *)"height", T_INT, offsetof(MGLRenderbuffer, height), READONLY},
     {(char *)"samples", T_INT, offsetof(MGLRenderbuffer, samples), READONLY},
     {},
 };
@@ -9547,6 +9539,8 @@ PyMethodDef MGLTexture_methods[] = {
 
 PyMemberDef MGLTexture_members[] = {
     {(char *)"size", T_OBJECT, offsetof(MGLTexture, size_tuple), READONLY},
+    {(char *)"width", T_INT, offsetof(MGLTexture, width), READONLY},
+    {(char *)"height", T_INT, offsetof(MGLTexture, height), READONLY},
     {(char *)"samples", T_INT, offsetof(MGLTexture, samples), READONLY},
     {},
 };
@@ -9655,6 +9649,7 @@ PyType_Slot MGLContext_slots[] = {
 PyType_Slot MGLFramebuffer_slots[] = {
     {Py_tp_methods, MGLFramebuffer_methods},
     {Py_tp_getset, MGLFramebuffer_getset},
+    {Py_tp_members, MGLFramebuffer_members},
     {Py_tp_dealloc, (void *)default_dealloc},
     {},
 };
@@ -9779,6 +9774,21 @@ extern "C" PyObject * PyInit_mgl() {
     MGLTexture3D_type = (PyTypeObject *)PyType_FromSpec(&MGLTexture3D_spec);
     MGLVertexArray_type = (PyTypeObject *)PyType_FromSpec(&MGLVertexArray_spec);
     MGLSampler_type = (PyTypeObject *)PyType_FromSpec(&MGLSampler_spec);
+
+    PyModule_AddObject(module, "Buffer", (PyObject *)MGLBuffer_type);
+    PyModule_AddObject(module, "ComputeShader", (PyObject *)MGLComputeShader_type);
+    PyModule_AddObject(module, "Context", (PyObject *)MGLContext_type);
+    PyModule_AddObject(module, "Framebuffer", (PyObject *)MGLFramebuffer_type);
+    PyModule_AddObject(module, "Program", (PyObject *)MGLProgram_type);
+    PyModule_AddObject(module, "Query", (PyObject *)MGLQuery_type);
+    PyModule_AddObject(module, "Renderbuffer", (PyObject *)MGLRenderbuffer_type);
+    PyModule_AddObject(module, "Scope", (PyObject *)MGLScope_type);
+    PyModule_AddObject(module, "Texture", (PyObject *)MGLTexture_type);
+    PyModule_AddObject(module, "TextureArray", (PyObject *)MGLTextureArray_type);
+    PyModule_AddObject(module, "TextureCube", (PyObject *)MGLTextureCube_type);
+    PyModule_AddObject(module, "Texture3D", (PyObject *)MGLTexture3D_type);
+    PyModule_AddObject(module, "VertexArray", (PyObject *)MGLVertexArray_type);
+    PyModule_AddObject(module, "Sampler", (PyObject *)MGLSampler_type);
 
     PyObject * InvalidObject = PyObject_GetAttrString(helper, "InvalidObject");
     PyModule_AddObject(module, "InvalidObject", InvalidObject);

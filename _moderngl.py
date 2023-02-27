@@ -367,10 +367,13 @@ def make_varying(name, number, array_length, dimension):
 
 
 def framebuffer_attachments(color_attachments, depth_attachment):
+    if not isinstance(color_attachments, (list, tuple)):
+        color_attachments = [color_attachments]
+
     if not color_attachments and not depth_attachment:
         raise ValueError('no color or depth attachments')
 
-    first = color_attachments[0] if color_attachments else depth_attachment
+    first = (color_attachments[0] if color_attachments else depth_attachment).mglo
 
     attachments = []
     color_mask = b''
@@ -380,11 +383,11 @@ def framebuffer_attachments(color_attachments, depth_attachment):
             raise ValueError('attachments have different sizes')
         if attachment.samples != first.samples:
             raise ValueError('attachments have different samples')
-        attachments.append(attachment)
+        attachments.append(attachment.mglo)
         color_mask += bytes([1, 1, 1, 1])
 
     width, height = first.size
-    return width, height, first.samples, attachments, depth_attachment, color_mask
+    return width, height, first.samples, attachments, depth_attachment.mglo if depth_attachment else None, color_mask
 
 
 class InvalidObject:
