@@ -120,6 +120,8 @@ struct MGLBuffer {
 struct MGLComputeShader {
     PyObject_HEAD
     MGLContext * context;
+    MGLContext * extra;
+    PyObject * members;
     int program_obj;
     int shader_obj;
     bool released;
@@ -1531,16 +1533,11 @@ void MGLBuffer_tp_as_buffer_release_view(MGLBuffer * self, Py_buffer * view) {
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
 }
 
-PyObject * MGLContext_compute_shader(MGLContext * self, PyObject * args) {
+MGLComputeShader * MGLContext_compute_shader(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"source", NULL};
     PyObject * source;
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "O",
-        &source
-    );
-
-    if (!args_ok) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char **)keywords, &source)) {
         return 0;
     }
 
@@ -1698,27 +1695,18 @@ PyObject * MGLContext_compute_shader(MGLContext * self, PyObject * args) {
         Py_DECREF(item);
     }
 
-    PyObject * result = PyTuple_New(3);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)compute_shader);
-    PyTuple_SET_ITEM(result, 1, members_dict);
-    PyTuple_SET_ITEM(result, 2, PyLong_FromLong(compute_shader->program_obj));
-    return result;
+    compute_shader->members = members_dict;
+
+    Py_INCREF(compute_shader);
+    return compute_shader;
 }
 
-PyObject * MGLComputeShader_run(MGLComputeShader * self, PyObject * args) {
-    unsigned x;
-    unsigned y;
-    unsigned z;
+PyObject * MGLComputeShader_run(MGLComputeShader * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"group_x", "group_y", "group_z", NULL};
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "III",
-        &x,
-        &y,
-        &z
-    );
+    unsigned x = 1, y = 1, z = 1;
 
-    if (!args_ok) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|III", (char **)keywords, &x, &y, &z)) {
         return 0;
     }
 
@@ -1726,15 +1714,16 @@ PyObject * MGLComputeShader_run(MGLComputeShader * self, PyObject * args) {
 
     gl.UseProgram(self->program_obj);
     gl.DispatchCompute(x, y, z);
-
     Py_RETURN_NONE;
 }
 
-PyObject * MGLComputeShader_run_indirect(MGLComputeShader * self, PyObject * args) {
+PyObject * MGLComputeShader_run_indirect(MGLComputeShader * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"buffer", "offset", NULL};
+
     MGLBuffer * buffer;
     Py_ssize_t offset = 0;
 
-    if (!PyArg_ParseTuple(args, "O!|n", MGLBuffer_type, &buffer, &offset)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|n", (char **)keywords, MGLBuffer_type, &buffer, &offset)) {
         return 0;
     }
 
@@ -1743,11 +1732,24 @@ PyObject * MGLComputeShader_run_indirect(MGLComputeShader * self, PyObject * arg
     gl.UseProgram(self->program_obj);
     gl.BindBuffer(GL_DISPATCH_INDIRECT_BUFFER, buffer->buffer_obj);
     gl.DispatchComputeIndirect((GLintptr)offset);
-
     Py_RETURN_NONE;
 }
 
-PyObject * MGLComputeShader_release(MGLComputeShader * self) {
+PyObject * MGLComputeShader_getitem(MGLComputeShader * self, PyObject * key) {
+    PyObject * res = PyDict_GetItem(self->members, key);
+    Py_XINCREF(res);
+    return res;
+}
+
+int MGLComputeShader_setitem(MGLComputeShader * self, PyObject * key, PyObject * value) {
+    PyObject * res = PyDict_GetItem(self->members, key);
+    if (!res) {
+        return -1;
+    }
+    return PyObject_SetAttrString(res, "value", value);
+}
+
+PyObject * MGLComputeShader_release(MGLComputeShader * self, PyObject * args) {
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -9387,8 +9389,21 @@ PyMethodDef MGLBuffer_methods[] = {
 };
 
 PyMethodDef MGLComputeShader_methods[] = {
-    {(char *)"run", (PyCFunction)MGLComputeShader_run, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLComputeShader_release, METH_VARARGS},
+    {(char *)"run", (PyCFunction)MGLComputeShader_run, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"run_indirect", (PyCFunction)MGLComputeShader_run_indirect, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"release", (PyCFunction)MGLComputeShader_release, METH_VARARGS | METH_KEYWORDS},
+    {},
+};
+
+PyGetSetDef MGLComputeShader_getset[] = {
+    {(char *)"mglo", (getter)return_self, NULL},
+    {},
+};
+
+PyMemberDef MGLComputeShader_members[] = {
+    {(char *)"extra", T_OBJECT_EX, offsetof(MGLTexture, extra), 0},
+    {(char *)"glo", T_INT, offsetof(MGLComputeShader, program_obj), READONLY},
+    {(char *)"_members", T_OBJECT, offsetof(MGLComputeShader, members), READONLY},
     {},
 };
 
@@ -9417,7 +9432,7 @@ PyMethodDef MGLContext_methods[] = {
     {(char *)"empty_framebuffer", (PyCFunction)MGLContext_empty_framebuffer, METH_VARARGS},
     {(char *)"renderbuffer", (PyCFunction)MGLContext_renderbuffer, METH_VARARGS},
     {(char *)"depth_renderbuffer", (PyCFunction)MGLContext_depth_renderbuffer, METH_VARARGS},
-    {(char *)"compute_shader", (PyCFunction)MGLContext_compute_shader, METH_VARARGS},
+    {(char *)"compute_shader", (PyCFunction)MGLContext_compute_shader, METH_VARARGS | METH_KEYWORDS},
     {(char *)"query", (PyCFunction)MGLContext_query, METH_VARARGS},
     {(char *)"scope", (PyCFunction)MGLContext_scope, METH_VARARGS},
     {(char *)"sampler", (PyCFunction)MGLContext_sampler, METH_VARARGS},
@@ -9698,6 +9713,10 @@ PyType_Slot MGLBuffer_slots[] = {
 
 PyType_Slot MGLComputeShader_slots[] = {
     {Py_tp_methods, MGLComputeShader_methods},
+    {Py_tp_members, MGLComputeShader_members},
+    {Py_tp_getset, MGLComputeShader_getset},
+    {Py_mp_subscript, MGLComputeShader_getitem},
+    {Py_mp_ass_subscript, MGLComputeShader_setitem},
     {Py_tp_dealloc, (void *)default_dealloc},
     {},
 };

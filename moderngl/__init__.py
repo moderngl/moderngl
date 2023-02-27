@@ -8,6 +8,7 @@ from moderngl import mgl
 
 Framebuffer = mgl.Framebuffer
 Program = mgl.Program
+ComputeShader = mgl.ComputeShader
 
 __version__ = '6.0.0a1'
 
@@ -234,64 +235,6 @@ class Query:
     @property
     def elapsed(self) -> int:
         return self.mglo.elapsed
-
-
-class ComputeShader:
-    def __init__(self):
-        self.mglo = None
-        self._members = {}
-        self._glo = None
-        self.ctx = None
-        self.extra = None
-        raise TypeError()
-
-    def __repr__(self) -> str:
-        if hasattr(self, '_glo'):
-            return f"<{self.__class__.__name__}: {self._glo}>"
-        else:
-            return f"<{self.__class__.__name__}: INCOMPLETE>"
-
-    def __eq__(self, other: Any):
-        return type(self) is type(other) and self.mglo is other.mglo
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def __del__(self) -> None:
-        if not hasattr(self, "ctx"):
-            return
-
-        if self.ctx.gc_mode == "auto":
-            self.release()
-        elif self.ctx.gc_mode == "context_gc":
-            self.ctx.objects.append(self.mglo)
-
-    def __getitem__(self, key: str) -> Union[Uniform, UniformBlock, Subroutine, Attribute, Varying]:
-        return self._members[key]
-
-    def __setitem__(self, key: str, value: Any):
-        self._members[key].value = value
-
-    def __iter__(self) -> Generator[str, None, None]:
-        yield from self._members
-
-    @property
-    def glo(self) -> int:
-        return self._glo
-
-    def run(self, group_x: int = 1, group_y: int = 1, group_z: int = 1) -> None:
-        return self.mglo.run(group_x, group_y, group_z)
-
-    def run_indirect(self, buffer: 'Buffer', offset: int = 0) -> None:
-        return self.mglo.run(buffer, offset)
-
-    def get(self, key: str, default: Any) -> Union[Uniform, UniformBlock, Subroutine, Attribute, Varying]:
-        return self._members.get(key, default)
-
-    def release(self) -> None:
-        if not isinstance(self.mglo, InvalidObject):
-            self.mglo.release()
-            self.mglo = InvalidObject()
 
 
 class Renderbuffer:
@@ -1952,12 +1895,7 @@ class Context:
         return res
 
     def compute_shader(self, source: str) -> 'ComputeShader':
-        res = ComputeShader.__new__(ComputeShader)
-        res.mglo, res._members, res._glo = self.mglo.compute_shader(source)
-
-        res.ctx = self
-        res.extra = None
-        return res
+        return self.mglo.compute_shader(source)
 
     def sampler(
         self,
