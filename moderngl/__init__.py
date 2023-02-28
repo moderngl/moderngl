@@ -18,6 +18,7 @@ Texture = mgl.Texture
 Texture3D = mgl.Texture3D
 TextureArray = mgl.TextureArray
 TextureCube = mgl.TextureCube
+Scope = mgl.Scope
 
 __version__ = '6.0.0a1'
 
@@ -194,52 +195,6 @@ class Buffer:
 
     def assign(self, index: int) -> Tuple["Buffer", int]:
         return (self, index)
-
-
-class Scope:
-    def __init__(self):
-        self.mglo = None
-        self.ctx = None
-        # Keep references to keep this objects alive
-        self._framebuffer = None
-        self._textures = None
-        self._uniform_buffers = None
-        self._storage_buffers = None
-        self._samplers = None
-        self.extra = None
-        raise TypeError()
-
-    def __repr__(self):
-        return '<Scope>'
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def __enter__(self):
-        self.mglo.begin()
-        return self
-
-    def __exit__(self, *args: Tuple[Any]):
-        self.mglo.end()
-
-    def __del__(self):
-        if not hasattr(self, "ctx"):
-            return
-
-        if self.ctx.gc_mode == "auto":
-            self.release()
-        elif self.ctx.gc_mode == "context_gc":
-            self.ctx.objects.append(self.mglo)
-
-    def release(self) -> None:
-        if not isinstance(self.mglo, InvalidObject):
-            self._framebuffer = None
-            self._textures = None
-            self._uniform_buffers = None
-            self._storage_buffers = None
-            self._samplers = None
-            self.mglo.release()
-            self.mglo = InvalidObject()
 
 
 class Context:
@@ -753,29 +708,7 @@ class Context:
         samplers: Tuple[Tuple['Sampler', int], ...] = (),
         enable: Optional[int] = None,
     ) -> 'Scope':
-        if enable is not None:
-            enable_only = enable
-
-        if framebuffer is None:
-            framebuffer = self.screen
-            if framebuffer is None:
-                raise RuntimeError('A framebuffer must be specified')
-
-        mgl_textures = tuple((tex.mglo, idx) for tex, idx in textures)
-        mgl_uniform_buffers = tuple((buf.mglo, idx) for buf, idx in uniform_buffers)
-        mgl_storage_buffers = tuple((buf.mglo, idx) for buf, idx in storage_buffers)
-
-        res = Scope.__new__(Scope)
-        res.mglo = self.mglo.scope(framebuffer.mglo, enable_only, mgl_textures,
-                                   mgl_uniform_buffers, mgl_storage_buffers, samplers)
-        res.ctx = self
-        res._framebuffer = framebuffer
-        res._textures = textures
-        res._uniform_buffers = uniform_buffers
-        res._storage_buffers = storage_buffers
-        res._samplers = samplers
-        res.extra = None
-        return res
+        return self.mglo.scope(framebuffer.mglo, enable_only or enable, textures, uniform_buffers, storage_buffers, samplers)
 
     def simple_framebuffer(
         self,

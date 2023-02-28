@@ -3924,17 +3924,23 @@ int MGLSampler_set_max_lod(MGLSampler * self, PyObject * value) {
     return 0;
 }
 
-PyObject * MGLContext_scope(MGLContext * self, PyObject * args) {
-    MGLFramebuffer * framebuffer;
-    PyObject * enable_flags;
-    PyObject * textures;
-    PyObject * uniform_buffers;
-    PyObject * shader_storage_buffers;
-    PyObject * samplers;
+PyObject * MGLContext_scope(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"framebuffer", "enable_only", "textures", "uniform_buffers", "storage_buffers", "samplers", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    static PyObject * empty_tuple = PyTuple_New(0); // TODO: move
+
+    MGLFramebuffer * framebuffer = (MGLFramebuffer *)Py_None;
+    PyObject * enable_flags = Py_None;
+    PyObject * textures = empty_tuple;
+    PyObject * uniform_buffers = empty_tuple;
+    PyObject * shader_storage_buffers = empty_tuple;
+    PyObject * samplers = empty_tuple;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "O!OOOOO",
+        kwargs,
+        "|O!OOOOO",
+        (char **)keywords,
         MGLFramebuffer_type,
         &framebuffer,
         &enable_flags,
@@ -3946,6 +3952,10 @@ PyObject * MGLContext_scope(MGLContext * self, PyObject * args) {
 
     if (!args_ok) {
         return 0;
+    }
+
+    if (framebuffer == (MGLFramebuffer *)Py_None) {
+        framebuffer = self->default_framebuffer;
     }
 
     int flags = MGL_INVALID;
@@ -9614,7 +9624,7 @@ PyMethodDef MGLContext_methods[] = {
     {(char *)"depth_renderbuffer", (PyCFunction)MGLContext_depth_renderbuffer, METH_VARARGS | METH_KEYWORDS},
     {(char *)"compute_shader", (PyCFunction)MGLContext_compute_shader, METH_VARARGS | METH_KEYWORDS},
     {(char *)"query", (PyCFunction)MGLContext_query, METH_VARARGS | METH_KEYWORDS},
-    {(char *)"scope", (PyCFunction)MGLContext_scope, METH_VARARGS},
+    {(char *)"scope", (PyCFunction)MGLContext_scope, METH_VARARGS | METH_KEYWORDS},
     {(char *)"sampler", (PyCFunction)MGLContext_sampler, METH_VARARGS | METH_KEYWORDS},
     {(char *)"memory_barrier", (PyCFunction)MGLContext_memory_barrier, METH_VARARGS},
 
