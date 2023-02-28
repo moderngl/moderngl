@@ -3559,14 +3559,22 @@ PyObject * MGLRenderbuffer_release(MGLRenderbuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_sampler(MGLContext * self, PyObject * args) {
-    int args_ok = PyArg_ParseTuple(
-        args,
-        ""
-    );
+MGLSampler * MGLContext_sampler(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"repeat_x", "repeat_y", "repeat_z", "filter", "anisotropy", "compare_func", "border_color", "min_lod", "max_lod", "texture", NULL};
 
-    if (!args_ok) {
-        return 0;
+    int repeat_x = true;
+    int repeat_y = true;
+    int repeat_z = true;
+    PyObject * filter = Py_None;
+    float anisotropy = 1.0f;
+    const char * compare_func = "?";
+    PyObject * border_color = Py_None;
+    float min_lod = -1000.0f;
+    float max_lod = 1000.0f;
+    PyObject * texture = Py_None;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|pppOfsOffO", (char **)keywords, &repeat_x, &repeat_y, &repeat_z, &filter, &anisotropy, &compare_func, &border_color, &min_lod, &max_lod, &texture)) {
+        return NULL;
     }
 
     const GLMethods & gl = self->gl;
@@ -3594,11 +3602,7 @@ PyObject * MGLContext_sampler(MGLContext * self, PyObject * args) {
     sampler->context = self;
 
     Py_INCREF(sampler);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)sampler);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(sampler->sampler_obj));
-    return result;
+    return sampler;
 }
 
 PyObject * MGLContext_memory_barrier(MGLContext * self, PyObject * args) {
@@ -3622,41 +3626,40 @@ PyObject * MGLContext_memory_barrier(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLSampler_use(MGLSampler * self, PyObject * args) {
+PyObject * MGLSampler_assign(MGLSampler * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"index", NULL};
     int index;
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "I",
-        &index
-    );
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "I", (char **)keywords, &index)) {
+        return 0;
+    }
 
-    if (!args_ok) {
+    return Py_BuildValue("(OI)", self, index);
+}
+
+PyObject * MGLSampler_use(MGLSampler * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"index", NULL};
+    int index;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "I", (char **)keywords, &index)) {
         return 0;
     }
 
     const GLMethods & gl = self->context->gl;
     gl.BindSampler(index, self->sampler_obj);
-
     Py_RETURN_NONE;
 }
 
-PyObject * MGLSampler_clear(MGLSampler * self, PyObject * args) {
+PyObject * MGLSampler_clear(MGLSampler * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"index", NULL};
     int index;
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "I",
-        &index
-    );
-
-    if (!args_ok) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "I", (char **)keywords, &index)) {
         return 0;
     }
 
     const GLMethods & gl = self->context->gl;
     gl.BindSampler(index, 0);
-
     Py_RETURN_NONE;
 }
 
@@ -9431,7 +9434,7 @@ PyMethodDef MGLContext_methods[] = {
     {(char *)"compute_shader", (PyCFunction)MGLContext_compute_shader, METH_VARARGS | METH_KEYWORDS},
     {(char *)"query", (PyCFunction)MGLContext_query, METH_VARARGS},
     {(char *)"scope", (PyCFunction)MGLContext_scope, METH_VARARGS},
-    {(char *)"sampler", (PyCFunction)MGLContext_sampler, METH_VARARGS},
+    {(char *)"sampler", (PyCFunction)MGLContext_sampler, METH_VARARGS | METH_KEYWORDS},
     {(char *)"memory_barrier", (PyCFunction)MGLContext_memory_barrier, METH_VARARGS},
 
     {(char *)"__enter__", (PyCFunction)MGLContext_enter, METH_NOARGS},
@@ -9579,8 +9582,9 @@ PyGetSetDef MGLSampler_getset[] = {
 };
 
 PyMethodDef MGLSampler_methods[] = {
-    {(char *)"use", (PyCFunction)MGLSampler_use, METH_VARARGS},
-    {(char *)"clear", (PyCFunction)MGLSampler_clear, METH_VARARGS},
+    {(char *)"assign", (PyCFunction)MGLSampler_assign, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"use", (PyCFunction)MGLSampler_use, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"clear", (PyCFunction)MGLSampler_clear, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLSampler_release, METH_NOARGS},
     {},
 };
