@@ -26,6 +26,62 @@ PyTypeObject * MGLTexture3D_type;
 PyTypeObject * MGLVertexArray_type;
 PyTypeObject * MGLSampler_type;
 
+PyObject * strsize(PyObject * self, PyObject * args) {
+    const char * str;
+
+    int args_ok = PyArg_ParseTuple(
+        args,
+        "s",
+        &str
+    );
+
+    if (!args_ok) {
+        return 0;
+    }
+
+    char first_chr = *str++;
+    if (first_chr < '1' || first_chr > '9') {
+        return 0;
+    }
+
+    long long value = first_chr - '0';
+
+    while (char chr = *str++) {
+        if (chr < '0' || chr > '9') {
+            switch (chr) {
+                case 'G':
+                    value *= 1024;
+
+                case 'M':
+                    value *= 1024;
+
+                case 'K':
+                    value *= 1024;
+
+                    if (*str++ != 'B') {
+                        return 0;
+                    }
+
+                case 'B':
+                    if (*str++) {
+                        return 0;
+                    }
+
+                case 0:
+                    break;
+
+                default:
+                    return 0;
+            }
+            break;
+        }
+
+        value = value * 10 + chr - '0';
+    }
+
+    return PyLong_FromLongLong(value);
+}
+
 struct Viewport {
     int x, y, width, height;
 };
@@ -947,22 +1003,38 @@ MGLDataType * from_dtype(const char * dtype, Py_ssize_t size) {
     return 0;
 }
 
-PyObject * MGLContext_buffer(MGLContext * self, PyObject * args) {
-    PyObject * data;
-    int reserve;
-    int dynamic;
+MGLBuffer * MGLContext_buffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"data", "reserve", "dynamic", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data = Py_None;
+    PyObject * reserve_arg = Py_None;
+    int dynamic = true;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "OIp",
+        kwargs,
+        "|OOp",
+        (char **)keywords,
         &data,
-        &reserve,
+        &reserve_arg,
         &dynamic
     );
 
     if (!args_ok) {
         return 0;
     }
+
+    PyObject * reserve_temp;
+    if (PyLong_CheckExact(reserve_arg)) {
+        reserve_temp = reserve_arg;
+    } else {
+        reserve_temp = strsize(Py_None, Py_BuildValue("(O)", reserve_arg));
+        if (!reserve_temp) {
+            return NULL;
+        }
+    }
+
+    int reserve = PyLong_AsLong(reserve_temp);
 
     if (data == Py_None && !reserve) {
         MGLError_Set("missing data or reserve");
@@ -1023,21 +1095,20 @@ PyObject * MGLContext_buffer(MGLContext * self, PyObject * args) {
     }
 
     Py_INCREF(buffer);
-
-    PyObject * result = PyTuple_New(3);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)buffer);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromSsize_t(buffer->size));
-    PyTuple_SET_ITEM(result, 2, PyLong_FromLong(buffer->buffer_obj));
-    return result;
+    return buffer;
 }
 
-PyObject * MGLBuffer_write(MGLBuffer * self, PyObject * args) {
-    PyObject * data;
-    Py_ssize_t offset;
+PyObject * MGLBuffer_write(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"data", "offset", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data;
+    Py_ssize_t offset = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "On",
+        kwargs,
+        "O|n",
+        (char **)keywords,
         &data,
         &offset
     );
@@ -1067,13 +1138,17 @@ PyObject * MGLBuffer_write(MGLBuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLBuffer_read(MGLBuffer * self, PyObject * args) {
-    Py_ssize_t size;
-    Py_ssize_t offset;
+PyObject * MGLBuffer_read(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "offset", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    Py_ssize_t size = -1;
+    Py_ssize_t offset = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "nn",
+        kwargs,
+        "|nn",
+        (char **)keywords,
         &size,
         &offset
     );
@@ -1108,15 +1183,19 @@ PyObject * MGLBuffer_read(MGLBuffer * self, PyObject * args) {
     return data;
 }
 
-PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args) {
-    PyObject * data;
-    Py_ssize_t size;
-    Py_ssize_t offset;
-    Py_ssize_t write_offset;
+PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"buffer", "size", "offset", "write_offset", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data;
+    Py_ssize_t size = -1;
+    Py_ssize_t offset = 0;
+    Py_ssize_t write_offset = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "Onnn",
+        kwargs,
+        "O|nnn",
+        (char **)keywords,
         &data,
         &size,
         &offset,
@@ -1164,15 +1243,19 @@ PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLBuffer_write_chunks(MGLBuffer * self, PyObject * args) {
+PyObject * MGLBuffer_write_chunks(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"data", "start", "step", "count", NULL};
+
     PyObject * data;
     Py_ssize_t start;
     Py_ssize_t step;
     Py_ssize_t count;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
+        kwargs,
         "Onnn",
+        (char **)keywords,
         &data,
         &start,
         &step,
@@ -1235,15 +1318,19 @@ PyObject * MGLBuffer_write_chunks(MGLBuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLBuffer_read_chunks(MGLBuffer * self, PyObject * args) {
+PyObject * MGLBuffer_read_chunks(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"chunk_size", "start", "step", "count", NULL};
+
     Py_ssize_t chunk_size;
     Py_ssize_t start;
     Py_ssize_t step;
     Py_ssize_t count;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
+        kwargs,
         "nnnn",
+        (char **)keywords,
         &chunk_size,
         &start,
         &step,
@@ -1290,17 +1377,21 @@ PyObject * MGLBuffer_read_chunks(MGLBuffer * self, PyObject * args) {
     return data;
 }
 
-PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) {
+PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"buffer", "chunk_size", "start", "step", "count", "write_offset", NULL};
+
     PyObject * data;
     Py_ssize_t chunk_size;
     Py_ssize_t start;
     Py_ssize_t step;
     Py_ssize_t count;
-    Py_ssize_t write_offset;
+    Py_ssize_t write_offset = 0;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "Onnnnn",
+        kwargs,
+        "Onnnn|n",
+        (char **)keywords,
         &data,
         &chunk_size,
         &start,
@@ -1345,14 +1436,18 @@ PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
-    Py_ssize_t size;
-    Py_ssize_t offset;
-    PyObject * chunk;
+PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "offset", "chunk", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    Py_ssize_t size = -1;
+    Py_ssize_t offset = 0;
+    PyObject * chunk = Py_None;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "nnO",
+        kwargs,
+        "|nnO",
+        (char **)keywords,
         &size,
         &offset,
         &chunk
@@ -1415,12 +1510,16 @@ PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLBuffer_orphan(MGLBuffer * self, PyObject * args) {
+PyObject * MGLBuffer_orphan(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", NULL};
+
     Py_ssize_t size;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
+        kwargs,
         "n",
+        (char **)keywords,
         &size
     );
 
@@ -1438,14 +1537,18 @@ PyObject * MGLBuffer_orphan(MGLBuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLBuffer_bind_to_uniform_block(MGLBuffer * self, PyObject * args) {
-    int binding;
-    Py_ssize_t offset;
-    Py_ssize_t size;
+PyObject * MGLBuffer_bind_to_uniform_block(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"binding", "offset", "size", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int binding = 0;
+    Py_ssize_t offset = 0;
+    Py_ssize_t size = -1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "Inn",
+        kwargs,
+        "|Inn",
+        (char **)keywords,
         &binding,
         &offset,
         &size
@@ -1464,14 +1567,18 @@ PyObject * MGLBuffer_bind_to_uniform_block(MGLBuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLBuffer_bind_to_storage_buffer(MGLBuffer * self, PyObject * args) {
-    int binding;
-    Py_ssize_t offset;
-    Py_ssize_t size;
+PyObject * MGLBuffer_bind_to_storage_buffer(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"binding", "offset", "size", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int binding = 0;
+    Py_ssize_t offset = 0;
+    Py_ssize_t size = -1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "Inn",
+        kwargs,
+        "|Inn",
+        (char **)keywords,
         &binding,
         &offset,
         &size
@@ -1504,7 +1611,7 @@ PyObject * MGLBuffer_release(MGLBuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLBuffer_size(MGLBuffer * self, PyObject * args) {
+PyObject * MGLBuffer_size(MGLBuffer * self) {
     return PyLong_FromSsize_t(self->size);
 }
 
@@ -9255,62 +9362,6 @@ PyObject * MGLContext_get_info(MGLContext * self) {
     return info;
 }
 
-PyObject * strsize(PyObject * self, PyObject * args) {
-    const char * str;
-
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "s",
-        &str
-    );
-
-    if (!args_ok) {
-        return 0;
-    }
-
-    char first_chr = *str++;
-    if (first_chr < '1' || first_chr > '9') {
-        return 0;
-    }
-
-    long long value = first_chr - '0';
-
-    while (char chr = *str++) {
-        if (chr < '0' || chr > '9') {
-            switch (chr) {
-                case 'G':
-                    value *= 1024;
-
-                case 'M':
-                    value *= 1024;
-
-                case 'K':
-                    value *= 1024;
-
-                    if (*str++ != 'B') {
-                        return 0;
-                    }
-
-                case 'B':
-                    if (*str++) {
-                        return 0;
-                    }
-
-                case 0:
-                    break;
-
-                default:
-                    return 0;
-            }
-            break;
-        }
-
-        value = value * 10 + chr - '0';
-    }
-
-    return PyLong_FromLongLong(value);
-}
-
 PyObject * fmtdebug(PyObject * self, PyObject * args) {
     const char * str;
 
@@ -9562,18 +9613,23 @@ PyMethodDef MGL_module_methods[] = {
 };
 
 PyMethodDef MGLBuffer_methods[] = {
-    {(char *)"write", (PyCFunction)MGLBuffer_write, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLBuffer_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLBuffer_read_into, METH_VARARGS},
-    {(char *)"write_chunks", (PyCFunction)MGLBuffer_write_chunks, METH_VARARGS},
-    {(char *)"read_chunks", (PyCFunction)MGLBuffer_read_chunks, METH_VARARGS},
-    {(char *)"read_chunks_into", (PyCFunction)MGLBuffer_read_chunks_into, METH_VARARGS},
-    {(char *)"clear", (PyCFunction)MGLBuffer_clear, METH_VARARGS},
-    {(char *)"orphan", (PyCFunction)MGLBuffer_orphan, METH_VARARGS},
-    {(char *)"bind_to_uniform_block", (PyCFunction)MGLBuffer_bind_to_uniform_block, METH_VARARGS},
-    {(char *)"bind_to_storage_buffer", (PyCFunction)MGLBuffer_bind_to_storage_buffer, METH_VARARGS},
+    {(char *)"write", (PyCFunction)MGLBuffer_write, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read", (PyCFunction)MGLBuffer_read, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read_into", (PyCFunction)MGLBuffer_read_into, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"write_chunks", (PyCFunction)MGLBuffer_write_chunks, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read_chunks", (PyCFunction)MGLBuffer_read_chunks, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read_chunks_into", (PyCFunction)MGLBuffer_read_chunks_into, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"clear", (PyCFunction)MGLBuffer_clear, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"orphan", (PyCFunction)MGLBuffer_orphan, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind_to_uniform_block", (PyCFunction)MGLBuffer_bind_to_uniform_block, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind_to_storage_buffer", (PyCFunction)MGLBuffer_bind_to_storage_buffer, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLBuffer_release, METH_NOARGS},
-    {(char *)"size", (PyCFunction)MGLBuffer_size, METH_NOARGS},
+    {},
+};
+
+PyGetSetDef MGLBuffer_getset[] = {
+    {(char *)"size", (getter)MGLBuffer_size, NULL},
+    {(char *)"mglo", (getter)return_self, NULL},
     {},
 };
 
@@ -9609,7 +9665,7 @@ PyMethodDef MGLContext_methods[] = {
     {(char *)"detect_framebuffer", (PyCFunction)MGLContext_detect_framebuffer, METH_VARARGS},
     {(char *)"clear_samplers", (PyCFunction)MGLContext_clear_samplers, METH_VARARGS},
 
-    {(char *)"buffer", (PyCFunction)MGLContext_buffer, METH_VARARGS},
+    {(char *)"buffer", (PyCFunction)MGLContext_buffer, METH_VARARGS | METH_KEYWORDS},
     {(char *)"texture", (PyCFunction)MGLContext_texture, METH_VARARGS | METH_KEYWORDS},
     {(char *)"texture3d", (PyCFunction)MGLContext_texture3d, METH_VARARGS | METH_KEYWORDS},
     {(char *)"texture_array", (PyCFunction)MGLContext_texture_array, METH_VARARGS | METH_KEYWORDS},
@@ -9921,6 +9977,7 @@ PyType_Slot MGLBuffer_slots[] = {
     {Py_bf_releasebuffer, (void *)MGLBuffer_tp_as_buffer_release_view},
     #endif
     {Py_tp_methods, MGLBuffer_methods},
+    {Py_tp_getset, MGLBuffer_getset},
     {Py_tp_dealloc, (void *)default_dealloc},
     {},
 };
@@ -9929,8 +9986,8 @@ PyType_Slot MGLComputeShader_slots[] = {
     {Py_tp_methods, MGLComputeShader_methods},
     {Py_tp_members, MGLComputeShader_members},
     {Py_tp_getset, MGLComputeShader_getset},
-    {Py_mp_subscript, MGLComputeShader_getitem},
-    {Py_mp_ass_subscript, MGLComputeShader_setitem},
+    {Py_mp_subscript, (void *)MGLComputeShader_getitem},
+    {Py_mp_ass_subscript, (void *)MGLComputeShader_setitem},
     {Py_tp_dealloc, (void *)default_dealloc},
     {},
 };
@@ -9954,8 +10011,8 @@ PyType_Slot MGLProgram_slots[] = {
     {Py_tp_methods, MGLProgram_methods},
     {Py_tp_getset, MGLProgram_getset},
     {Py_tp_members, MGLProgram_members},
-    {Py_mp_subscript, MGLProgram_getitem},
-    {Py_mp_ass_subscript, MGLProgram_setitem},
+    {Py_mp_subscript, (void *)MGLProgram_getitem},
+    {Py_mp_ass_subscript, (void *)MGLProgram_setitem},
     {Py_tp_dealloc, (void *)default_dealloc},
     {},
 };

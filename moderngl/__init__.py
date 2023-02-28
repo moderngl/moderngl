@@ -19,6 +19,7 @@ Texture3D = mgl.Texture3D
 TextureArray = mgl.TextureArray
 TextureCube = mgl.TextureCube
 Scope = mgl.Scope
+Buffer = mgl.Buffer
 
 __version__ = '6.0.0a1'
 
@@ -101,100 +102,6 @@ TRANSFORM_FEEDBACK_BARRIER_BIT = 0x00000800
 ATOMIC_COUNTER_BARRIER_BIT = 0x00001000
 SHADER_STORAGE_BARRIER_BIT = 0x00002000
 ALL_BARRIER_BITS = 0xFFFFFFFF
-
-
-class Buffer:
-    def __init__(self):
-        self.mglo = None
-        self._size = None
-        self._dynamic = None
-        self._glo = None
-        self.ctx = None
-        self.extra = None
-        raise TypeError()
-
-    def __repr__(self) -> str:
-        if hasattr(self, '_glo'):
-            return f"<{self.__class__.__name__}: {self._glo}>"
-        else:
-            return f"<{self.__class__.__name__}: INCOMPLETE>"
-
-    def __eq__(self, other: Any):
-        return type(self) is type(other) and self.mglo is other.mglo
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def __del__(self) -> None:
-        if not hasattr(self, "ctx"):
-            return
-
-        if self.ctx.gc_mode == "auto":
-            self.release()
-        elif self.ctx.gc_mode == "context_gc":
-            self.ctx.objects.append(self.mglo)
-
-    @property
-    def size(self) -> int:
-        return self.mglo.size()
-
-    @property
-    def dynamic(self) -> bool:
-        return self._dynamic
-
-    @property
-    def glo(self) -> int:
-        return self._glo
-
-    def write(self, data: Any, *, offset: int = 0) -> None:
-        self.mglo.write(data, offset)
-
-    def write_chunks(self, data: Any, start: int, step: int, count: int) -> None:
-        self.mglo.write_chunks(data, start, step, count)
-
-    def read(self, size: int = -1, *, offset: int = 0) -> bytes:
-        return self.mglo.read(size, offset)
-
-    def read_into(self, buffer: Any, size: int = -1, *, offset: int = 0, write_offset: int = 0) -> None:
-        return self.mglo.read_into(buffer, size, offset, write_offset)
-
-    def read_chunks(self, chunk_size: int, start: int, step: int, count: int) -> bytes:
-        return self.mglo.read_chunks(chunk_size, start, step, count)
-
-    def read_chunks_into(
-        self,
-        buffer: Any,
-        chunk_size: int,
-        start: int,
-        step: int,
-        count: int,
-        *,
-        write_offset: int = 0
-    ) -> None:
-        return self.mglo.read(buffer, chunk_size, start, step, count, write_offset)
-
-    def clear(self, size: int = -1, *, offset: int = 0, chunk: Any = None) -> None:
-        self.mglo.clear(size, offset, chunk)
-
-    def bind_to_uniform_block(self, binding: int = 0, *, offset: int = 0, size: int = -1) -> None:
-        self.mglo.bind_to_uniform_block(binding, offset, size)
-
-    def bind_to_storage_buffer(self, binding: int = 0, *, offset: int = 0, size: int = -1) -> None:
-        self.mglo.bind_to_storage_buffer(binding, offset, size)
-
-    def orphan(self, size: int = -1) -> None:
-        self.mglo.orphan(size)
-
-    def release(self) -> None:
-        if not isinstance(self.mglo, InvalidObject):
-            self.mglo.release()
-            self.mglo = InvalidObject()
-
-    def bind(self, *attribs, layout=None):
-        return (self, layout, *attribs)
-
-    def assign(self, index: int) -> Tuple["Buffer", int]:
-        return (self, index)
 
 
 class Context:
@@ -535,8 +442,8 @@ class Context:
 
     def copy_buffer(
         self,
-        dst: Buffer,
-        src: Buffer,
+        dst: 'Buffer',
+        src: 'Buffer',
         size: int = -1,
         *,
         read_offset: int = 0,
@@ -560,16 +467,8 @@ class Context:
         *,
         reserve: int = 0,
         dynamic: bool = False,
-    ) -> Buffer:
-        if type(reserve) is str:
-            reserve = mgl.strsize(reserve)
-
-        res = Buffer.__new__(Buffer)
-        res.mglo, res._size, res._glo = self.mglo.buffer(data, reserve, dynamic)
-        res._dynamic = dynamic
-        res.ctx = self
-        res.extra = None
-        return res
+    ) -> 'Buffer':
+        return self.mglo.buffer(data, reserve, dynamic)
 
     def external_texture(
         self,
@@ -647,7 +546,7 @@ class Context:
         self,
         program: 'Program',
         content: Any,
-        index_buffer: Optional[Buffer] = None,
+        index_buffer: Optional['Buffer'] = None,
         index_element_size: int = 4,
         *,
         skip_errors: bool = False,
@@ -658,9 +557,9 @@ class Context:
     def simple_vertex_array(
         self,
         program: 'Program',
-        buffer: Buffer,
+        buffer: 'Buffer',
         *attributes: Union[List[str], Tuple[str, ...]],
-        index_buffer: Optional[Buffer] = None,
+        index_buffer: Optional['Buffer'] = None,
         index_element_size: int = 4,
         mode: Optional[int] = None,
     ) -> 'VertexArray':
@@ -703,8 +602,8 @@ class Context:
         enable_only: Optional[int] = None,
         *,
         textures: Tuple[Tuple[Texture, int], ...] = (),
-        uniform_buffers: Tuple[Tuple[Buffer, int], ...] = (),
-        storage_buffers: Tuple[Tuple[Buffer, int], ...] = (),
+        uniform_buffers: Tuple[Tuple['Buffer', int], ...] = (),
+        storage_buffers: Tuple[Tuple['Buffer', int], ...] = (),
         samplers: Tuple[Tuple['Sampler', int], ...] = (),
         enable: Optional[int] = None,
     ) -> 'Scope':
