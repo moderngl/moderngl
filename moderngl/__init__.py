@@ -237,78 +237,6 @@ class Query:
         return self.mglo.elapsed
 
 
-class Renderbuffer:
-    def __init__(self):
-        self.mglo = None
-        self._size = (None, None)
-        self._components = None
-        self._samples = None
-        self._depth = None
-        self._dtype = None
-        self._glo = None
-        self.ctx = None
-        self.extra = None
-        raise TypeError()
-
-    def __repr__(self):
-        if hasattr(self, '_glo'):
-            return f"<{self.__class__.__name__}: {self._glo}>"
-        else:
-            return f"<{self.__class__.__name__}: INCOMPLETE>"
-
-    def __eq__(self, other: Any):
-        return type(self) is type(other) and self.mglo is other.mglo
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def __del__(self) -> None:
-        if not hasattr(self, "ctx"):
-            return
-
-        if self.ctx.gc_mode == "auto":
-            self.release()
-        elif self.ctx.gc_mode == "context_gc":
-            self.ctx.objects.append(self.mglo)
-
-    @property
-    def width(self) -> int:
-        return self._size[0]
-
-    @property
-    def height(self) -> int:
-        return self._size[1]
-
-    @property
-    def size(self) -> tuple:
-        return self._size
-
-    @property
-    def samples(self) -> int:
-        return self._samples
-
-    @property
-    def components(self) -> int:
-        return self._components
-
-    @property
-    def depth(self) -> bool:
-        return self._depth
-
-    @property
-    def dtype(self) -> str:
-        return self._dtype
-
-    @property
-    def glo(self) -> int:
-        return self._glo
-
-    def release(self) -> None:
-        if not isinstance(self.mglo, InvalidObject):
-            self.mglo.release()
-            self.mglo = InvalidObject()
-
-
 class Sampler:
     def __init__(self):
         self.mglo = None
@@ -1866,16 +1794,7 @@ class Context:
         samples: int = 0,
         dtype: str = 'f1',
     ) -> 'Renderbuffer':
-        res = Renderbuffer.__new__(Renderbuffer)
-        res.mglo, res._glo = self.mglo.renderbuffer(size, components, samples, dtype)
-        res._size = size
-        res._components = components
-        res._samples = samples
-        res._dtype = dtype
-        res._depth = False
-        res.ctx = self
-        res.extra = None
-        return res
+        return self.mglo.renderbuffer(size, components, samples, dtype)
 
     def depth_renderbuffer(
         self,
@@ -1883,16 +1802,7 @@ class Context:
         *,
         samples: int = 0
     ) -> 'Renderbuffer':
-        res = Renderbuffer.__new__(Renderbuffer)
-        res.mglo, res._glo = self.mglo.depth_renderbuffer(size, samples)
-        res._size = size
-        res._components = 1
-        res._samples = samples
-        res._dtype = 'f4'
-        res._depth = True
-        res.ctx = self
-        res.extra = None
-        return res
+        return self.mglo.depth_renderbuffer(size, samples)
 
     def compute_shader(self, source: str) -> 'ComputeShader':
         return self.mglo.compute_shader(source)

@@ -3398,20 +3398,21 @@ PyObject * MGLQuery_get_elapsed(MGLQuery * self) {
     return PyLong_FromUnsignedLong(elapsed);
 }
 
-PyObject * MGLContext_renderbuffer(MGLContext * self, PyObject * args) {
+MGLRenderbuffer * MGLContext_renderbuffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "components", "samples", "dtype", NULL};
+
     int width;
     int height;
+    int components = 4;
+    int samples = 0;
+    const char * dtype = "f1";
+    Py_ssize_t dtype_size = 2;
 
-    int components;
-
-    int samples;
-
-    const char * dtype;
-    Py_ssize_t dtype_size;
-
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "(II)IIs#",
+        kwargs,
+        "(II)|IIs#",
+        (char **)keywords,
         &width,
         &height,
         &components,
@@ -3478,22 +3479,21 @@ PyObject * MGLContext_renderbuffer(MGLContext * self, PyObject * args) {
     renderbuffer->context = self;
 
     Py_INCREF(renderbuffer);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)renderbuffer);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(renderbuffer->renderbuffer_obj));
-    return result;
+    return renderbuffer;
 }
 
-PyObject * MGLContext_depth_renderbuffer(MGLContext * self, PyObject * args) {
+MGLRenderbuffer * MGLContext_depth_renderbuffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "samples", NULL};
+
     int width;
     int height;
+    int samples = 0;
 
-    int samples;
-
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
+        kwargs,
         "(II)I",
+        (char **)keywords,
         &width,
         &height,
         &samples
@@ -3543,11 +3543,7 @@ PyObject * MGLContext_depth_renderbuffer(MGLContext * self, PyObject * args) {
     renderbuffer->context = self;
 
     Py_INCREF(renderbuffer);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)renderbuffer);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(renderbuffer->renderbuffer_obj));
-    return result;
+    return renderbuffer;
 }
 
 PyObject * MGLRenderbuffer_release(MGLRenderbuffer * self, PyObject * args) {
@@ -9430,8 +9426,8 @@ PyMethodDef MGLContext_methods[] = {
     {(char *)"program", (PyCFunction)MGLContext_program, METH_VARARGS},
     {(char *)"framebuffer", (PyCFunction)MGLContext_framebuffer, METH_VARARGS},
     {(char *)"empty_framebuffer", (PyCFunction)MGLContext_empty_framebuffer, METH_VARARGS},
-    {(char *)"renderbuffer", (PyCFunction)MGLContext_renderbuffer, METH_VARARGS},
-    {(char *)"depth_renderbuffer", (PyCFunction)MGLContext_depth_renderbuffer, METH_VARARGS},
+    {(char *)"renderbuffer", (PyCFunction)MGLContext_renderbuffer, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"depth_renderbuffer", (PyCFunction)MGLContext_depth_renderbuffer, METH_VARARGS | METH_KEYWORDS},
     {(char *)"compute_shader", (PyCFunction)MGLContext_compute_shader, METH_VARARGS | METH_KEYWORDS},
     {(char *)"query", (PyCFunction)MGLContext_query, METH_VARARGS},
     {(char *)"scope", (PyCFunction)MGLContext_scope, METH_VARARGS},
@@ -9551,6 +9547,11 @@ PyMethodDef MGLQuery_methods[] = {
 
 PyMethodDef MGLRenderbuffer_methods[] = {
     {(char *)"release", (PyCFunction)MGLRenderbuffer_release, METH_NOARGS},
+    {},
+};
+
+PyGetSetDef MGLRenderbuffer_getset[] = {
+    {(char *)"mglo", (getter)return_self, NULL},
     {},
 };
 
@@ -9756,6 +9757,7 @@ PyType_Slot MGLQuery_slots[] = {
 PyType_Slot MGLRenderbuffer_slots[] = {
     {Py_tp_methods, MGLRenderbuffer_methods},
     {Py_tp_members, MGLRenderbuffer_members},
+    {Py_tp_getset, MGLRenderbuffer_getset},
     {Py_tp_dealloc, (void *)default_dealloc},
     {},
 };
