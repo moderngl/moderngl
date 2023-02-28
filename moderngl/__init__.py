@@ -11,6 +11,8 @@ Renderbuffer = mgl.Renderbuffer
 Program = mgl.Program
 ComputeShader = mgl.ComputeShader
 Sampler = mgl.Sampler
+Query = mgl.Query
+ConditionalRender = mgl.ConditionalRender
 
 __version__ = '6.0.0a1'
 
@@ -187,56 +189,6 @@ class Buffer:
 
     def assign(self, index: int) -> Tuple["Buffer", int]:
         return (self, index)
-
-
-class ConditionalRender:
-    def __init__(self):
-        self.mglo = None
-        raise TypeError()
-
-    def __repr__(self):
-        return '<ConditionalRender>'
-
-    def __enter__(self):
-        self.mglo.begin_render()
-        return self
-
-    def __exit__(self, *args):
-        self.mglo.end_render()
-
-
-class Query:
-    def __init__(self):
-        self.mglo = None
-        self.crender = None
-        self.ctx = None
-        self.extra = None
-        raise TypeError()
-
-    def __repr__(self) -> str:
-        return '<Query>'
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def __enter__(self):
-        self.mglo.begin()
-        return self
-
-    def __exit__(self, *args: Tuple[Any]):
-        self.mglo.end()
-
-    @property
-    def samples(self) -> int:
-        return self.mglo.samples
-
-    @property
-    def primitives(self) -> int:
-        return self.mglo.primitives
-
-    @property
-    def elapsed(self) -> int:
-        return self.mglo.elapsed
 
 
 class Scope:
@@ -1597,17 +1549,7 @@ class Context:
         time: bool = False,
         primitives: bool = False,
     ) -> 'Query':
-        res = Query.__new__(Query)
-        res.mglo = self.mglo.query(samples, any_samples, time, primitives)
-        res.crender = None
-
-        if samples or any_samples:
-            res.crender = ConditionalRender.__new__(ConditionalRender)
-            res.crender.mglo = res.mglo
-
-        res.ctx = self
-        res.extra = None
-        return res
+        return self.mglo.query(samples, any_samples, time, primitives)
 
     def scope(
         self,

@@ -16,6 +16,7 @@ PyTypeObject * MGLContext_type;
 PyTypeObject * MGLFramebuffer_type;
 PyTypeObject * MGLProgram_type;
 PyTypeObject * MGLQuery_type;
+PyTypeObject * MGLConditionalRender_type;
 PyTypeObject * MGLRenderbuffer_type;
 PyTypeObject * MGLScope_type;
 PyTypeObject * MGLTexture_type;
@@ -211,10 +212,16 @@ enum MGLQueryState {
 struct MGLQuery {
     PyObject_HEAD
     MGLContext * context;
+    struct MGLConditionalRender * crender;
     int query_obj[4];
     MGLQueryState state;
     bool ended;
     bool released;
+};
+
+struct MGLConditionalRender {
+    PyObject_HEAD
+    MGLQuery * query;
 };
 
 struct MGLRenderbuffer {
@@ -3187,15 +3194,19 @@ int MGLProgram_setitem(MGLProgram * self, PyObject * key, PyObject * value) {
     return PyObject_SetAttrString(res, "value", value);
 }
 
-PyObject * MGLContext_query(MGLContext * self, PyObject * args) {
-    int samples_passed;
-    int any_samples_passed;
-    int time_elapsed;
-    int primitives_generated;
+PyObject * MGLContext_query(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"samples", "any_samples", "time", "primitives", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int samples_passed = false;
+    int any_samples_passed = false;
+    int time_elapsed = false;
+    int primitives_generated = false;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "pppp",
+        kwargs,
+        "|pppp",
+        (char **)keywords,
         &samples_passed,
         &any_samples_passed,
         &time_elapsed,
@@ -3242,10 +3253,15 @@ PyObject * MGLContext_query(MGLContext * self, PyObject * args) {
         gl.GenQueries(1, (GLuint *)&query->query_obj[PRIMITIVES_GENERATED]);
     }
 
+    Py_INCREF(query);
+    query->crender = PyObject_New(MGLConditionalRender, MGLConditionalRender_type);
+    query->crender->query = query;
+
+    Py_INCREF(query);
     return (PyObject *)query;
 }
 
-PyObject * MGLQuery_begin(MGLQuery * self, PyObject * args) {
+PyObject * MGLQuery_enter(MGLQuery * self, PyObject * args) {
     if (self->state != QUERY_INACTIVE) {
         MGLError_Set(self->state == QUERY_ACTIVE ? "this query is already running" : "this query is in conditional render mode");
         return NULL;
@@ -3273,7 +3289,7 @@ PyObject * MGLQuery_begin(MGLQuery * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLQuery_end(MGLQuery * self, PyObject * args) {
+PyObject * MGLQuery_exit(MGLQuery * self, PyObject * args) {
     if (self->state != QUERY_ACTIVE) {
         MGLError_Set(self->state == QUERY_INACTIVE ? "this query was not started" : "this query is in conditional render mode");
         return NULL;
@@ -3333,6 +3349,14 @@ PyObject * MGLQuery_end_render(MGLQuery * self, PyObject * args) {
     gl.EndConditionalRender();
     self->state = QUERY_INACTIVE;
     Py_RETURN_NONE;
+}
+
+PyObject * MGLConditionalRender_enter(MGLConditionalRender * self, PyObject * args) {
+    return MGLQuery_begin_render(self->query, NULL);
+}
+
+PyObject * MGLConditionalRender_exit(MGLConditionalRender * self, PyObject * args) {
+    return MGLQuery_end_render(self->query, NULL);
 }
 
 PyObject * MGLQuery_get_samples(MGLQuery * self) {
@@ -9432,7 +9456,7 @@ PyMethodDef MGLContext_methods[] = {
     {(char *)"renderbuffer", (PyCFunction)MGLContext_renderbuffer, METH_VARARGS | METH_KEYWORDS},
     {(char *)"depth_renderbuffer", (PyCFunction)MGLContext_depth_renderbuffer, METH_VARARGS | METH_KEYWORDS},
     {(char *)"compute_shader", (PyCFunction)MGLContext_compute_shader, METH_VARARGS | METH_KEYWORDS},
-    {(char *)"query", (PyCFunction)MGLContext_query, METH_VARARGS},
+    {(char *)"query", (PyCFunction)MGLContext_query, METH_VARARGS | METH_KEYWORDS},
     {(char *)"scope", (PyCFunction)MGLContext_scope, METH_VARARGS},
     {(char *)"sampler", (PyCFunction)MGLContext_sampler, METH_VARARGS | METH_KEYWORDS},
     {(char *)"memory_barrier", (PyCFunction)MGLContext_memory_barrier, METH_VARARGS},
@@ -9533,6 +9557,7 @@ PyMemberDef MGLProgram_members[] = {
 };
 
 PyGetSetDef MGLQuery_getset[] = {
+    {(char *)"mglo", (getter)return_self, NULL},
     {(char *)"samples", (getter)MGLQuery_get_samples, NULL},
     {(char *)"primitives", (getter)MGLQuery_get_primitives, NULL},
     {(char *)"elapsed", (getter)MGLQuery_get_elapsed, NULL},
@@ -9540,11 +9565,23 @@ PyGetSetDef MGLQuery_getset[] = {
 };
 
 PyMethodDef MGLQuery_methods[] = {
-    {(char *)"begin", (PyCFunction)MGLQuery_begin, METH_NOARGS},
-    {(char *)"end", (PyCFunction)MGLQuery_end, METH_NOARGS},
+    {(char *)"begin", (PyCFunction)MGLQuery_enter, METH_NOARGS},
+    {(char *)"end", (PyCFunction)MGLQuery_exit, METH_NOARGS},
     {(char *)"begin_render", (PyCFunction)MGLQuery_begin_render, METH_NOARGS},
     {(char *)"end_render", (PyCFunction)MGLQuery_end_render, METH_NOARGS},
-    // {(char *)"release", (PyCFunction)MGLQuery_release, METH_NOARGS},
+    {(char *)"__enter__", (PyCFunction)MGLQuery_enter, METH_NOARGS},
+    {(char *)"__exit__", (PyCFunction)MGLQuery_exit, METH_VARARGS},
+    {},
+};
+
+PyMemberDef MGLQuery_members[] = {
+    {(char *)"crender", T_OBJECT, offsetof(MGLQuery, crender), READONLY},
+    {},
+};
+
+PyMethodDef MGLConditionalRender_methods[] = {
+    {(char *)"__enter__", (PyCFunction)MGLConditionalRender_enter, METH_NOARGS},
+    {(char *)"__exit__", (PyCFunction)MGLConditionalRender_exit, METH_VARARGS},
     {},
 };
 
@@ -9753,7 +9790,14 @@ PyType_Slot MGLProgram_slots[] = {
 
 PyType_Slot MGLQuery_slots[] = {
     {Py_tp_methods, MGLQuery_methods},
+    {Py_tp_members, MGLQuery_members},
     {Py_tp_getset, MGLQuery_getset},
+    {Py_tp_dealloc, (void *)default_dealloc},
+    {},
+};
+
+PyType_Slot MGLConditionalRender_slots[] = {
+    {Py_tp_methods, MGLConditionalRender_methods},
     {Py_tp_dealloc, (void *)default_dealloc},
     {},
 };
@@ -9821,6 +9865,7 @@ PyType_Spec MGLContext_spec = {"mgl.Context", sizeof(MGLContext), 0, Py_TPFLAGS_
 PyType_Spec MGLFramebuffer_spec = {"mgl.Framebuffer", sizeof(MGLFramebuffer), 0, Py_TPFLAGS_DEFAULT, MGLFramebuffer_slots};
 PyType_Spec MGLProgram_spec = {"mgl.Program", sizeof(MGLProgram), 0, Py_TPFLAGS_DEFAULT, MGLProgram_slots};
 PyType_Spec MGLQuery_spec = {"mgl.Query", sizeof(MGLQuery), 0, Py_TPFLAGS_DEFAULT, MGLQuery_slots};
+PyType_Spec MGLConditionalRender_spec = {"mgl.ConditionalRender", sizeof(MGLConditionalRender), 0, Py_TPFLAGS_DEFAULT, MGLConditionalRender_slots};
 PyType_Spec MGLRenderbuffer_spec = {"mgl.Renderbuffer", sizeof(MGLRenderbuffer), 0, Py_TPFLAGS_DEFAULT, MGLRenderbuffer_slots};
 PyType_Spec MGLScope_spec = {"mgl.Scope", sizeof(MGLScope), 0, Py_TPFLAGS_DEFAULT, MGLScope_slots};
 PyType_Spec MGLTexture_spec = {"mgl.Texture", sizeof(MGLTexture), 0, Py_TPFLAGS_DEFAULT, MGLTexture_slots};
@@ -9858,6 +9903,7 @@ extern "C" PyObject * PyInit_mgl() {
     MGLFramebuffer_type = (PyTypeObject *)PyType_FromSpec(&MGLFramebuffer_spec);
     MGLProgram_type = (PyTypeObject *)PyType_FromSpec(&MGLProgram_spec);
     MGLQuery_type = (PyTypeObject *)PyType_FromSpec(&MGLQuery_spec);
+    MGLConditionalRender_type = (PyTypeObject *)PyType_FromSpec(&MGLConditionalRender_spec);
     MGLRenderbuffer_type = (PyTypeObject *)PyType_FromSpec(&MGLRenderbuffer_spec);
     MGLScope_type = (PyTypeObject *)PyType_FromSpec(&MGLScope_spec);
     MGLTexture_type = (PyTypeObject *)PyType_FromSpec(&MGLTexture_spec);
@@ -9873,6 +9919,7 @@ extern "C" PyObject * PyInit_mgl() {
     PyModule_AddObject(module, "Framebuffer", (PyObject *)MGLFramebuffer_type);
     PyModule_AddObject(module, "Program", (PyObject *)MGLProgram_type);
     PyModule_AddObject(module, "Query", (PyObject *)MGLQuery_type);
+    PyModule_AddObject(module, "ConditionalRender", (PyObject *)MGLConditionalRender_type);
     PyModule_AddObject(module, "Renderbuffer", (PyObject *)MGLRenderbuffer_type);
     PyModule_AddObject(module, "Scope", (PyObject *)MGLScope_type);
     PyModule_AddObject(module, "Texture", (PyObject *)MGLTexture_type);
