@@ -390,5 +390,12 @@ def framebuffer_attachments(color_attachments, depth_attachment):
     return width, height, first.samples, attachments, depth_attachment.mglo if depth_attachment else None, color_mask
 
 
+def vertex_array_content(content, members):
+    return tuple(
+        (a.mglo, b) + tuple(members.get(x) for x in c)
+        for a, b, *c in content
+    )
+
+
 class InvalidObject:
     pass

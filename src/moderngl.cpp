@@ -341,6 +341,7 @@ struct MGLVertexArray {
     int vertex_array_obj;
     int num_vertices;
     int num_instances;
+    int mode;
     bool released;
 };
 
@@ -7158,22 +7159,28 @@ int MGLTextureCube_set_anisotropy(MGLTextureCube * self, PyObject * value) {
     return 0;
 }
 
-PyObject * MGLContext_vertex_array(MGLContext * self, PyObject * args) {
+MGLVertexArray * MGLContext_vertex_array(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"program", "content", "index_buffer", "index_element_size", "skip_errors", "mode", NULL};
+
     MGLProgram * program;
     PyObject * content;
-    MGLBuffer * index_buffer;
-    int index_element_size;
-    int skip_errors;
+    MGLBuffer * index_buffer = (MGLBuffer *)Py_None;
+    int index_element_size = 4;
+    int skip_errors = false;
+    PyObject * mode = Py_None;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "O!OOIp",
+        kwargs,
+        "O!O|OIpO",
+        (char **)keywords,
         MGLProgram_type,
         &program,
         &content,
         &index_buffer,
         &index_element_size,
-        &skip_errors
+        &skip_errors,
+        &mode
     );
 
     if (!args_ok) {
@@ -7185,9 +7192,21 @@ PyObject * MGLContext_vertex_array(MGLContext * self, PyObject * args) {
         return 0;
     }
 
+    if (index_buffer != (MGLBuffer *)Py_None) {
+        index_buffer = (MGLBuffer *)PyObject_GetAttrString((PyObject *)index_buffer, "mglo");
+        if (!index_buffer) {
+            return NULL;
+        }
+    }
+
     if (index_buffer != (MGLBuffer *)Py_None && index_buffer->context != self) {
         MGLError_Set("the index_buffer belongs to a different context");
         return 0;
+    }
+
+    content = PyObject_CallMethod(helper, "vertex_array_content", "(OO)", content, program->members);
+    if (!content) {
+        return NULL;
     }
 
     int content_len = (int)PyTuple_GET_SIZE(content);
@@ -7368,26 +7387,29 @@ PyObject * MGLContext_vertex_array(MGLContext * self, PyObject * args) {
         array->subroutines = 0;
     }
 
-    Py_INCREF(array);
+    int default_mode = program->is_transform ? GL_POINTS : GL_TRIANGLES;
+    array->mode = mode != Py_None ? PyLong_AsLong(mode) : default_mode;
 
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)array);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(array->vertex_array_obj));
-    return result;
+    Py_INCREF(array);
+    return array;
 }
 
 inline void MGLVertexArray_SET_SUBROUTINES(MGLVertexArray * self, const GLMethods & gl);
 
-PyObject * MGLVertexArray_render(MGLVertexArray * self, PyObject * args) {
-    int mode;
-    int vertices;
-    int first;
-    int instances;
+PyObject * MGLVertexArray_render(MGLVertexArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"mode", "vertices", "first", "instances", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * mode_arg = Py_None;
+    int vertices = -1;
+    int first = 0;
+    int instances = -1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "IIII",
-        &mode,
+        kwargs,
+        "|OIII",
+        (char **)keywords,
+        &mode_arg,
         &vertices,
         &first,
         &instances
@@ -7396,6 +7418,8 @@ PyObject * MGLVertexArray_render(MGLVertexArray * self, PyObject * args) {
     if (!args_ok) {
         return 0;
     }
+
+    int mode = mode_arg != Py_None ? PyLong_AsLong(mode_arg) : self->mode;
 
     if (vertices < 0) {
         if (self->num_vertices < 0) {
@@ -7427,18 +7451,22 @@ PyObject * MGLVertexArray_render(MGLVertexArray * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLVertexArray_render_indirect(MGLVertexArray * self, PyObject * args) {
-    MGLBuffer * buffer;
-    int mode;
-    int count;
-    int first;
+PyObject * MGLVertexArray_render_indirect(MGLVertexArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"mode", "count", "first", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    MGLBuffer * buffer;
+    PyObject * mode_arg = Py_None;
+    int count = -1;
+    int first = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "O!III",
+        kwargs,
+        "O!|OII",
+        (char **)keywords,
         MGLBuffer_type,
         &buffer,
-        &mode,
+        &mode_arg,
         &count,
         &first
     );
@@ -7446,6 +7474,8 @@ PyObject * MGLVertexArray_render_indirect(MGLVertexArray * self, PyObject * args
     if (!args_ok) {
         return 0;
     }
+
+    int mode = mode_arg != Py_None ? PyLong_AsLong(mode_arg) : self->mode;
 
     if (count < 0) {
         count = (int)(buffer->size / 20 - first);
@@ -7470,20 +7500,24 @@ PyObject * MGLVertexArray_render_indirect(MGLVertexArray * self, PyObject * args
     Py_RETURN_NONE;
 }
 
-PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args) {
-    PyObject * outputs;
-    int mode;
-    int vertices;
-    int first;
-    int instances;
-    int buffer_offset;
+PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"outputs", "mode", "vertices", "first", "instances", "buffer_offset", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * outputs;
+    PyObject * mode_arg = Py_None;
+    int vertices = -1;
+    int first = 0;
+    int instances = -1;
+    int buffer_offset = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "O!IIIII",
+        kwargs,
+        "O!|OIIII",
+        (char **)keywords,
         &PyList_Type,
         &outputs,
-        &mode,
+        &mode_arg,
         &vertices,
         &first,
         &instances,
@@ -7493,6 +7527,8 @@ PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args) {
     if (!args_ok) {
         return 0;
     }
+
+    int mode = mode_arg != Py_None ? PyLong_AsLong(mode_arg) : self->mode;
 
     if (!self->program->num_varyings) {
         MGLError_Set("the program has no varyings");
@@ -7590,9 +7626,17 @@ PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args) {
     gl.UseProgram(self->program->program_obj);
     gl.BindVertexArray(self->vertex_array_obj);
 
+    outputs = PySequence_List(outputs);
+    if (!outputs) {
+        return NULL;
+    }
+
     int num_outputs = (int)PyList_Size(outputs);
     for (int i = 0; i < num_outputs; ++i) {
-        MGLBuffer * output = (MGLBuffer *)PyList_GET_ITEM(outputs, i);
+        MGLBuffer * output = (MGLBuffer *)PyObject_GetAttrString(PyList_GET_ITEM(outputs, i), "mglo");
+        if (!output) {
+            return NULL;
+        }
         gl.BindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, i, output->buffer_obj, buffer_offset, output->size - buffer_offset);
     }
 
@@ -9449,7 +9493,7 @@ PyMethodDef MGLContext_methods[] = {
     {(char *)"texture_cube", (PyCFunction)MGLContext_texture_cube, METH_VARARGS},
     {(char *)"depth_texture", (PyCFunction)MGLContext_depth_texture, METH_VARARGS},
     {(char *)"external_texture", (PyCFunction)MGLContext_external_texture, METH_VARARGS},
-    {(char *)"vertex_array", (PyCFunction)MGLContext_vertex_array, METH_VARARGS},
+    {(char *)"vertex_array", (PyCFunction)MGLContext_vertex_array, METH_VARARGS | METH_KEYWORDS},
     {(char *)"program", (PyCFunction)MGLContext_program, METH_VARARGS},
     {(char *)"framebuffer", (PyCFunction)MGLContext_framebuffer, METH_VARARGS},
     {(char *)"empty_framebuffer", (PyCFunction)MGLContext_empty_framebuffer, METH_VARARGS},
@@ -9727,10 +9771,10 @@ PyMethodDef MGLTextureCube_methods[] = {
 };
 
 PyMethodDef MGLVertexArray_methods[] = {
-    {(char *)"render", (PyCFunction)MGLVertexArray_render, METH_VARARGS},
-    {(char *)"render_indirect", (PyCFunction)MGLVertexArray_render_indirect, METH_VARARGS},
-    {(char *)"transform", (PyCFunction)MGLVertexArray_transform, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLVertexArray_bind, METH_VARARGS},
+    {(char *)"render", (PyCFunction)MGLVertexArray_render, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"render_indirect", (PyCFunction)MGLVertexArray_render_indirect, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"transform", (PyCFunction)MGLVertexArray_transform, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind", (PyCFunction)MGLVertexArray_bind, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLVertexArray_release, METH_NOARGS},
     {},
 };

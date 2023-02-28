@@ -13,6 +13,7 @@ ComputeShader = mgl.ComputeShader
 Sampler = mgl.Sampler
 Query = mgl.Query
 ConditionalRender = mgl.ConditionalRender
+VertexArray = mgl.VertexArray
 
 __version__ = '6.0.0a1'
 
@@ -810,170 +811,6 @@ class TextureArray:
             self.mglo = InvalidObject()
 
 
-class VertexArray:
-    def __init__(self):
-        self.mglo = None
-        self._program = None
-        self._index_buffer = None
-        self._content = None
-        self._index_element_size = None
-        self._glo = None
-        self._mode = None
-        self.ctx = None
-        self.extra = None
-        self.scope = None
-        raise TypeError()
-
-    def __repr__(self) -> str:
-        if hasattr(self, 'mglo'):
-            return '<VertexArray: %d>' % self.glo
-        else:
-            return '<VertexArray: INCOMPLETE>'
-
-    def __eq__(self, other: Any) -> bool:
-        return type(self) is type(other) and self.mglo is other.mglo
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def __del__(self) -> None:
-        if not hasattr(self, "ctx"):
-            return
-
-        if self.ctx.gc_mode == "auto":
-            self.release()
-        elif self.ctx.gc_mode == "context_gc":
-            self.ctx.objects.append(self.mglo)
-
-    @property
-    def mode(self) -> int:
-        return self._mode
-
-    @mode.setter
-    def mode(self, value: int) -> None:
-        self._mode = value
-
-    @property
-    def program(self) -> 'Program':
-        return self._program
-
-    @property
-    def index_buffer(self) -> 'Buffer':
-        return self._index_buffer
-
-    @property
-    def index_element_size(self) -> int:
-        return self._index_element_size
-
-    @property
-    def vertices(self) -> int:
-        return self.mglo.vertices
-
-    @vertices.setter
-    def vertices(self, value: int) -> None:
-        self.mglo.vertices = int(value)
-
-    @property
-    def instances(self) -> int:
-        return self.mglo.instances
-
-    @instances.setter
-    def instances(self, value: int) -> None:
-        self.mglo.instances = int(value)
-
-    @property
-    def subroutines(self) -> Tuple[int, ...]:
-        return self.mglo.subroutines
-
-    @subroutines.setter
-    def subroutines(self, value: Tuple[int, ...]) -> None:
-        self.mglo.subroutines = tuple(value)
-
-    @property
-    def glo(self) -> int:
-        return self._glo
-
-    def render(
-        self,
-        mode: Optional[int] = None,
-        vertices: int = -1,
-        *,
-        first: int = 0,
-        instances: int = -1,
-    ) -> None:
-        if mode is None:
-            mode = self._mode
-
-        if self.scope:
-            with self.scope:
-                self.mglo.render(mode, vertices, first, instances)
-        else:
-            self.mglo.render(mode, vertices, first, instances)
-
-    def render_indirect(
-        self,
-        buffer: "Buffer",
-        mode: Optional[int] = None,
-        count: int = -1,
-        *,
-        first: int = 0,
-    ) -> None:
-        if mode is None:
-            mode = self._mode
-
-        if self.scope:
-            with self.scope:
-                self.mglo.render_indirect(buffer.mglo, mode, count, first)
-        else:
-            self.mglo.render_indirect(buffer.mglo, mode, count, first)
-
-    def transform(
-        self,
-        buffer: Union["Buffer", List["Buffer"]],
-        mode: Optional[int] = None,
-        vertices: int = -1,
-        *,
-        first: int = 0,
-        instances: int = -1,
-        buffer_offset: int = 0,
-    ) -> None:
-        if mode is None:
-            mode = self._mode
-
-        if isinstance(buffer, (list, tuple)):
-            outputs = [buf.mglo for buf in buffer]
-        else:
-            outputs = [buffer.mglo]
-
-        if self.scope:
-            with self.scope:
-                self.mglo.transform(outputs, mode, vertices, first, instances, buffer_offset)
-        else:
-            self.mglo.transform(outputs, mode, vertices, first, instances, buffer_offset)
-
-    def bind(
-        self,
-        attribute: int,
-        cls: str,
-        buffer: "Buffer",
-        fmt: str,
-        *,
-        offset: int = 0,
-        stride: int = 0,
-        divisor: int = 0,
-        normalize: bool = False,
-    ) -> None:
-        self.mglo.bind(attribute, cls, buffer.mglo, fmt, offset, stride, divisor, normalize)
-
-    def release(self) -> None:
-        if not isinstance(self.mglo, InvalidObject):
-            self._program = None
-            self._index_buffer = None
-            self._content = None
-            self.mglo.release()
-            self.mglo = InvalidObject()
-
-
 class Context:
     _valid_gc_modes = [None, "context_gc", "auto"]
 
@@ -1484,30 +1321,7 @@ class Context:
         skip_errors: bool = False,
         mode: Optional[int] = None,
     ) -> 'VertexArray':
-        members = program._members
-        index_buffer_mglo = None if index_buffer is None else index_buffer.mglo
-        mgl_content = tuple(
-            (a.mglo, b) + tuple(members.get(x) for x in c)
-            for a, b, *c in content
-        )
-
-        res = VertexArray.__new__(VertexArray)
-        res.mglo, res._glo = self.mglo.vertex_array(
-            program.mglo, mgl_content, index_buffer_mglo,
-            index_element_size, skip_errors,
-        )
-        res._program = program
-        res._index_buffer = index_buffer
-        res._content = content
-        res._index_element_size = index_element_size
-        if mode is not None:
-            res._mode = mode
-        else:
-            res._mode = self.POINTS if program.is_transform else self.TRIANGLES
-        res.ctx = self
-        res.extra = None
-        res.scope = None
-        return res
+        return self.mglo.vertex_array(program, content, index_buffer, index_element_size, skip_errors, mode)
 
     def simple_vertex_array(
         self,
