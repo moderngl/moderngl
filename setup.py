@@ -40,7 +40,7 @@ if target == 'darwin':
 if target in ['linux', 'cygwin']:
     from distutils import sysconfig
     cvars = sysconfig.get_config_vars()
-    
+
     if hasattr(sysconfig, '_config_vars') and sysconfig._config_vars is not None:
         if 'OPT' in cvars:
             sysconfig._config_vars['OPT'] = cvars['OPT'].replace('-Wstrict-prototypes', '')
@@ -79,7 +79,7 @@ if os.getenv('MODERNGL_COVERAGE'):
     extra_linker_args[target] += ['-O0', '--coverage']
 
 mgl = Extension(
-    name='moderngl.mgl',
+    name='moderngl',
     define_macros=[
         ('PY_SSIZE_T_CLEAN', None),
     ],
