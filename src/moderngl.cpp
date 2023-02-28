@@ -1743,6 +1743,25 @@ PyObject * MGLComputeShader_run_indirect(MGLComputeShader * self, PyObject * arg
     Py_RETURN_NONE;
 }
 
+PyObject * MGLComputeShader_get(MGLComputeShader * self, PyObject * args, PyObject * kwargs) {
+    static char * keywords[] = {"key", "default", NULL};
+
+    PyObject * key;
+    PyObject * default_value = Py_None;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O", keywords, &key, &default_value)) {
+        return NULL;
+    }
+
+    PyObject * res = PyDict_GetItem(self->members, key);
+    if (!res) {
+        Py_INCREF(default_value);
+        return default_value;
+    }
+    Py_INCREF(res);
+    return res;
+}
+
 PyObject * MGLComputeShader_getitem(MGLComputeShader * self, PyObject * key) {
     PyObject * res = PyDict_GetItem(self->members, key);
     Py_XINCREF(res);
@@ -3179,6 +3198,25 @@ PyObject * MGLProgram_release(MGLProgram * self, PyObject * args) {
 
     Py_DECREF(self);
     Py_RETURN_NONE;
+}
+
+PyObject * MGLProgram_get(MGLProgram * self, PyObject * args, PyObject * kwargs) {
+    static char * keywords[] = {"key", "default", NULL};
+
+    PyObject * key;
+    PyObject * default_value = Py_None;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O", keywords, &key, &default_value)) {
+        return NULL;
+    }
+
+    PyObject * res = PyDict_GetItem(self->members, key);
+    if (!res) {
+        Py_INCREF(default_value);
+        return default_value;
+    }
+    Py_INCREF(res);
+    return res;
 }
 
 PyObject * MGLProgram_getitem(MGLProgram * self, PyObject * key) {
@@ -9533,6 +9571,7 @@ PyMethodDef MGLComputeShader_methods[] = {
     {(char *)"run", (PyCFunction)MGLComputeShader_run, METH_VARARGS | METH_KEYWORDS},
     {(char *)"run_indirect", (PyCFunction)MGLComputeShader_run_indirect, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLComputeShader_release, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"get", (PyCFunction)MGLComputeShader_get, METH_VARARGS | METH_KEYWORDS},
     {},
 };
 
@@ -9658,6 +9697,7 @@ PyMemberDef MGLFramebuffer_members[] = {
 
 PyMethodDef MGLProgram_methods[] = {
     {(char *)"release", (PyCFunction)MGLProgram_release, METH_NOARGS},
+    {(char *)"get", (PyCFunction)MGLProgram_get, METH_VARARGS | METH_KEYWORDS},
     {},
 };
 
