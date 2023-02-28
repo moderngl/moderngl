@@ -4147,24 +4147,24 @@ PyObject * MGLScope_release(MGLScope * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
+MGLTexture * MGLContext_texture(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "components", "data", "samples", "alignment", "dtype", "internal_format", NULL};
+
     int width;
     int height;
-
     int components;
+    PyObject * data = Py_None;
+    int samples = 0;
+    int alignment = 1;
+    const char * dtype = "f1";
+    Py_ssize_t dtype_size = 2;
+    int internal_format_override = 0;
 
-    PyObject * data;
-
-    int samples;
-    int alignment;
-
-    const char * dtype;
-    Py_ssize_t dtype_size;
-    int internal_format_override;
-
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "(II)IOIIs#I",
+        kwargs,
+        "(II)I|OIIs#I",
+        (char **)keywords,
         &width,
         &height,
         &components,
@@ -4298,25 +4298,23 @@ PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
     texture->context = self;
 
     Py_INCREF(texture);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)texture);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(texture->texture_obj));
-    return result;
+    return texture;
 }
 
-PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
+MGLTexture * MGLContext_depth_texture(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "data", "samples", "alignment", NULL};
+
     int width;
     int height;
+    PyObject * data = Py_None;
+    int samples = 0;
+    int alignment = 4;
 
-    PyObject * data;
-
-    int samples;
-    int alignment;
-
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "(II)OII",
+        kwargs,
+        "(II)|OII",
+        (char **)keywords,
         &width,
         &height,
         &data,
@@ -4423,14 +4421,12 @@ PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
     texture->context = self;
 
     Py_INCREF(texture);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)texture);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(texture->texture_obj));
-    return result;
+    return texture;
 }
 
-PyObject * MGLContext_external_texture(MGLContext * self, PyObject * args) {
+MGLTexture  * MGLContext_external_texture(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"glo", "size", "components", "samples", "dtype", NULL};
+
     int glo;
     int width;
     int height;
@@ -4490,20 +4486,20 @@ PyObject * MGLContext_external_texture(MGLContext * self, PyObject * args) {
     texture->context = self;
 
     Py_INCREF(texture);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)texture);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(texture->texture_obj));
-    return result;
+    return texture;
 }
 
-PyObject * MGLTexture_read(MGLTexture * self, PyObject * args) {
-    int level;
-    int alignment;
+PyObject * MGLTexture_read(MGLTexture * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"level", "alignment", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int level = 0;
+    int alignment = 1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "II",
+        kwargs,
+        "|II",
+        (char **)keywords,
         &level,
         &alignment
     );
@@ -4576,15 +4572,17 @@ PyObject * MGLTexture_read(MGLTexture * self, PyObject * args) {
     return result;
 }
 
-PyObject * MGLTexture_read_into(MGLTexture * self, PyObject * args) {
+PyObject * MGLTexture_read_into(MGLTexture * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"buffer", "level", "alignment", "write_offset", NULL};
+
     PyObject * data;
-    int level;
-    int alignment;
-    Py_ssize_t write_offset;
+    int level = 0;
+    int alignment = 1;
+    Py_ssize_t write_offset = 0;
 
     int args_ok = PyArg_ParseTuple(
         args,
-        "OIIn",
+        "O|IIn",
         &data,
         &level,
         &alignment,
@@ -4670,15 +4668,19 @@ PyObject * MGLTexture_read_into(MGLTexture * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
-    PyObject * data;
-    PyObject * viewport;
-    int level;
-    int alignment;
+PyObject * MGLTexture_write(MGLTexture * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"data", "viewport", "level", "alignment", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data;
+    PyObject * viewport = Py_None;
+    int level = 0;
+    int alignment = 1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "OOII",
+        kwargs,
+        "O|OII",
+        (char **)keywords,
         &data,
         &viewport,
         &level,
@@ -4798,16 +4800,20 @@ PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture_meth_bind(MGLTexture * self, PyObject * args) {
-    int unit;
-    int read;
-    int write;
-    int level;
-    int format;
+PyObject * MGLTexture_meth_bind(MGLTexture * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"unit", "read", "write", "level", "format", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int unit;
+    int read = true;
+    int write = true;
+    int level = 0;
+    int format = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "IppII",
+        kwargs,
+        "I|ppII",
+        (char **)keywords,
         &unit,
         &read,
         &write,
@@ -4834,12 +4840,16 @@ PyObject * MGLTexture_meth_bind(MGLTexture * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture_use(MGLTexture * self, PyObject * args) {
-    int index;
+PyObject * MGLTexture_use(MGLTexture * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"index", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int index = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "I",
+        kwargs,
+        "|I",
+        (char **)keywords,
         &index
     );
 
@@ -4856,13 +4866,17 @@ PyObject * MGLTexture_use(MGLTexture * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture_build_mipmaps(MGLTexture * self, PyObject * args) {
+PyObject * MGLTexture_build_mipmaps(MGLTexture * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"base", "max", NULL};
+
     int base = 0;
     int max = 1000;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "II",
+        kwargs,
+        "|II",
+        (char **)keywords,
         &base,
         &max
     );
@@ -4898,10 +4912,12 @@ PyObject * MGLTexture_build_mipmaps(MGLTexture * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture_get_handle(MGLTexture * self, PyObject * args) {
+PyObject * MGLTexture_get_handle(MGLTexture * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"resident", NULL};
+
     int resident = true;
 
-    if(!PyArg_ParseTuple(args, "|p", &resident)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|p", (char **)keywords, &resident)) {
         return NULL;
     }
 
@@ -5151,23 +5167,23 @@ int MGLTexture_set_anisotropy(MGLTexture * self, PyObject * value) {
     return 0;
 }
 
-PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
+MGLTexture3D * MGLContext_texture3d(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "components", "data", "alignment", "dtype", NULL};
+
     int width;
     int height;
     int depth;
-
     int components;
+    PyObject * data = Py_None;
+    int alignment = 1;
+    const char * dtype = "f1";
+    Py_ssize_t dtype_size = 2;
 
-    PyObject * data;
-
-    int alignment;
-
-    const char * dtype;
-    Py_ssize_t dtype_size;
-
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "(III)IOIs#",
+        kwargs,
+        "(III)I|OIs#",
+        (char **)keywords,
         &width,
         &height,
         &depth,
@@ -5278,23 +5294,15 @@ PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
     texture->context = self;
 
     Py_INCREF(texture);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)texture);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(texture->texture_obj));
-    return result;
+    return texture;
 }
 
-PyObject * MGLTexture3D_read(MGLTexture3D * self, PyObject * args) {
-    int alignment;
+PyObject * MGLTexture3D_read(MGLTexture3D * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"alignment", NULL};
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "I",
-        &alignment
-    );
+    int alignment = 1;
 
-    if (!args_ok) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|I", (char **)keywords, &alignment)) {
         return 0;
     }
 
@@ -5325,14 +5333,18 @@ PyObject * MGLTexture3D_read(MGLTexture3D * self, PyObject * args) {
     return result;
 }
 
-PyObject * MGLTexture3D_read_into(MGLTexture3D * self, PyObject * args) {
-    PyObject * data;
-    int alignment;
-    Py_ssize_t write_offset;
+PyObject * MGLTexture3D_read_into(MGLTexture3D * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"buffer", "alignment", "write_offset", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data;
+    int alignment = 1;
+    Py_ssize_t write_offset = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "OIn",
+        kwargs,
+        "O|In",
+        (char **)keywords,
         &data,
         &alignment,
         &write_offset
@@ -5400,14 +5412,18 @@ PyObject * MGLTexture3D_read_into(MGLTexture3D * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args) {
-    PyObject * data;
-    PyObject * viewport;
-    int alignment;
+PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"data", "viewport", "alignment", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data;
+    PyObject * viewport = Py_None;
+    int alignment = 1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "OOI",
+        kwargs,
+        "O|OI",
+        (char **)keywords,
         &data,
         &viewport,
         &alignment
@@ -5519,16 +5535,20 @@ PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture3D_meth_bind(MGLTexture3D * self, PyObject * args) {
-    int unit;
-    int read;
-    int write;
-    int level;
-    int format;
+PyObject * MGLTexture3D_meth_bind(MGLTexture3D * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"unit", "read", "write", "level", "format", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int unit;
+    int read = true;
+    int write = true;
+    int level = 0;
+    int format = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "IppII",
+        kwargs,
+        "I|ppII",
+        (char **)keywords,
         &unit,
         &read,
         &write,
@@ -5556,12 +5576,16 @@ PyObject * MGLTexture3D_meth_bind(MGLTexture3D * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture3D_use(MGLTexture3D * self, PyObject * args) {
-    int index;
+PyObject * MGLTexture3D_use(MGLTexture3D * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"index", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int index = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "I",
+        kwargs,
+        "|I",
+        (char **)keywords,
         &index
     );
 
@@ -5576,13 +5600,17 @@ PyObject * MGLTexture3D_use(MGLTexture3D * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTexture3D_build_mipmaps(MGLTexture3D * self, PyObject * args) {
+PyObject * MGLTexture3D_build_mipmaps(MGLTexture3D * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"base", "max", NULL};
+
     int base = 0;
     int max = 1000;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "II",
+        kwargs,
+        "|II",
+        (char **)keywords,
         &base,
         &max
     );
@@ -5617,10 +5645,13 @@ PyObject * MGLTexture3D_build_mipmaps(MGLTexture3D * self, PyObject * args) {
 
     Py_RETURN_NONE;
 }
-PyObject * MGLTexture3D_get_handle(MGLTexture3D * self, PyObject * args) {
+
+PyObject * MGLTexture3D_get_handle(MGLTexture3D * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"resident", NULL};
+
     int resident = true;
 
-    if(!PyArg_ParseTuple(args, "|p", &resident)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|p", (char **)keywords, &resident)) {
         return NULL;
     }
 
@@ -5823,23 +5854,23 @@ int MGLTexture3D_set_swizzle(MGLTexture3D * self, PyObject * value, void * closu
     return 0;
 }
 
-PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
+MGLTextureArray * MGLContext_texture_array(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "components", "data", "alignment", "dtype", NULL};
+
     int width;
     int height;
     int layers;
-
     int components;
+    PyObject * data = Py_None;
+    int alignment = 1;
+    const char * dtype = "f1";
+    Py_ssize_t dtype_size = 2;
 
-    PyObject * data;
-
-    int alignment;
-
-    const char * dtype;
-    Py_ssize_t dtype_size;
-
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "(III)IOIs#",
+        kwargs,
+        "(III)I|OIs#",
+        (char **)keywords,
         &width,
         &height,
         &layers,
@@ -5950,19 +5981,19 @@ PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
     texture->context = self;
 
     Py_INCREF(texture);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)texture);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(texture->texture_obj));
-    return result;
+    return texture;
 }
 
-PyObject * MGLTextureArray_read(MGLTextureArray * self, PyObject * args) {
-    int alignment;
+PyObject * MGLTextureArray_read(MGLTextureArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"alignment", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int alignment = 1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "I",
+        kwargs,
+        "|I",
+        (char **)keywords,
         &alignment
     );
 
@@ -6018,14 +6049,18 @@ PyObject * MGLTextureArray_read(MGLTextureArray * self, PyObject * args) {
     return result;
 }
 
-PyObject * MGLTextureArray_read_into(MGLTextureArray * self, PyObject * args) {
-    PyObject * data;
-    int alignment;
-    Py_ssize_t write_offset;
+PyObject * MGLTextureArray_read_into(MGLTextureArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"buffer", "alignment", "write_offset", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data;
+    int alignment = 1;
+    Py_ssize_t write_offset = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "OIn",
+        kwargs,
+        "O|In",
+        (char **)keywords,
         &data,
         &alignment,
         &write_offset
@@ -6094,14 +6129,18 @@ PyObject * MGLTextureArray_read_into(MGLTextureArray * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args) {
-    PyObject * data;
-    PyObject * viewport;
-    int alignment;
+PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"data", "viewport", "alignment", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    PyObject * data;
+    PyObject * viewport = Py_None;
+    int alignment = 1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "OOI",
+        kwargs,
+        "O|OI",
+        (char **)keywords,
         &data,
         &viewport,
         &alignment
@@ -6212,16 +6251,20 @@ PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTextureArray_meth_bind(MGLTextureArray * self, PyObject * args) {
-    int unit;
-    int read;
-    int write;
-    int level;
-    int format;
+PyObject * MGLTextureArray_meth_bind(MGLTextureArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"unit", "read", "write", "level", "format", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int unit;
+    int read = true;
+    int write = true;
+    int level = 0;
+    int format = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "IppII",
+        kwargs,
+        "I|ppII",
+        (char **)keywords,
         &unit,
         &read,
         &write,
@@ -6249,19 +6292,22 @@ PyObject * MGLTextureArray_meth_bind(MGLTextureArray * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTextureArray_use(MGLTextureArray * self, PyObject * args) {
-    int index;
+PyObject * MGLTextureArray_use(MGLTextureArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"index", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int index = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "I",
+        kwargs,
+        "|I",
+        (char **)keywords,
         &index
     );
 
     if (!args_ok) {
         return 0;
     }
-
 
     const GLMethods & gl = self->context->gl;
     gl.ActiveTexture(GL_TEXTURE0 + index);
@@ -6270,13 +6316,17 @@ PyObject * MGLTextureArray_use(MGLTextureArray * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTextureArray_build_mipmaps(MGLTextureArray * self, PyObject * args) {
+PyObject * MGLTextureArray_build_mipmaps(MGLTextureArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"base", "max", NULL};
+
     int base = 0;
     int max = 1000;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "II",
+        kwargs,
+        "|II",
+        (char **)keywords,
         &base,
         &max
     );
@@ -6311,10 +6361,13 @@ PyObject * MGLTextureArray_build_mipmaps(MGLTextureArray * self, PyObject * args
 
     Py_RETURN_NONE;
 }
-PyObject * MGLTextureArray_get_handle(MGLTextureArray * self, PyObject * args) {
+
+PyObject * MGLTextureArray_get_handle(MGLTextureArray * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"resident", NULL};
+
     int resident = true;
 
-    if(!PyArg_ParseTuple(args, "|p", &resident)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|p", (char **)keywords, &resident)) {
         return NULL;
     }
 
@@ -6510,23 +6563,23 @@ int MGLTextureArray_set_anisotropy(MGLTextureArray * self, PyObject * value) {
     return 0;
 }
 
-PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
+MGLTextureCube * MGLContext_texture_cube(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "components", "data", "alignment", "dtype", "internal_format", NULL};
+
     int width;
     int height;
-
     int components;
+    PyObject * data = Py_None;
+    int alignment = 1;
+    const char * dtype = "f1";
+    Py_ssize_t dtype_size = 2;
+    int internal_format_override = 0;
 
-    PyObject * data;
-
-    int alignment;
-
-    const char * dtype;
-    Py_ssize_t dtype_size;
-    int internal_format_override;
-
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "(II)IOIs#I",
+        kwargs,
+        "(II)I|OIs#I",
+        (char **)keywords,
         &width,
         &height,
         &components,
@@ -6651,20 +6704,20 @@ PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
     texture->context = self;
 
     Py_INCREF(texture);
-
-    PyObject * result = PyTuple_New(2);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)texture);
-    PyTuple_SET_ITEM(result, 1, PyLong_FromLong(texture->texture_obj));
-    return result;
+    return texture;
 }
 
-PyObject * MGLTextureCube_read(MGLTextureCube * self, PyObject * args) {
-    int face;
-    int alignment;
+PyObject * MGLTextureCube_read(MGLTextureCube * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"face", "alignment", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int face;
+    int alignment = 1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "iI",
+        kwargs,
+        "I|I",
+        (char **)keywords,
         &face,
         &alignment
     );
@@ -6705,15 +6758,17 @@ PyObject * MGLTextureCube_read(MGLTextureCube * self, PyObject * args) {
     return result;
 }
 
-PyObject * MGLTextureCube_read_into(MGLTextureCube * self, PyObject * args) {
+PyObject * MGLTextureCube_read_into(MGLTextureCube * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"buffer", "face", "alignment", "write_offset", NULL};
+
     PyObject * data;
     int face;
-    int alignment;
-    Py_ssize_t write_offset;
+    int alignment = 1;
+    Py_ssize_t write_offset = 0;
 
     int args_ok = PyArg_ParseTuple(
         args,
-        "OiIn",
+        "OI|In",
         &data,
         &face,
         &alignment,
@@ -6787,18 +6842,22 @@ PyObject * MGLTextureCube_read_into(MGLTextureCube * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args) {
+PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"face", "data", "viewport", "alignment", NULL};
+
     int face;
     PyObject * data;
-    PyObject * viewport;
-    int alignment;
+    PyObject * viewport = Py_None;
+    int alignment = 1;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "iOOI",
-        &face,
+        kwargs,
+        "IO|OI",
+        (char **)keywords,
         &data,
         &viewport,
+        &face,
         &alignment
     );
 
@@ -6912,16 +6971,20 @@ PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTextureCube_meth_bind(MGLTextureCube * self, PyObject * args) {
-    int unit;
-    int read;
-    int write;
-    int level;
-    int format;
+PyObject * MGLTextureCube_meth_bind(MGLTextureCube * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"unit", "read", "write", "level", "format", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int unit;
+    int read = true;
+    int write = true;
+    int level = 0;
+    int format = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "IppII",
+        kwargs,
+        "I|ppII",
+        (char **)keywords,
         &unit,
         &read,
         &write,
@@ -6949,12 +7012,16 @@ PyObject * MGLTextureCube_meth_bind(MGLTextureCube * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTextureCube_use(MGLTextureCube * self, PyObject * args) {
-    int index;
+PyObject * MGLTextureCube_use(MGLTextureCube * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"index", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int index = 0;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "I",
+        kwargs,
+        "|I",
+        (char **)keywords,
         &index
     );
 
@@ -6968,10 +7035,13 @@ PyObject * MGLTextureCube_use(MGLTextureCube * self, PyObject * args) {
 
     Py_RETURN_NONE;
 }
-PyObject * MGLTextureCube_get_handle(MGLTextureCube * self, PyObject * args) {
+
+PyObject * MGLTextureCube_get_handle(MGLTextureCube * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"resident", NULL};
+
     int resident = true;
 
-    if(!PyArg_ParseTuple(args, "|p", &resident)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|p", (char **)keywords, &resident)) {
         return NULL;
     }
 
@@ -6987,13 +7057,17 @@ PyObject * MGLTextureCube_get_handle(MGLTextureCube * self, PyObject * args) {
     return PyLong_FromUnsignedLongLong(handle);
 }
 
-PyObject * MGLTextureCube_build_mipmaps(MGLTextureCube * self, PyObject * args) {
+PyObject * MGLTextureCube_build_mipmaps(MGLTextureCube * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"base", "max", NULL};
+
     int base = 0;
     int max = 1000;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "II",
+        kwargs,
+        "|II",
+        (char **)keywords,
         &base,
         &max
     );
@@ -9487,12 +9561,12 @@ PyMethodDef MGLContext_methods[] = {
     {(char *)"clear_samplers", (PyCFunction)MGLContext_clear_samplers, METH_VARARGS},
 
     {(char *)"buffer", (PyCFunction)MGLContext_buffer, METH_VARARGS},
-    {(char *)"texture", (PyCFunction)MGLContext_texture, METH_VARARGS},
-    {(char *)"texture3d", (PyCFunction)MGLContext_texture3d, METH_VARARGS},
-    {(char *)"texture_array", (PyCFunction)MGLContext_texture_array, METH_VARARGS},
-    {(char *)"texture_cube", (PyCFunction)MGLContext_texture_cube, METH_VARARGS},
-    {(char *)"depth_texture", (PyCFunction)MGLContext_depth_texture, METH_VARARGS},
-    {(char *)"external_texture", (PyCFunction)MGLContext_external_texture, METH_VARARGS},
+    {(char *)"texture", (PyCFunction)MGLContext_texture, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"texture3d", (PyCFunction)MGLContext_texture3d, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"texture_array", (PyCFunction)MGLContext_texture_array, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"texture_cube", (PyCFunction)MGLContext_texture_cube, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"depth_texture", (PyCFunction)MGLContext_depth_texture, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"external_texture", (PyCFunction)MGLContext_external_texture, METH_VARARGS | METH_KEYWORDS},
     {(char *)"vertex_array", (PyCFunction)MGLContext_vertex_array, METH_VARARGS | METH_KEYWORDS},
     {(char *)"program", (PyCFunction)MGLContext_program, METH_VARARGS},
     {(char *)"framebuffer", (PyCFunction)MGLContext_framebuffer, METH_VARARGS},
@@ -9688,13 +9762,14 @@ PyGetSetDef MGLTexture_getset[] = {
 };
 
 PyMethodDef MGLTexture_methods[] = {
-    {(char *)"write", (PyCFunction)MGLTexture_write, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLTexture_meth_bind, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLTexture_use, METH_VARARGS},
-    {(char *)"build_mipmaps", (PyCFunction)MGLTexture_build_mipmaps, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLTexture_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLTexture_read_into, METH_VARARGS},
-    {(char *)"get_handle", (PyCFunction)MGLTexture_get_handle, METH_VARARGS},
+    {(char *)"write", (PyCFunction)MGLTexture_write, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind", (PyCFunction)MGLTexture_meth_bind, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind_to_image", (PyCFunction)MGLTexture_meth_bind, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"use", (PyCFunction)MGLTexture_use, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"build_mipmaps", (PyCFunction)MGLTexture_build_mipmaps, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read", (PyCFunction)MGLTexture_read, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read_into", (PyCFunction)MGLTexture_read_into, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"get_handle", (PyCFunction)MGLTexture_get_handle, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLTexture_release, METH_NOARGS},
     {},
 };
@@ -9719,13 +9794,14 @@ PyGetSetDef MGLTexture3D_getset[] = {
 };
 
 PyMethodDef MGLTexture3D_methods[] = {
-    {(char *)"write", (PyCFunction)MGLTexture3D_write, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLTexture3D_meth_bind, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLTexture3D_use, METH_VARARGS},
-    {(char *)"build_mipmaps", (PyCFunction)MGLTexture3D_build_mipmaps, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLTexture3D_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLTexture3D_read_into, METH_VARARGS},
-    {(char *)"get_handle", (PyCFunction)MGLTexture3D_get_handle, METH_VARARGS},
+    {(char *)"write", (PyCFunction)MGLTexture3D_write, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind", (PyCFunction)MGLTexture3D_meth_bind, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind_to_image", (PyCFunction)MGLTexture3D_meth_bind, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"use", (PyCFunction)MGLTexture3D_use, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"build_mipmaps", (PyCFunction)MGLTexture3D_build_mipmaps, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read", (PyCFunction)MGLTexture3D_read, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read_into", (PyCFunction)MGLTexture3D_read_into, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"get_handle", (PyCFunction)MGLTexture3D_get_handle, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLTexture3D_release, METH_NOARGS},
     {},
 };
@@ -9740,13 +9816,14 @@ PyGetSetDef MGLTextureArray_getset[] = {
 };
 
 PyMethodDef MGLTextureArray_methods[] = {
-    {(char *)"write", (PyCFunction)MGLTextureArray_write, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLTextureArray_meth_bind, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLTextureArray_use, METH_VARARGS},
-    {(char *)"build_mipmaps", (PyCFunction)MGLTextureArray_build_mipmaps, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLTextureArray_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLTextureArray_read_into, METH_VARARGS},
-    {(char *)"get_handle", (PyCFunction)MGLTextureArray_get_handle, METH_VARARGS},
+    {(char *)"write", (PyCFunction)MGLTextureArray_write, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind", (PyCFunction)MGLTextureArray_meth_bind, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind_to_image", (PyCFunction)MGLTextureArray_meth_bind, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"use", (PyCFunction)MGLTextureArray_use, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"build_mipmaps", (PyCFunction)MGLTextureArray_build_mipmaps, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read", (PyCFunction)MGLTextureArray_read, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read_into", (PyCFunction)MGLTextureArray_read_into, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"get_handle", (PyCFunction)MGLTextureArray_get_handle, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLTextureArray_release, METH_NOARGS},
     {},
 };
@@ -9759,13 +9836,14 @@ PyGetSetDef MGLTextureCube_getset[] = {
 };
 
 PyMethodDef MGLTextureCube_methods[] = {
-    {(char *)"write", (PyCFunction)MGLTextureCube_write, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLTextureCube_use, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLTextureCube_meth_bind, METH_VARARGS},
-	{(char *)"build_mipmaps", (PyCFunction)MGLTextureCube_build_mipmaps, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLTextureCube_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLTextureCube_read_into, METH_VARARGS},
-    {(char *)"get_handle", (PyCFunction)MGLTextureCube_get_handle, METH_VARARGS},
+    {(char *)"write", (PyCFunction)MGLTextureCube_write, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"use", (PyCFunction)MGLTextureCube_use, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind", (PyCFunction)MGLTextureCube_meth_bind, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"bind_to_image", (PyCFunction)MGLTextureCube_meth_bind, METH_VARARGS | METH_KEYWORDS},
+	{(char *)"build_mipmaps", (PyCFunction)MGLTextureCube_build_mipmaps, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read", (PyCFunction)MGLTextureCube_read, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"read_into", (PyCFunction)MGLTextureCube_read_into, METH_VARARGS | METH_KEYWORDS},
+    {(char *)"get_handle", (PyCFunction)MGLTextureCube_get_handle, METH_VARARGS | METH_KEYWORDS},
     {(char *)"release", (PyCFunction)MGLTextureCube_release, METH_NOARGS},
     {},
 };
