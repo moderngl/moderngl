@@ -108,6 +108,10 @@ long long strsize(PyObject * arg) {
         return 0;
     }
 
+    arg = PyUnicode_FromObject(arg);
+    if (!arg) {
+        return 0;
+    }
     const char * str = PyUnicode_AsUTF8(arg);
 
     char first_chr = *str++;
@@ -1704,7 +1708,7 @@ PyObject * MGLBuffer_bind(MGLBuffer * self, PyObject * args, PyObject * kwargs) 
     return PyNumber_Add(Py_BuildValue("(OO)", self, layout), args);
 }
 
-PyObject * MGLBuffer_release(MGLBuffer * self, PyObject * args) {
+PyObject * MGLBuffer_release(MGLBuffer * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -1768,6 +1772,10 @@ MGLComputeShader * MGLContext_compute_shader(MGLContext * self, PyObject * args,
         return 0;
     }
 
+    source = PyUnicode_FromObject(source);
+    if (!source) {
+        return NULL;
+    }
     const char * source_str = PyUnicode_AsUTF8(source);
 
     MGLComputeShader * compute_shader = PyObject_New(MGLComputeShader, MGLComputeShader_type);
@@ -1991,7 +1999,7 @@ int MGLComputeShader_setitem(MGLComputeShader * self, PyObject * key, PyObject *
     return PyObject_SetAttrString(res, "value", value);
 }
 
-PyObject * MGLComputeShader_release(MGLComputeShader * self, PyObject * args) {
+PyObject * MGLComputeShader_release(MGLComputeShader * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -2052,6 +2060,7 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args, PyOb
 
     for (int i = 0; i < framebuffer->num_color_attachments; ++i) {
         PyObject * item = PyList_GetItem(color_attachments, i);
+        Py_INCREF(item); // TODO: remove
 
         if (Py_TYPE(item) == MGLTexture_type) {
 
@@ -2077,6 +2086,8 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args, PyOb
             );
         }
     }
+
+    Py_INCREF(depth_attachment); // TODO: remove
 
     if (Py_TYPE(depth_attachment) == MGLTexture_type) {
         MGLTexture * texture = (MGLTexture *)depth_attachment;
@@ -2234,7 +2245,7 @@ MGLFramebuffer * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args
     return framebuffer;
 }
 
-PyObject * MGLFramebuffer_release(MGLFramebuffer * self, PyObject * args) {
+PyObject * MGLFramebuffer_release(MGLFramebuffer * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -2977,7 +2988,12 @@ MGLProgram * MGLContext_program(MGLContext * self, PyObject * args, PyObject * k
         const char ** varyings_array = new const char * [num_outputs];
 
         for (int i = 0; i < num_outputs; ++i) {
-            varyings_array[i] = PyUnicode_AsUTF8(PyTuple_GET_ITEM(outputs, i));
+            PyObject * temp = PyTuple_GET_ITEM(outputs, i);
+            temp = PyUnicode_FromObject(temp);
+            if (!temp) {
+                return NULL;
+            }
+            varyings_array[i] = PyUnicode_AsUTF8(temp);
         }
 
         int capture_mode = interleaved ? GL_INTERLEAVED_ATTRIBS : GL_SEPARATE_ATTRIBS;
@@ -2993,6 +3009,10 @@ MGLProgram * MGLContext_program(MGLContext * self, PyObject * args, PyObject * k
         Py_ssize_t pos = 0;
 
         while (PyDict_Next(fragment_outputs, &pos, &key, &value)) {
+            key = PyUnicode_FromObject(key);
+            if (!key) {
+                return NULL;
+            }
             gl.BindFragDataLocation(program_obj, PyLong_AsLong(value), PyUnicode_AsUTF8(key));
         }
     }
@@ -3446,7 +3466,7 @@ MGLProgram * MGLContext_program(MGLContext * self, PyObject * args, PyObject * k
     return program;
 }
 
-PyObject * MGLProgram_release(MGLProgram * self, PyObject * args) {
+PyObject * MGLProgram_release(MGLProgram * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -3877,7 +3897,7 @@ MGLRenderbuffer * MGLContext_depth_renderbuffer(MGLContext * self, PyObject * ar
     return renderbuffer;
 }
 
-PyObject * MGLRenderbuffer_release(MGLRenderbuffer * self, PyObject * args) {
+PyObject * MGLRenderbuffer_release(MGLRenderbuffer * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -4016,7 +4036,7 @@ PyObject * MGLSampler_clear(MGLSampler * self, PyObject * args, PyObject * kwarg
     Py_RETURN_NONE;
 }
 
-PyObject * MGLSampler_release(MGLSampler * self, PyObject * args) {
+PyObject * MGLSampler_release(MGLSampler * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -4126,6 +4146,10 @@ PyObject * MGLSampler_get_compare_func(MGLSampler * self) {
 }
 
 int MGLSampler_set_compare_func(MGLSampler * self, PyObject * value) {
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * func = PyUnicode_AsUTF8(value);
     self->compare_func = compare_func_from_string(func);
 
@@ -4485,7 +4509,7 @@ PyObject * MGLScope_end(MGLScope * self, PyObject * args, PyObject * kwargs) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLScope_release(MGLScope * self, PyObject * args) {
+PyObject * MGLScope_release(MGLScope * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -5293,7 +5317,7 @@ PyObject * MGLTexture_get_handle(MGLTexture * self, PyObject * args, PyObject * 
     return PyLong_FromUnsignedLongLong(handle);
 }
 
-PyObject * MGLTexture_release(MGLTexture * self, PyObject * args) {
+PyObject * MGLTexture_release(MGLTexture * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -5428,6 +5452,10 @@ PyObject * MGLTexture_get_swizzle(MGLTexture * self, void * closure) {
 }
 
 int MGLTexture_set_swizzle(MGLTexture * self, PyObject * value, void * closure) {
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * swizzle = PyUnicode_AsUTF8(value);
 
     if (self->depth) {
@@ -5493,6 +5521,10 @@ int MGLTexture_set_compare_func(MGLTexture * self, PyObject * value) {
     }
 
     int texture_target = self->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * func = PyUnicode_AsUTF8(value);
 
     if (PyErr_Occurred()) {
@@ -6039,7 +6071,7 @@ PyObject * MGLTexture3D_get_handle(MGLTexture3D * self, PyObject * args, PyObjec
     return PyLong_FromUnsignedLongLong(handle);
 }
 
-PyObject * MGLTexture3D_release(MGLTexture3D * self, PyObject * args) {
+PyObject * MGLTexture3D_release(MGLTexture3D * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -6188,6 +6220,10 @@ PyObject * MGLTexture3D_get_swizzle(MGLTexture3D * self, void * closure) {
 }
 
 int MGLTexture3D_set_swizzle(MGLTexture3D * self, PyObject * value, void * closure) {
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * swizzle = PyUnicode_AsUTF8(value);
 
     if (!swizzle[0]) {
@@ -6767,7 +6803,7 @@ PyObject * MGLTextureArray_get_handle(MGLTextureArray * self, PyObject * args, P
     return PyLong_FromUnsignedLongLong(handle);
 }
 
-PyObject * MGLTextureArray_release(MGLTextureArray * self, PyObject * args) {
+PyObject * MGLTextureArray_release(MGLTextureArray * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -6892,6 +6928,10 @@ PyObject * MGLTextureArray_get_swizzle(MGLTextureArray * self, void * closure) {
 }
 
 int MGLTextureArray_set_swizzle(MGLTextureArray * self, PyObject * value, void * closure) {
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * swizzle = PyUnicode_AsUTF8(value);
 
     if (!swizzle[0]) {
@@ -7499,7 +7539,7 @@ PyObject * MGLTextureCube_build_mipmaps(MGLTextureCube * self, PyObject * args, 
     Py_RETURN_NONE;
 }
 
-PyObject * MGLTextureCube_release(MGLTextureCube * self, PyObject * args) {
+PyObject * MGLTextureCube_release(MGLTextureCube * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -7574,6 +7614,10 @@ PyObject * MGLTextureCube_get_swizzle(MGLTextureCube * self, void * closure) {
 }
 
 int MGLTextureCube_set_swizzle(MGLTextureCube * self, PyObject * value, void * closure) {
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * swizzle = PyUnicode_AsUTF8(value);
 
     if (!swizzle[0]) {
@@ -7718,6 +7762,10 @@ MGLVertexArray * MGLContext_vertex_array(MGLContext * self, PyObject * args, PyO
             return 0;
         }
 
+        format = PyUnicode_FromObject(format);
+        if (!format) {
+            return NULL;
+        }
         FormatIterator it = FormatIterator(PyUnicode_AsUTF8(format));
         FormatInfo format_info = it.info();
 
@@ -7793,7 +7841,11 @@ MGLVertexArray * MGLContext_vertex_array(MGLContext * self, PyObject * args, PyO
         PyObject * tuple = PyTuple_GET_ITEM(content, i);
 
         MGLBuffer * buffer = (MGLBuffer *)PyTuple_GET_ITEM(tuple, 0);
-        const char * format = PyUnicode_AsUTF8(PyTuple_GET_ITEM(tuple, 1));
+        PyObject * format_temp = PyUnicode_FromObject(PyTuple_GET_ITEM(tuple, 1));
+        if (!format_temp) {
+            return NULL;
+        }
+        const char * format = PyUnicode_AsUTF8(format_temp);
 
         FormatIterator it = FormatIterator(format);
         FormatInfo format_info = it.info();
@@ -8300,7 +8352,7 @@ PyObject * MGLVertexArray_bind(MGLVertexArray * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLVertexArray_release(MGLVertexArray * self, PyObject * args) {
+PyObject * MGLVertexArray_release(MGLVertexArray * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -8915,7 +8967,7 @@ PyObject * MGLContext_exit(MGLContext * self, PyObject * args) {
     return PyObject_CallMethod(self->ctx, "__exit__", NULL);
 }
 
-PyObject * MGLContext_release(MGLContext * self, PyObject * args) {
+PyObject * MGLContext_release(MGLContext * self, PyObject * args) { Py_RETURN_NONE; // TODO: remove
     if (self->released) {
         Py_RETURN_NONE;
     }
@@ -9286,6 +9338,10 @@ PyObject * MGLContext_get_depth_func(MGLContext * self) {
 }
 
 int MGLContext_set_depth_func(MGLContext * self, PyObject * value) {
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * func = PyUnicode_AsUTF8(value);
 
     if (PyErr_Occurred()) {
@@ -9441,6 +9497,10 @@ PyObject * MGLContext_get_front_face(MGLContext * self) {
 }
 
 int MGLContext_set_front_face(MGLContext * self, PyObject * value) {
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * str = PyUnicode_AsUTF8(value);
 
     if (!strcmp(str, "cw")) {
@@ -9473,6 +9533,10 @@ PyObject * MGLContext_get_cull_face(MGLContext * self) {
 }
 
 int MGLContext_set_cull_face(MGLContext * self, PyObject * value) {
+    value = PyUnicode_FromObject(value);
+    if (!value) {
+        return -1;
+    }
     const char * str = PyUnicode_AsUTF8(value);
 
     if (!strcmp(str, "front")) {
@@ -9917,6 +9981,17 @@ MGLContext * create_standalone_context(PyObject * self, PyObject * args, PyObjec
 }
 
 void default_dealloc(PyObject * self) {
+    printf("!!!!!!\n");
+    printf("!!!!!!\n");
+    printf("!!!!!!\n");
+    printf("!!!!!!\n");
+    printf("!!!!!!\n");
+    printf("!!!!!!\n");
+    printf("!!!!!!\n");
+    printf("!!!!!!\n");
+    PyObject_Print(self, stdout, 0);
+    *(int *)0 = 0;
+    exit(0);
     Py_TYPE(self)->tp_free(self);
 }
 
