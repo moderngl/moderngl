@@ -3898,7 +3898,7 @@ PyObject * MGLSampler_assign(MGLSampler * self, PyObject * args, PyObject * kwar
 }
 
 PyObject * MGLSampler_use(MGLSampler * self, PyObject * args, PyObject * kwargs) {
-    const char * keywords[] = {"index", NULL};
+    const char * keywords[] = {"location", NULL};
     int index;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "I", (char **)keywords, &index)) {
