@@ -2269,6 +2269,11 @@ PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args, PyObject
             return 0;
         }
 
+        viewport = PySequence_Tuple(viewport);
+        if (!viewport) {
+            return NULL;
+        }
+
         if (PyTuple_GET_SIZE(viewport) == 4) {
 
             x = PyLong_AsLong(PyTuple_GET_ITEM(viewport, 0));
@@ -2424,6 +2429,11 @@ PyObject * MGLFramebuffer_read(MGLFramebuffer * self, PyObject * args, PyObject 
             return 0;
         }
 
+        viewport = PySequence_Tuple(viewport);
+        if (!viewport) {
+            return NULL;
+        }
+
         if (PyTuple_GET_SIZE(viewport) == 4) {
 
             x = PyLong_AsLong(PyTuple_GET_ITEM(viewport, 0));
@@ -2552,6 +2562,11 @@ PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * args, PyOb
         if (Py_TYPE(viewport) != &PyTuple_Type) {
             MGLError_Set("the viewport must be a tuple not %s", Py_TYPE(viewport)->tp_name);
             return 0;
+        }
+
+        viewport = PySequence_Tuple(viewport);
+        if (!viewport) {
+            return NULL;
         }
 
         if (PyTuple_GET_SIZE(viewport) == 4) {
@@ -4086,6 +4101,11 @@ PyObject * MGLSampler_get_filter(MGLSampler * self) {
 }
 
 int MGLSampler_set_filter(MGLSampler * self, PyObject * value) {
+    value = PySequence_Tuple(value);
+    if (!value) {
+        return NULL;
+    }
+
     if (PyTuple_GET_SIZE(value) != 2) {
         MGLError_Set("invalid filter");
         return -1;
@@ -4144,6 +4164,11 @@ PyObject * MGLSampler_get_border_color(MGLSampler * self) {
 }
 
 int MGLSampler_set_border_color(MGLSampler * self, PyObject * value) {
+    value = PySequence_Tuple(value);
+    if (!value) {
+        return NULL;
+    }
+
     if (PyTuple_GET_SIZE(value) != 4) {
         MGLError_Set("border_color must be a 4-tuple not %d-tuple", PyTuple_GET_SIZE(value));
         return -1;
@@ -4227,6 +4252,26 @@ PyObject * MGLContext_scope(MGLContext * self, PyObject * args, PyObject * kwarg
 
     if (!args_ok) {
         return 0;
+    }
+
+    textures = PySequence_Tuple(textures);
+    if (!textures) {
+        return NULL;
+    }
+
+    uniform_buffers = PySequence_Tuple(uniform_buffers);
+    if (!uniform_buffers) {
+        return NULL;
+    }
+
+    shader_storage_buffers = PySequence_Tuple(shader_storage_buffers);
+    if (!shader_storage_buffers) {
+        return NULL;
+    }
+
+    samplers = PySequence_Tuple(samplers);
+    if (!samplers) {
+        return NULL;
     }
 
     if (framebuffer == (MGLFramebuffer *)Py_None) {
@@ -5032,6 +5077,11 @@ PyObject * MGLTexture_write(MGLTexture * self, PyObject * args, PyObject * kwarg
             return 0;
         }
 
+        viewport = PySequence_Tuple(viewport);
+        if (!viewport) {
+            return NULL;
+        }
+
         if (PyTuple_GET_SIZE(viewport) == 4) {
 
             x = PyLong_AsLong(PyTuple_GET_ITEM(viewport, 0));
@@ -5317,6 +5367,11 @@ PyObject * MGLTexture_get_filter(MGLTexture * self) {
 }
 
 int MGLTexture_set_filter(MGLTexture * self, PyObject * value) {
+    value = PySequence_Tuple(value);
+    if (!value) {
+        return NULL;
+    }
+
     if (PyTuple_GET_SIZE(value) != 2) {
         MGLError_Set("invalid filter");
         return -1;
@@ -5765,6 +5820,11 @@ PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args, PyObject * k
             return 0;
         }
 
+        viewport = PySequence_Tuple(viewport);
+        if (!viewport) {
+            return NULL;
+        }
+
         if (PyTuple_GET_SIZE(viewport) == 6) {
 
             x = PyLong_AsLong(PyTuple_GET_ITEM(viewport, 0));
@@ -6076,6 +6136,11 @@ PyObject * MGLTexture3D_get_filter(MGLTexture3D * self) {
 }
 
 int MGLTexture3D_set_filter(MGLTexture3D * self, PyObject * value) {
+    value = PySequence_Tuple(value);
+    if (!value) {
+        return NULL;
+    }
+
     if (PyTuple_GET_SIZE(value) != 2) {
         MGLError_Set("invalid filter");
         return -1;
@@ -6484,6 +6549,11 @@ PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args, PyObje
             return 0;
         }
 
+        viewport = PySequence_Tuple(viewport);
+        if (!viewport) {
+            return NULL;
+        }
+
         if (PyTuple_GET_SIZE(viewport) == 6) {
 
             x = PyLong_AsLong(PyTuple_GET_ITEM(viewport, 0));
@@ -6769,6 +6839,11 @@ PyObject * MGLTextureArray_get_filter(MGLTextureArray * self) {
 }
 
 int MGLTextureArray_set_filter(MGLTextureArray * self, PyObject * value) {
+    value = PySequence_Tuple(value);
+    if (!value) {
+        return NULL;
+    }
+
     if (PyTuple_GET_SIZE(value) != 2) {
         MGLError_Set("invalid filter");
         return -1;
@@ -7204,6 +7279,11 @@ PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args, PyObject
             return 0;
         }
 
+        viewport = PySequence_Tuple(viewport);
+        if (!viewport) {
+            return NULL;
+        }
+
         if (PyTuple_GET_SIZE(viewport) == 4) {
 
             x = PyLong_AsLong(PyTuple_GET_ITEM(viewport, 0));
@@ -7442,6 +7522,11 @@ PyObject * MGLTextureCube_get_filter(MGLTextureCube * self) {
 }
 
 int MGLTextureCube_set_filter(MGLTextureCube * self, PyObject * value) {
+    value = PySequence_Tuple(value);
+    if (!value) {
+        return NULL;
+    }
+
     if (PyTuple_GET_SIZE(value) != 2) {
         MGLError_Set("invalid filter");
         return -1;
