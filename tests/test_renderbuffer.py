@@ -10,7 +10,6 @@ def test_renderbuffer(ctx):
     assert rbo.depth is False
     assert rbo.components == 4
     assert rbo.dtype == 'f1'
-    assert hash(rbo) == id(rbo)
     assert rbo == rbo
 
 

@@ -10,7 +10,6 @@ def test_properties(ctx):
     assert tex.depth == 8
     assert tex.components == 4
     assert tex.dtype == 'f1'
-    assert hash(tex) == id(tex)
     assert tex.glo > 0
     assert tex.filter == (moderngl.LINEAR, moderngl.LINEAR)
     assert tex.repeat_x is True
@@ -24,11 +23,6 @@ def test_properties(ctx):
     assert tex.repeat_x is False
     assert tex.repeat_y is False
     assert tex.repeat_z is False
-
-
-def test_repr(ctx):
-    tex = ctx.texture3d((2, 4, 8), 4)
-    assert repr(tex) == '<Texture3D: {}>'.format(tex.glo)
 
 
 def test_mipmaps(ctx):

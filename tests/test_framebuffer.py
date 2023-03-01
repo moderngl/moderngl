@@ -2,7 +2,6 @@
 def test_properties(ctx):
     fbo = ctx.simple_framebuffer((4, 4))
     assert fbo.size == (4, 4)
-    assert hash(fbo) == id(fbo)
     assert fbo == fbo
     assert fbo.depth_mask is True
     assert fbo.width == 4

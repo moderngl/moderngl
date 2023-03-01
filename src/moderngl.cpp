@@ -6391,6 +6391,7 @@ MGLTextureArray * MGLContext_texture_array(MGLContext * self, PyObject * args, P
     texture->repeat_x = true;
     texture->repeat_y = true;
     texture->anisotropy = 0.0;
+    texture->max_level = 0;
 
     Py_INCREF(self);
     texture->context = self;
@@ -9521,12 +9522,12 @@ int MGLContext_set_front_face(MGLContext * self, PyObject * value) {
 }
 
 PyObject * MGLContext_get_cull_face(MGLContext * self) {
-    if (self->front_face == GL_FRONT) {
+    if (self->cull_face == GL_FRONT) {
         static PyObject * res_cw = PyUnicode_FromString("front");
         Py_INCREF(res_cw);
         return res_cw;
     }
-    else if (self->front_face == GL_BACK) {
+    else if (self->cull_face == GL_BACK) {
         static PyObject * res_cw = PyUnicode_FromString("back");
         Py_INCREF(res_cw);
         return res_cw;

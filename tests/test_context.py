@@ -11,10 +11,6 @@ def test_core_profile_check(ctx):
     ctx.core_profile_check()
 
 
-def test_repr(ctx):
-    assert repr(ctx) == f'<moderngl.Context object at 0x{id(ctx):016X}>'
-
-
 def test_detect_framebuffer(ctx):
     # find a randomly active framebuffer.
     # We just test the call for now

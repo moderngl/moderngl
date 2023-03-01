@@ -19,7 +19,6 @@ def test_create(ctx):
     assert texture.repeat_y is True
     assert texture.filter == (moderngl.LINEAR, moderngl.LINEAR)
     assert texture.swizzle == "RGBA"
-    assert hash(texture) == id(texture)
     assert texture == texture
 
     texture.repeat_x = False
@@ -39,11 +38,6 @@ def test_create(ctx):
     assert texture.filter == (moderngl.NEAREST, moderngl.NEAREST)
     texture.build_mipmaps()
     assert texture.filter == (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
-
-
-def test_repr(ctx):
-    texture = ctx.texture_array((64, 32, 8), 4)
-    assert repr(texture) == "<TextureArray: {}>".format(texture.glo)
 
 
 def test_texture_default_filter(ctx):

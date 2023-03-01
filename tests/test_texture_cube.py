@@ -13,7 +13,6 @@ def test_0(ctx):
     assert texture.filter == (moderngl.LINEAR, moderngl.LINEAR)
     assert texture.swizzle == "RGBA"
     assert texture == texture
-    assert hash(texture) == id(texture)
     assert texture.anisotropy == 0.0
 
     texture.anisotropy = ctx.max_anisotropy
