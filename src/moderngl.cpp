@@ -8494,17 +8494,13 @@ inline void MGLVertexArray_SET_SUBROUTINES(MGLVertexArray * self, const GLMethod
     }
 }
 
-PyObject * MGLContext_enable_only(MGLContext * self, PyObject * args) {
+PyObject * MGLContext_enable_only(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"flags", NULL};
+
     int flags;
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "i",
-        &flags
-    );
-
-    if (!args_ok) {
-        return 0;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i", (char **)keywords, &flags)) {
+        return NULL;
     }
 
     self->enable_flags = flags;
@@ -8542,17 +8538,13 @@ PyObject * MGLContext_enable_only(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_enable(MGLContext * self, PyObject * args) {
+PyObject * MGLContext_enable(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"flags", NULL};
+
     int flags;
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "i",
-        &flags
-    );
-
-    if (!args_ok) {
-        return 0;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i", (char **)keywords, &flags)) {
+        return NULL;
     }
 
     self->enable_flags |= flags;
@@ -8580,17 +8572,13 @@ PyObject * MGLContext_enable(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_disable(MGLContext * self, PyObject * args) {
+PyObject * MGLContext_disable(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"flags", NULL};
+
     int flags;
 
-    int args_ok = PyArg_ParseTuple(
-        args,
-        "i",
-        &flags
-    );
-
-    if (!args_ok) {
-        return 0;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i", (char **)keywords, &flags)) {
+        return NULL;
     }
 
     self->enable_flags &= ~flags;
@@ -8618,12 +8606,16 @@ PyObject * MGLContext_disable(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_enable_direct(MGLContext * self, PyObject * args) {
+PyObject * MGLContext_enable_direct(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"enum", NULL};
+
     int value;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
+        kwargs,
         "i",
+        (char **)keywords,
         &value
     );
 
@@ -8635,12 +8627,16 @@ PyObject * MGLContext_enable_direct(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_disable_direct(MGLContext * self, PyObject * args) {
+PyObject * MGLContext_disable_direct(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"enum", NULL};
+
     int value;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
+        kwargs,
         "i",
+        (char **)keywords,
         &value
     );
 
@@ -8707,13 +8703,17 @@ PyObject * MGLContext_copy_buffer(MGLContext * self, PyObject * args, PyObject *
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args) {
+PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"dst", "src", NULL};
+
     PyObject * dst;
     MGLFramebuffer * src;
 
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
+        kwargs,
         "OO!",
+        (char **)keywords,
         &dst,
         MGLFramebuffer_type,
         &src
@@ -8916,13 +8916,17 @@ MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * arg
     return framebuffer;
 }
 
-PyObject * MGLContext_clear_samplers(MGLContext * self, PyObject * args) {
-    int start;
-    int end;
+PyObject * MGLContext_clear_samplers(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"start", "end", NULL};
 
-    int args_ok = PyArg_ParseTuple(
+    int start = 0;
+    int end = -1;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "ii",
+        kwargs,
+        "|ii",
+        (char **)keywords,
         &start,
         &end
     );
@@ -10472,16 +10476,16 @@ PyType_Slot MGLVertexArray_slots[] = {
 };
 
 PyMethodDef MGLContext_methods[] = {
-    {"enable_only", (PyCFunction)MGLContext_enable_only, METH_VARARGS},
-    {"enable", (PyCFunction)MGLContext_enable, METH_VARARGS},
-    {"disable", (PyCFunction)MGLContext_disable, METH_VARARGS},
-    {"enable_direct", (PyCFunction)MGLContext_enable_direct, METH_VARARGS},
-    {"disable_direct", (PyCFunction)MGLContext_disable_direct, METH_VARARGS},
+    {"enable_only", (PyCFunction)MGLContext_enable_only, METH_VARARGS | METH_KEYWORDS},
+    {"enable", (PyCFunction)MGLContext_enable, METH_VARARGS | METH_KEYWORDS},
+    {"disable", (PyCFunction)MGLContext_disable, METH_VARARGS | METH_KEYWORDS},
+    {"enable_direct", (PyCFunction)MGLContext_enable_direct, METH_VARARGS | METH_KEYWORDS},
+    {"disable_direct", (PyCFunction)MGLContext_disable_direct, METH_VARARGS | METH_KEYWORDS},
     {"finish", (PyCFunction)MGLContext_finish, METH_NOARGS},
     {"copy_buffer", (PyCFunction)MGLContext_copy_buffer, METH_VARARGS | METH_KEYWORDS},
-    {"copy_framebuffer", (PyCFunction)MGLContext_copy_framebuffer, METH_VARARGS},
+    {"copy_framebuffer", (PyCFunction)MGLContext_copy_framebuffer, METH_VARARGS | METH_KEYWORDS},
     {"detect_framebuffer", (PyCFunction)MGLContext_detect_framebuffer, METH_VARARGS | METH_KEYWORDS},
-    {"clear_samplers", (PyCFunction)MGLContext_clear_samplers, METH_VARARGS},
+    {"clear_samplers", (PyCFunction)MGLContext_clear_samplers, METH_VARARGS | METH_KEYWORDS},
     {"buffer", (PyCFunction)MGLContext_buffer, METH_VARARGS | METH_KEYWORDS},
     {"texture", (PyCFunction)MGLContext_texture, METH_VARARGS | METH_KEYWORDS},
     {"texture3d", (PyCFunction)MGLContext_texture3d, METH_VARARGS | METH_KEYWORDS},
