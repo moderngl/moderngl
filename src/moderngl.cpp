@@ -465,6 +465,7 @@ struct MGLVertexArray {
     PyObject_HEAD
     MGLContext * context;
     PyObject * extra;
+    PyObject * scope;
     MGLProgram * program;
     MGLBuffer * index_buffer;
     int index_element_size;
@@ -7607,6 +7608,8 @@ MGLVertexArray * MGLContext_vertex_array(MGLContext * self, PyObject * args, PyO
     array->released = false;
     Py_INCREF(Py_None);
     array->extra = Py_None;
+    Py_INCREF(Py_None);
+    array->scope = Py_None;
 
     array->num_vertices = 0;
     array->num_instances = 1;
@@ -7787,6 +7790,14 @@ PyObject * MGLVertexArray_render(MGLVertexArray * self, PyObject * args, PyObjec
         return 0;
     }
 
+    if (self->scope != Py_None) {
+        PyObject * temp = PyObject_CallMethod(self->scope, "__enter__", NULL);
+        if (!temp) {
+            return NULL;
+        }
+        Py_DECREF(temp);
+    }
+
     int mode = mode_arg != Py_None ? PyLong_AsLong(mode_arg) : self->mode;
 
     if (vertices < 0) {
@@ -7816,6 +7827,11 @@ PyObject * MGLVertexArray_render(MGLVertexArray * self, PyObject * args, PyObjec
         gl.DrawArraysInstanced(mode, first, vertices, instances);
     }
 
+    if (self->scope != Py_None) {
+        PyErr_Clear();
+        Py_XDECREF(PyObject_CallMethod(self->scope, "__exit__", NULL));
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -7843,6 +7859,14 @@ PyObject * MGLVertexArray_render_indirect(MGLVertexArray * self, PyObject * args
         return 0;
     }
 
+    if (self->scope != Py_None) {
+        PyObject * temp = PyObject_CallMethod(self->scope, "__enter__", NULL);
+        if (!temp) {
+            return NULL;
+        }
+        Py_DECREF(temp);
+    }
+
     int mode = mode_arg != Py_None ? PyLong_AsLong(mode_arg) : self->mode;
 
     if (count < 0) {
@@ -7863,6 +7887,11 @@ PyObject * MGLVertexArray_render_indirect(MGLVertexArray * self, PyObject * args
         gl.MultiDrawElementsIndirect(mode, self->index_element_type, ptr, count, 20);
     } else {
         gl.MultiDrawArraysIndirect(mode, ptr, count, 20);
+    }
+
+    if (self->scope != Py_None) {
+        PyErr_Clear();
+        Py_XDECREF(PyObject_CallMethod(self->scope, "__exit__", NULL));
     }
 
     Py_RETURN_NONE;
@@ -7893,6 +7922,14 @@ PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args, PyOb
 
     if (!args_ok) {
         return 0;
+    }
+
+    if (self->scope != Py_None) {
+        PyObject * temp = PyObject_CallMethod(self->scope, "__enter__", NULL);
+        if (!temp) {
+            return NULL;
+        }
+        Py_DECREF(temp);
     }
 
     if (!PySequence_Check(outputs)) {
@@ -8030,6 +8067,11 @@ PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args, PyOb
         gl.Disable(GL_RASTERIZER_DISCARD);
     }
     gl.Flush();
+
+    if (self->scope != Py_None) {
+        PyErr_Clear();
+        Py_XDECREF(PyObject_CallMethod(self->scope, "__exit__", NULL));
+    }
 
     Py_RETURN_NONE;
 }
@@ -10158,6 +10200,7 @@ PyMethodDef MGLVertexArray_methods[] = {
 
 PyMemberDef MGLVertexArray_members[] = {
     {"extra", T_OBJECT, offsetof(MGLVertexArray, extra), 0},
+    {"scope", T_OBJECT, offsetof(MGLVertexArray, scope), 0},
     {},
 };
 
