@@ -2102,13 +2102,14 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args, PyOb
     return framebuffer;
 }
 
-PyObject * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args) {
+MGLFramebuffer * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "layers", "samples", NULL};
     int width;
     int height;
     int layers = 0;
     int samples = 0;
 
-    if (!PyArg_ParseTuple(args, "(II)|II", &width, &height, &layers, &samples)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "(II)|II", (char **)keywords, &width, &height, &layers, &samples)) {
         return 0;
     }
 
@@ -2169,18 +2170,7 @@ PyObject * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args) {
     framebuffer->context = self;
 
     Py_INCREF(framebuffer);
-
-    PyObject * size = PyTuple_New(2);
-    PyTuple_SET_ITEM(size, 0, PyLong_FromLong(framebuffer->width));
-    PyTuple_SET_ITEM(size, 1, PyLong_FromLong(framebuffer->height));
-
-    Py_INCREF(framebuffer);
-    PyObject * result = PyTuple_New(4);
-    PyTuple_SET_ITEM(result, 0, (PyObject *)framebuffer);
-    PyTuple_SET_ITEM(result, 1, size);
-    PyTuple_SET_ITEM(result, 2, PyLong_FromLong(framebuffer->samples));
-    PyTuple_SET_ITEM(result, 3, PyLong_FromLong(framebuffer->framebuffer_obj));
-    return result;
+    return framebuffer;
 }
 
 PyObject * MGLFramebuffer_release(MGLFramebuffer * self, PyObject * args) {
@@ -10210,7 +10200,7 @@ PyMethodDef MGLContext_methods[] = {
     {"simple_vertex_array", (PyCFunction)MGLContext_simple_vertex_array, METH_VARARGS | METH_KEYWORDS},
     {"program", (PyCFunction)MGLContext_program, METH_VARARGS | METH_KEYWORDS},
     {"framebuffer", (PyCFunction)MGLContext_framebuffer, METH_VARARGS | METH_KEYWORDS},
-    {"empty_framebuffer", (PyCFunction)MGLContext_empty_framebuffer, METH_VARARGS},
+    {"empty_framebuffer", (PyCFunction)MGLContext_empty_framebuffer, METH_VARARGS | METH_KEYWORDS},
     {"renderbuffer", (PyCFunction)MGLContext_renderbuffer, METH_VARARGS | METH_KEYWORDS},
     {"depth_renderbuffer", (PyCFunction)MGLContext_depth_renderbuffer, METH_VARARGS | METH_KEYWORDS},
     {"compute_shader", (PyCFunction)MGLContext_compute_shader, METH_VARARGS | METH_KEYWORDS},
