@@ -4258,15 +4258,6 @@ PyObject * MGLContext_scope(MGLContext * self, PyObject * args, PyObject * kwarg
 }
 
 PyObject * MGLScope_begin(MGLScope * self, PyObject * args) {
-    int args_ok = PyArg_ParseTuple(
-        args,
-        ""
-    );
-
-    if (!args_ok) {
-        return 0;
-    }
-
     const GLMethods & gl = self->context->gl;
     const int & flags = self->enable_flags;
 
@@ -4330,16 +4321,7 @@ PyObject * MGLScope_begin(MGLScope * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLScope_end(MGLScope * self, PyObject * args) {
-    int args_ok = PyArg_ParseTuple(
-        args,
-        ""
-    );
-
-    if (!args_ok) {
-        return 0;
-    }
-
+PyObject * MGLScope_end(MGLScope * self, PyObject * args, PyObject * kwargs) {
     const GLMethods & gl = self->context->gl;
     const int & flags = self->old_enable_flags;
 
@@ -10019,8 +10001,10 @@ PyType_Slot MGLSampler_slots[] = {
 };
 
 PyMethodDef MGLScope_methods[] = {
-    {"begin", (PyCFunction)MGLScope_begin, METH_VARARGS},
-    {"end", (PyCFunction)MGLScope_end, METH_VARARGS},
+    {"begin", (PyCFunction)MGLScope_begin, METH_NOARGS},
+    {"end", (PyCFunction)MGLScope_end, METH_VARARGS | METH_KEYWORDS},
+    {"__enter__", (PyCFunction)MGLScope_begin, METH_NOARGS},
+    {"__exit__", (PyCFunction)MGLScope_end, METH_VARARGS | METH_KEYWORDS},
     {"release", (PyCFunction)MGLScope_release, METH_NOARGS},
     {},
 };
