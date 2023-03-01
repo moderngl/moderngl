@@ -8442,17 +8442,20 @@ PyObject * MGLContext_finish(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-PyObject * MGLContext_copy_buffer(MGLContext * self, PyObject * args) {
+PyObject * MGLContext_copy_buffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"dst", "src", "size", "read_offset", "write_offset", NULL};
+
     MGLBuffer * dst;
     MGLBuffer * src;
+    Py_ssize_t size = -1;
+    Py_ssize_t read_offset = 0;
+    Py_ssize_t write_offset = 0;
 
-    Py_ssize_t size;
-    Py_ssize_t read_offset;
-    Py_ssize_t write_offset;
-
-    int args_ok = PyArg_ParseTuple(
+    int args_ok = PyArg_ParseTupleAndKeywords(
         args,
-        "O!O!nnn",
+        kwargs,
+        "O!O!|nnn",
+        (char **)keywords,
         MGLBuffer_type,
         &dst,
         MGLBuffer_type,
@@ -10214,7 +10217,7 @@ PyMethodDef MGLContext_methods[] = {
     {"enable_direct", (PyCFunction)MGLContext_enable_direct, METH_VARARGS},
     {"disable_direct", (PyCFunction)MGLContext_disable_direct, METH_VARARGS},
     {"finish", (PyCFunction)MGLContext_finish, METH_NOARGS},
-    {"copy_buffer", (PyCFunction)MGLContext_copy_buffer, METH_VARARGS},
+    {"copy_buffer", (PyCFunction)MGLContext_copy_buffer, METH_VARARGS | METH_KEYWORDS},
     {"copy_framebuffer", (PyCFunction)MGLContext_copy_framebuffer, METH_VARARGS},
     {"detect_framebuffer", (PyCFunction)MGLContext_detect_framebuffer, METH_VARARGS},
     {"clear_samplers", (PyCFunction)MGLContext_clear_samplers, METH_VARARGS},
