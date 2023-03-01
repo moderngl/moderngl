@@ -9557,45 +9557,10 @@ PyObject * MGLContext_get_info(MGLContext * self) {
 }
 
 MGLContext * create_context(PyObject * self, PyObject * args, PyObject * kwargs) {
-    PyObject * context = PyDict_GetItemString(kwargs, "context");
-
+    PyObject * old_create_context = PyObject_GetAttrString(helper, "old_create_context");
+    PyObject * context = PyObject_Call(old_create_context, args, kwargs);
     if (!context) {
-        PyObject * glcontext = PyImport_ImportModule("glcontext");
-        if (!glcontext) {
-            // Displayed to user: ModuleNotFoundError: No module named 'glcontext'
-            return NULL;
-        }
-
-        PyObject * backend = NULL;
-        PyObject * backend_name = PyDict_GetItemString(kwargs, "backend");
-
-        // Use the specified backend
-        if (backend_name) {
-            backend = PyObject_CallMethod(glcontext, "get_backend_by_name", "O", backend_name);
-            if (backend == Py_None || backend == NULL) {
-                return NULL;
-            }
-        // Use default backend
-        } else {
-            backend = PyObject_CallMethod(glcontext, "default_backend", NULL);
-            if (backend == Py_None || backend == NULL) {
-                MGLError_Set("glcontext: Could not get a default backend");
-                return NULL;
-            }
-        }
-
-        // Ensure we have a callable
-        if (!PyCallable_Check(backend)) {
-            MGLError_Set("The returned glcontext is not a callable");
-            return NULL;
-        }
-        // Create context by simply forwarding all arguments
-        context = PyObject_Call(backend, args, kwargs);
-        if (!context) {
-            return NULL;
-        }
-    } else {
-        Py_INCREF(context);
+        return NULL;
     }
 
     MGLContext * ctx = PyObject_New(MGLContext, MGLContext_type);
@@ -9603,6 +9568,7 @@ MGLContext * create_context(PyObject * self, PyObject * args, PyObject * kwargs)
     Py_INCREF(Py_None);
     ctx->extra = Py_None;
     ctx->wireframe = false;
+    Py_INCREF(context);
     ctx->ctx = context;
 
     ctx->constants = constants;
@@ -9752,6 +9718,16 @@ MGLContext * create_context(PyObject * self, PyObject * args, PyObject * kwargs)
     return ctx;
 }
 
+MGLContext * create_standalone_context(PyObject * self, PyObject * args, PyObject * kwargs) {
+    static PyObject * empty_tuple = PyTuple_New(0); // TODO: move
+    PyObject * arguments = PyDict_New();
+    if (kwargs) {
+        PyDict_Update(arguments, kwargs);
+    }
+    PyDict_SetItemString(arguments, "standalone", Py_True);
+    return create_context(self, empty_tuple, arguments);
+}
+
 void default_dealloc(PyObject * self) {
     Py_TYPE(self)->tp_free(self);
 }
@@ -9762,6 +9738,7 @@ PyObject * return_self(PyObject * self) {
 
 PyMethodDef module_methods[] = {
     {"create_context", (PyCFunction)create_context, METH_VARARGS | METH_KEYWORDS},
+    {"create_standalone_context", (PyCFunction)create_standalone_context, METH_VARARGS | METH_KEYWORDS},
     {},
 };
 

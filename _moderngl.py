@@ -420,5 +420,34 @@ def simple_vertex_array_content(program, buffer, attributes):
     return [(buffer, detect_format(program, attributes)) + attributes]
 
 
+def old_create_context(require=None, standalone=False, share=False, **settings):
+    if require is None:
+        require = 330
+
+    mode = 'standalone' if standalone is True else 'detect'
+    if share is True:
+        mode = 'share'
+
+    context = settings.get('context')
+
+    if context is None:
+        import glcontext
+
+        backend_name = settings.get('backend')
+        if backend_name is not None:
+            backend = glcontext.get_backend_by_name(backend_name)
+
+        else:
+            backend = glcontext.default_backend()
+
+        context = backend(glversion=require, mode=mode, **settings)
+
+    return context
+
+
+def old_create_standalone_context(require=None, share=False, **settings):
+    return old_create_context(require=require, standalone=True, share=share, **settings)
+
+
 class InvalidObject:
     pass
