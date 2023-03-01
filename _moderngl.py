@@ -397,5 +397,28 @@ def vertex_array_content(content, members):
     )
 
 
+def detect_format(program, attributes, mode='mgl'):
+    def fmt(attr):
+        # Translate shape format into attribute format
+        mgl_fmt = {
+            'd': 'f8',
+            'I': 'u'
+        }
+        # moderngl attribute format uses f, i and u
+        if mode == 'mgl':
+            return attr.array_length * attr.dimension, mgl_fmt.get(attr.shape) or attr.shape
+        # struct attribute format uses f, d, i and I
+        elif mode == 'struct':
+            return attr.array_length * attr.dimension, attr.shape
+        else:
+            raise ValueError("invalid format mode: {0}".format(mode))
+
+    return ' '.join('%d%s' % fmt(program[a]) for a in attributes)
+
+
+def simple_vertex_array_content(program, buffer, attributes):
+    return [(buffer, detect_format(program, attributes)) + attributes]
+
+
 class InvalidObject:
     pass

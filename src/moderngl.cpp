@@ -5093,7 +5093,7 @@ PyObject * MGLTexture_meth_bind(MGLTexture * self, PyObject * args, PyObject * k
 }
 
 PyObject * MGLTexture_use(MGLTexture * self, PyObject * args, PyObject * kwargs) {
-    const char * keywords[] = {"index", NULL};
+    const char * keywords[] = {"location", NULL};
 
     int index = 0;
 
@@ -5831,7 +5831,7 @@ PyObject * MGLTexture3D_meth_bind(MGLTexture3D * self, PyObject * args, PyObject
 }
 
 PyObject * MGLTexture3D_use(MGLTexture3D * self, PyObject * args, PyObject * kwargs) {
-    const char * keywords[] = {"index", NULL};
+    const char * keywords[] = {"location", NULL};
 
     int index = 0;
 
@@ -6549,7 +6549,7 @@ PyObject * MGLTextureArray_meth_bind(MGLTextureArray * self, PyObject * args, Py
 }
 
 PyObject * MGLTextureArray_use(MGLTextureArray * self, PyObject * args, PyObject * kwargs) {
-    const char * keywords[] = {"index", NULL};
+    const char * keywords[] = {"location", NULL};
 
     int index = 0;
 
@@ -7271,7 +7271,7 @@ PyObject * MGLTextureCube_meth_bind(MGLTextureCube * self, PyObject * args, PyOb
 }
 
 PyObject * MGLTextureCube_use(MGLTextureCube * self, PyObject * args, PyObject * kwargs) {
-    const char * keywords[] = {"index", NULL};
+    const char * keywords[] = {"location", NULL};
 
     int index = 0;
 
@@ -7491,7 +7491,13 @@ int MGLTextureCube_set_anisotropy(MGLTextureCube * self, PyObject * value) {
     return 0;
 }
 
+MGLVertexArray * MGLContext_simple_vertex_array(MGLContext * self, PyObject * args, PyObject * kwargs);
+
 MGLVertexArray * MGLContext_vertex_array(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    if (PyTuple_Size(args) > 2 && Py_TYPE(PyTuple_GetItem(args, 1)) == MGLBuffer_type) {
+        return MGLContext_simple_vertex_array(self, args, kwargs);
+    }
+
     const char * keywords[] = {"program", "content", "index_buffer", "index_element_size", "skip_errors", "mode", NULL};
 
     MGLProgram * program;
@@ -7726,6 +7732,39 @@ MGLVertexArray * MGLContext_vertex_array(MGLContext * self, PyObject * args, PyO
 
     Py_INCREF(array);
     return array;
+}
+
+PyObject * get_kwarg(PyObject * kwargs, const char * key, PyObject * default_value) {
+    if (!kwargs) {
+        return default_value;
+    }
+    PyObject * value = PyDict_GetItemString(kwargs, key);
+    if (!value) {
+        return default_value;
+    }
+    return value;
+}
+
+MGLVertexArray * MGLContext_simple_vertex_array(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    if (PyTuple_Size(args) < 2 || PySequence_Check(PyTuple_GetItem(args, 1))) {
+        MGLError_Set("Change simple_vertex_array to vertex_array");
+        return NULL;
+    }
+    PyObject * program = PyTuple_GetItem(args, 0);
+    PyObject * buffer = PyTuple_GetItem(args, 1);
+    PyObject * attributes = PySequence_GetSlice(args, 2, PyTuple_Size(args));
+    PyObject * index_buffer = get_kwarg(kwargs, "index_buffer", Py_None);
+    PyObject * index_element_size = get_kwarg(kwargs, "index_element_size", PyLong_FromLong(4));
+    PyObject * skip_errors = get_kwarg(kwargs, "skip_errors", Py_False);
+    PyObject * mode = get_kwarg(kwargs, "mode", Py_None);
+    PyObject * content = PyObject_CallMethod(helper, "simple_vertex_array_content", "(OON)", program, buffer, attributes);
+    if (!content) {
+        return NULL;
+    }
+    return (MGLVertexArray *)PyObject_CallMethod(
+        (PyObject *)self, "vertex_array", "(ONOOOO)",
+        program, content, index_buffer, index_element_size, skip_errors, mode
+    );
 }
 
 inline void MGLVertexArray_SET_SUBROUTINES(MGLVertexArray * self, const GLMethods & gl);
@@ -10158,6 +10197,7 @@ PyMethodDef MGLContext_methods[] = {
     {"depth_texture", (PyCFunction)MGLContext_depth_texture, METH_VARARGS | METH_KEYWORDS},
     {"external_texture", (PyCFunction)MGLContext_external_texture, METH_VARARGS | METH_KEYWORDS},
     {"vertex_array", (PyCFunction)MGLContext_vertex_array, METH_VARARGS | METH_KEYWORDS},
+    {"simple_vertex_array", (PyCFunction)MGLContext_simple_vertex_array, METH_VARARGS | METH_KEYWORDS},
     {"program", (PyCFunction)MGLContext_program, METH_VARARGS | METH_KEYWORDS},
     {"framebuffer", (PyCFunction)MGLContext_framebuffer, METH_VARARGS | METH_KEYWORDS},
     {"empty_framebuffer", (PyCFunction)MGLContext_empty_framebuffer, METH_VARARGS},
