@@ -9365,6 +9365,22 @@ PyObject * MGLContext_get_context(MGLContext * self, void * closure) {
     return self->ctx;
 }
 
+PyObject * MGLContext_get_viewport(MGLContext * self, void * closure) {
+    return PyObject_GetAttrString((PyObject *)self->bound_framebuffer, "viewport");
+}
+
+int MGLContext_set_viewport(MGLContext * self, PyObject * value, void * closure) {
+    return PyObject_SetAttrString((PyObject *)self->bound_framebuffer, "viewport", value);
+}
+
+PyObject * MGLContext_get_scissor(MGLContext * self, void * closure) {
+    return PyObject_GetAttrString((PyObject *)self->bound_framebuffer, "scissor");
+}
+
+int MGLContext_set_scissor(MGLContext * self, PyObject * value, void * closure) {
+    return PyObject_SetAttrString((PyObject *)self->bound_framebuffer, "scissor", value);
+}
+
 void set_key(PyObject * dict, const char * key, PyObject * value) {
     PyDict_SetItemString(dict, key, value);
     Py_DECREF(value);
@@ -10344,6 +10360,8 @@ PyGetSetDef MGLContext_getset[] = {
     {"info", (getter)MGLContext_get_info, NULL},
     {"error", (getter)MGLContext_get_error, NULL},
     {"_context", (getter)MGLContext_get_context, NULL},
+    {"viewport", (getter)MGLContext_get_viewport, (setter)MGLContext_set_viewport},
+    {"scissor", (getter)MGLContext_get_scissor, (setter)MGLContext_set_scissor},
     {},
 };
 
