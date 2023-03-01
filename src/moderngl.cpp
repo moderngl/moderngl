@@ -488,6 +488,7 @@ struct MGLVertexArray {
 struct MGLSampler {
     PyObject_HEAD
     MGLContext * context;
+    PyObject * texture;
     PyObject * extra;
     int sampler_obj;
     int min_filter;
@@ -3877,18 +3878,18 @@ PyObject * MGLRenderbuffer_release(MGLRenderbuffer * self, PyObject * args) {
 MGLSampler * MGLContext_sampler(MGLContext * self, PyObject * args, PyObject * kwargs) {
     const char * keywords[] = {"repeat_x", "repeat_y", "repeat_z", "filter", "anisotropy", "compare_func", "border_color", "min_lod", "max_lod", "texture", NULL};
 
-    int repeat_x = true;
-    int repeat_y = true;
-    int repeat_z = true;
+    PyObject * repeat_x = Py_True;
+    PyObject * repeat_y = Py_True;
+    PyObject * repeat_z = Py_True;
     PyObject * filter = Py_None;
-    float anisotropy = 1.0f;
-    const char * compare_func = "?";
+    PyObject * anisotropy = PyFloat_FromDouble(1.0);
+    PyObject * compare_func = PyUnicode_FromString("?");
     PyObject * border_color = Py_None;
-    float min_lod = -1000.0f;
-    float max_lod = 1000.0f;
+    PyObject * min_lod = PyFloat_FromDouble(-1000.0);
+    PyObject * max_lod = PyFloat_FromDouble(1000.0);
     PyObject * texture = Py_None;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|pppOfsOffO", (char **)keywords, &repeat_x, &repeat_y, &repeat_z, &filter, &anisotropy, &compare_func, &border_color, &min_lod, &max_lod, &texture)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOOOOOOOO", (char **)keywords, &repeat_x, &repeat_y, &repeat_z, &filter, &anisotropy, &compare_func, &border_color, &min_lod, &max_lod, &texture)) {
         return NULL;
     }
 
@@ -3903,20 +3904,40 @@ MGLSampler * MGLContext_sampler(MGLContext * self, PyObject * args, PyObject * k
 
     sampler->min_filter = GL_LINEAR;
     sampler->mag_filter = GL_LINEAR;
-    sampler->anisotropy = 0.0;
+    sampler->anisotropy = 0.0f;
     sampler->repeat_x = true;
     sampler->repeat_y = true;
     sampler->repeat_z = true;
     sampler->compare_func = 0;
-    sampler->border_color[0] = 0.0;
-    sampler->border_color[1] = 0.0;
-    sampler->border_color[2] = 0.0;
-    sampler->border_color[3] = 0.0;
-    sampler->min_lod = -1000.0;
-    sampler->max_lod = 1000.0;
+    sampler->border_color[0] = 0.0f;
+    sampler->border_color[1] = 0.0f;
+    sampler->border_color[2] = 0.0f;
+    sampler->border_color[3] = 0.0f;
+    sampler->min_lod = -1000.0f;
+    sampler->max_lod = 1000.0f;
+
+    Py_INCREF(Py_None);
+    sampler->texture = Py_None;
 
     Py_INCREF(self);
     sampler->context = self;
+
+    PyObject_SetAttrString((PyObject *)sampler, "repeat_x", repeat_x);
+    PyObject_SetAttrString((PyObject *)sampler, "repeat_y", repeat_y);
+    PyObject_SetAttrString((PyObject *)sampler, "repeat_z", repeat_z);
+    if (filter != Py_None) {
+        PyObject_SetAttrString((PyObject *)sampler, "filter", filter);
+    } else {
+        PyObject_SetAttrString((PyObject *)sampler, "filter", Py_BuildValue("(ii)", 9729, 9729));
+    }
+    PyObject_SetAttrString((PyObject *)sampler, "anisotropy", anisotropy);
+    PyObject_SetAttrString((PyObject *)sampler, "compare_func", compare_func);
+    if (border_color != Py_None) {
+        PyObject_SetAttrString((PyObject *)sampler, "border_color", border_color);
+    }
+    PyObject_SetAttrString((PyObject *)sampler, "min_lod", min_lod);
+    PyObject_SetAttrString((PyObject *)sampler, "max_lod", max_lod);
+    PyObject_SetAttrString((PyObject *)sampler, "texture", texture);
 
     Py_INCREF(sampler);
     return sampler;
@@ -10057,6 +10078,7 @@ PyMethodDef MGLSampler_methods[] = {
 
 PyMemberDef MGLSampler_members[] = {
     {"extra", T_OBJECT, offsetof(MGLSampler, extra), 0},
+    {"texture", T_OBJECT, offsetof(MGLSampler, texture), 0},
     {},
 };
 
