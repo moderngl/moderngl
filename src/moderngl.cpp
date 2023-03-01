@@ -1976,8 +1976,10 @@ PyObject * MGLComputeShader_release(MGLComputeShader * self, PyObject * args) {
 MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
     const char * keywords[] = {"color_attachments", "depth_attachment", NULL};
 
-    PyObject * color_attachments;
-    PyObject * depth_attachment;
+    static PyObject * empty_tuple = PyTuple_New(0); // TODO: move
+
+    PyObject * color_attachments = empty_tuple;
+    PyObject * depth_attachment = Py_None;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OO", (char **)keywords, &color_attachments, &depth_attachment)) {
         return NULL;
