@@ -10229,6 +10229,7 @@ PyMethodDef MGLContext_methods[] = {
     {"depth_texture", (PyCFunction)MGLContext_depth_texture, METH_VARARGS | METH_KEYWORDS},
     {"external_texture", (PyCFunction)MGLContext_external_texture, METH_VARARGS | METH_KEYWORDS},
     {"vertex_array", (PyCFunction)MGLContext_vertex_array, METH_VARARGS | METH_KEYWORDS},
+    {"_vertex_array", (PyCFunction)MGLContext_vertex_array, METH_VARARGS | METH_KEYWORDS},
     {"simple_vertex_array", (PyCFunction)MGLContext_simple_vertex_array, METH_VARARGS | METH_KEYWORDS},
     {"program", (PyCFunction)MGLContext_program, METH_VARARGS | METH_KEYWORDS},
     {"framebuffer", (PyCFunction)MGLContext_framebuffer, METH_VARARGS | METH_KEYWORDS},
