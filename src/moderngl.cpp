@@ -8,6 +8,11 @@
 #define MGL_MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MGL_MIN(a, b) (((a) < (b)) ? (a) : (b))
 
+PyObject * new_ref(PyObject * obj) {
+    Py_XINCREF(obj);
+    return obj;
+}
+
 PyObject * helper;
 PyObject * moderngl_error;
 PyTypeObject * MGLBuffer_type;
@@ -256,6 +261,7 @@ struct MGLContext {
     PyObject * ctx;
     PyObject * extensions;
     PyObject * extra;
+    PyObject * gc_mode;
     MGLFramebuffer * default_framebuffer;
     MGLFramebuffer * bound_framebuffer;
     int version_code;
@@ -1587,12 +1593,12 @@ PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args, PyObject * kwargs)
 PyObject * MGLBuffer_orphan(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
     const char * keywords[] = {"size", NULL};
 
-    Py_ssize_t size;
+    Py_ssize_t size = -1;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
         args,
         kwargs,
-        "n",
+        "|n",
         (char **)keywords,
         &size
     );
@@ -1669,6 +1675,32 @@ PyObject * MGLBuffer_bind_to_storage_buffer(MGLBuffer * self, PyObject * args, P
     const GLMethods & gl = self->context->gl;
     gl.BindBufferRange(GL_SHADER_STORAGE_BUFFER, binding, self->buffer_obj, offset, size);
     Py_RETURN_NONE;
+}
+
+PyObject * MGLBuffer_assign(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"index", NULL};
+
+    int index;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|I", (char **)keywords, &index)) {
+        return 0;
+    }
+
+    return Py_BuildValue("(OI)", self, index);
+}
+
+PyObject * MGLBuffer_bind(MGLBuffer * self, PyObject * args, PyObject * kwargs) {
+    static PyObject * empty_tuple = PyTuple_New(0); // TODO: move
+
+    const char * keywords[] = {"layout", NULL};
+
+    PyObject * layout;
+
+    if (!PyArg_ParseTupleAndKeywords(empty_tuple, kwargs, "$O", (char **)keywords, &layout)) {
+        return 0;
+    }
+
+    return PyNumber_Add(Py_BuildValue("(OO)", self, layout), args);
 }
 
 PyObject * MGLBuffer_release(MGLBuffer * self, PyObject * args) {
@@ -2103,6 +2135,31 @@ MGLFramebuffer * MGLContext_framebuffer(MGLContext * self, PyObject * args, PyOb
 
     Py_INCREF(framebuffer);
     return framebuffer;
+}
+
+MGLFramebuffer * MGLContext_simple_framebuffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"size", "components", "samples", "dtype", NULL};
+
+    PyObject * size;
+    PyObject * components = PyLong_FromLong(4);
+    PyObject * samples = PyLong_FromLong(0);
+    PyObject * dtype = PyUnicode_FromString("f1");
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOO", (char **)keywords, &size, &components, &samples, &dtype)) {
+        return NULL;
+    }
+
+    PyObject * color_attachment = PyObject_CallMethod((PyObject *)self, "renderbuffer", "(OOOO)", size, components, samples, dtype);
+    if (!color_attachment) {
+        return NULL;
+    }
+
+    PyObject * depth_attachment = PyObject_CallMethod((PyObject *)self, "depth_renderbuffer", "(OO)", size, samples);
+    if (!depth_attachment) {
+        return NULL;
+    }
+
+    return (MGLFramebuffer *)PyObject_CallMethod((PyObject *)self, "framebuffer", "([O]O)", color_attachment, depth_attachment);
 }
 
 MGLFramebuffer * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
@@ -8605,10 +8662,12 @@ PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args) {
-    PyObject * glo;
+MGLFramebuffer * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    const char * keywords[] = {"glo", NULL};
 
-    if (!PyArg_ParseTuple(args, "O", &glo)) {
+    PyObject * glo = Py_None;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", (char **)keywords, &glo)) {
         return 0;
     }
 
@@ -8732,6 +8791,14 @@ PyObject * MGLContext_clear_samplers(MGLContext * self, PyObject * args) {
 
 PyObject * MGLContext_clear(MGLContext * self, PyObject * args, PyObject * kwargs) {
     return MGLFramebuffer_clear(self->bound_framebuffer, args, kwargs);
+}
+
+PyObject * MGLContext_gc(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    Py_RETURN_NONE;
+}
+
+PyObject * MGLContext_core_profile_check(MGLContext * self, PyObject * args, PyObject * kwargs) {
+    Py_RETURN_NONE;
 }
 
 PyObject * MGLContext_enter(MGLContext * self, PyObject * args) {
@@ -9038,6 +9105,11 @@ PyObject * MGLContext_get_blend_func(MGLContext * self) {
 }
 
 int MGLContext_set_blend_func(MGLContext * self, PyObject * value) {
+    value = PySequence_Tuple(value);
+    if (!value) {
+        return -1;
+    }
+
     Py_ssize_t num_values = PyTuple_GET_SIZE(value);
 
     if (!(num_values == 2 || num_values == 4)) {
@@ -9073,6 +9145,14 @@ PyObject * MGLContext_get_blend_equation(MGLContext * self) {
 }
 
 int MGLContext_set_blend_equation(MGLContext * self, PyObject * value) {
+    if (!PySequence_Check(value)) {
+        value = Py_BuildValue("(O)", value);
+    }
+    value = PySequence_Tuple(value);
+    if (!value) {
+        return -1;
+    }
+
     Py_ssize_t num_values = PyTuple_GET_SIZE(value);
 
     if (!(num_values == 1 || num_values == 2)) {
@@ -9567,6 +9647,8 @@ MGLContext * create_context(PyObject * self, PyObject * args, PyObject * kwargs)
     ctx->released = false;
     Py_INCREF(Py_None);
     ctx->extra = Py_None;
+    Py_INCREF(Py_None);
+    ctx->gc_mode = Py_None;
     ctx->wireframe = false;
     Py_INCREF(context);
     ctx->ctx = context;
@@ -9753,12 +9835,16 @@ PyMethodDef MGLBuffer_methods[] = {
     {"orphan", (PyCFunction)MGLBuffer_orphan, METH_VARARGS | METH_KEYWORDS},
     {"bind_to_uniform_block", (PyCFunction)MGLBuffer_bind_to_uniform_block, METH_VARARGS | METH_KEYWORDS},
     {"bind_to_storage_buffer", (PyCFunction)MGLBuffer_bind_to_storage_buffer, METH_VARARGS | METH_KEYWORDS},
+    {"assign", (PyCFunction)MGLBuffer_assign, METH_VARARGS | METH_KEYWORDS},
+    {"bind", (PyCFunction)MGLBuffer_bind, METH_VARARGS | METH_KEYWORDS},
     {"release", (PyCFunction)MGLBuffer_release, METH_NOARGS},
     {},
 };
 
 PyMemberDef MGLBuffer_members[] = {
     {"extra", T_OBJECT, offsetof(MGLBuffer, extra), 0},
+    {"glo", T_INT, offsetof(MGLBuffer, buffer_obj), READONLY},
+    {"dynamic", T_BOOL, offsetof(MGLBuffer, dynamic), READONLY},
     {},
 };
 
@@ -10212,7 +10298,7 @@ PyMethodDef MGLContext_methods[] = {
     {"finish", (PyCFunction)MGLContext_finish, METH_NOARGS},
     {"copy_buffer", (PyCFunction)MGLContext_copy_buffer, METH_VARARGS | METH_KEYWORDS},
     {"copy_framebuffer", (PyCFunction)MGLContext_copy_framebuffer, METH_VARARGS},
-    {"detect_framebuffer", (PyCFunction)MGLContext_detect_framebuffer, METH_VARARGS},
+    {"detect_framebuffer", (PyCFunction)MGLContext_detect_framebuffer, METH_VARARGS | METH_KEYWORDS},
     {"clear_samplers", (PyCFunction)MGLContext_clear_samplers, METH_VARARGS},
     {"buffer", (PyCFunction)MGLContext_buffer, METH_VARARGS | METH_KEYWORDS},
     {"texture", (PyCFunction)MGLContext_texture, METH_VARARGS | METH_KEYWORDS},
@@ -10226,6 +10312,7 @@ PyMethodDef MGLContext_methods[] = {
     {"simple_vertex_array", (PyCFunction)MGLContext_simple_vertex_array, METH_VARARGS | METH_KEYWORDS},
     {"program", (PyCFunction)MGLContext_program, METH_VARARGS | METH_KEYWORDS},
     {"framebuffer", (PyCFunction)MGLContext_framebuffer, METH_VARARGS | METH_KEYWORDS},
+    {"simple_framebuffer", (PyCFunction)MGLContext_simple_framebuffer, METH_VARARGS | METH_KEYWORDS},
     {"empty_framebuffer", (PyCFunction)MGLContext_empty_framebuffer, METH_VARARGS | METH_KEYWORDS},
     {"renderbuffer", (PyCFunction)MGLContext_renderbuffer, METH_VARARGS | METH_KEYWORDS},
     {"depth_renderbuffer", (PyCFunction)MGLContext_depth_renderbuffer, METH_VARARGS | METH_KEYWORDS},
@@ -10245,11 +10332,14 @@ PyMethodDef MGLContext_methods[] = {
     {"_read_uniform", (PyCFunction)MGLContext_read_uniform, METH_VARARGS},
     {"_set_uniform_handle", (PyCFunction)MGLContext_set_uniform_handle, METH_VARARGS},
     {"clear", (PyCFunction)MGLContext_clear, METH_VARARGS | METH_KEYWORDS},
+    {"gc", (PyCFunction)MGLContext_gc, METH_VARARGS | METH_KEYWORDS},
+    {"core_profile_check", (PyCFunction)MGLContext_core_profile_check, METH_VARARGS | METH_KEYWORDS},
     {},
 };
 
 PyMemberDef MGLContext_members[] = {
     {"extra", T_OBJECT_EX, offsetof(MGLContext, extra), 0},
+    {"gc_mode", T_OBJECT_EX, offsetof(MGLContext, gc_mode), 0},
     {"screen", T_OBJECT, offsetof(MGLContext, default_framebuffer), READONLY},
     {"version_code", T_INT, offsetof(MGLContext, version_code), READONLY},
     {"NOTHING", T_OBJECT, offsetof(MGLContext, constants.nothing), READONLY},
@@ -10404,29 +10494,29 @@ extern "C" PyObject * PyInit_moderngl() {
     MGLVertexArray_type = (PyTypeObject *)PyType_FromSpec(&MGLVertexArray_spec);
     MGLSampler_type = (PyTypeObject *)PyType_FromSpec(&MGLSampler_spec);
 
-    PyModule_AddObject(module, "Buffer", (PyObject *)MGLBuffer_type);
-    PyModule_AddObject(module, "ComputeShader", (PyObject *)MGLComputeShader_type);
-    PyModule_AddObject(module, "Context", (PyObject *)MGLContext_type);
-    PyModule_AddObject(module, "Framebuffer", (PyObject *)MGLFramebuffer_type);
-    PyModule_AddObject(module, "Program", (PyObject *)MGLProgram_type);
-    PyModule_AddObject(module, "Query", (PyObject *)MGLQuery_type);
-    PyModule_AddObject(module, "ConditionalRender", (PyObject *)MGLConditionalRender_type);
-    PyModule_AddObject(module, "Renderbuffer", (PyObject *)MGLRenderbuffer_type);
-    PyModule_AddObject(module, "Scope", (PyObject *)MGLScope_type);
-    PyModule_AddObject(module, "Texture", (PyObject *)MGLTexture_type);
-    PyModule_AddObject(module, "TextureArray", (PyObject *)MGLTextureArray_type);
-    PyModule_AddObject(module, "TextureCube", (PyObject *)MGLTextureCube_type);
-    PyModule_AddObject(module, "Texture3D", (PyObject *)MGLTexture3D_type);
-    PyModule_AddObject(module, "VertexArray", (PyObject *)MGLVertexArray_type);
-    PyModule_AddObject(module, "Sampler", (PyObject *)MGLSampler_type);
+    PyModule_AddObject(module, "Buffer", new_ref((PyObject *)MGLBuffer_type));
+    PyModule_AddObject(module, "ComputeShader", new_ref((PyObject *)MGLComputeShader_type));
+    PyModule_AddObject(module, "Context", new_ref((PyObject *)MGLContext_type));
+    PyModule_AddObject(module, "Framebuffer", new_ref((PyObject *)MGLFramebuffer_type));
+    PyModule_AddObject(module, "Program", new_ref((PyObject *)MGLProgram_type));
+    PyModule_AddObject(module, "Query", new_ref((PyObject *)MGLQuery_type));
+    PyModule_AddObject(module, "ConditionalRender", new_ref((PyObject *)MGLConditionalRender_type));
+    PyModule_AddObject(module, "Renderbuffer", new_ref((PyObject *)MGLRenderbuffer_type));
+    PyModule_AddObject(module, "Scope", new_ref((PyObject *)MGLScope_type));
+    PyModule_AddObject(module, "Texture", new_ref((PyObject *)MGLTexture_type));
+    PyModule_AddObject(module, "TextureArray", new_ref((PyObject *)MGLTextureArray_type));
+    PyModule_AddObject(module, "TextureCube", new_ref((PyObject *)MGLTextureCube_type));
+    PyModule_AddObject(module, "Texture3D", new_ref((PyObject *)MGLTexture3D_type));
+    PyModule_AddObject(module, "VertexArray", new_ref((PyObject *)MGLVertexArray_type));
+    PyModule_AddObject(module, "Sampler", new_ref((PyObject *)MGLSampler_type));
 
-    PyModule_AddObject(module, "Error", PyObject_GetAttrString(helper, "Error"));
-    PyModule_AddObject(module, "Uniform", PyObject_GetAttrString(helper, "Uniform"));
-    PyModule_AddObject(module, "Attribute", PyObject_GetAttrString(helper, "Attribute"));
-    PyModule_AddObject(module, "Varying", PyObject_GetAttrString(helper, "Varying"));
-    PyModule_AddObject(module, "Subroutine", PyObject_GetAttrString(helper, "Subroutine"));
-    PyModule_AddObject(module, "UniformBlock", PyObject_GetAttrString(helper, "UniformBlock"));
-    PyModule_AddObject(module, "InvalidObject", PyObject_GetAttrString(helper, "InvalidObject"));
+    PyModule_AddObject(module, "Error", new_ref(PyObject_GetAttrString(helper, "Error")));
+    PyModule_AddObject(module, "Uniform", new_ref(PyObject_GetAttrString(helper, "Uniform")));
+    PyModule_AddObject(module, "Attribute", new_ref(PyObject_GetAttrString(helper, "Attribute")));
+    PyModule_AddObject(module, "Varying", new_ref(PyObject_GetAttrString(helper, "Varying")));
+    PyModule_AddObject(module, "Subroutine", new_ref(PyObject_GetAttrString(helper, "Subroutine")));
+    PyModule_AddObject(module, "UniformBlock", new_ref(PyObject_GetAttrString(helper, "UniformBlock")));
+    PyModule_AddObject(module, "InvalidObject", new_ref(PyObject_GetAttrString(helper, "InvalidObject")));
 
     constants.nothing = PyLong_FromLong(0);
     constants.blend = PyLong_FromLong(1);
@@ -10487,64 +10577,64 @@ extern "C" PyObject * PyInit_moderngl() {
     constants.shader_storage_barrier_bit = PyLong_FromLong(0x00002000);
     constants.all_barrier_bits = PyLong_FromUnsignedLong(0xFFFFFFFFul);
 
-    PyModule_AddObject(module, "NOTHING", constants.nothing);
-    PyModule_AddObject(module, "BLEND", constants.blend);
-    PyModule_AddObject(module, "DEPTH_TEST", constants.depth_test);
-    PyModule_AddObject(module, "CULL_FACE", constants.cull_face);
-    PyModule_AddObject(module, "RASTERIZER_DISCARD", constants.rasterizer_discard);
-    PyModule_AddObject(module, "PROGRAM_POINT_SIZE", constants.program_point_size);
-    PyModule_AddObject(module, "POINTS", constants.points);
-    PyModule_AddObject(module, "LINES", constants.lines);
-    PyModule_AddObject(module, "LINE_LOOP", constants.line_loop);
-    PyModule_AddObject(module, "LINE_STRIP", constants.line_strip);
-    PyModule_AddObject(module, "TRIANGLES", constants.triangles);
-    PyModule_AddObject(module, "TRIANGLE_STRIP", constants.triangle_strip);
-    PyModule_AddObject(module, "TRIANGLE_FAN", constants.triangle_fan);
-    PyModule_AddObject(module, "LINES_ADJACENCY", constants.lines_adjacency);
-    PyModule_AddObject(module, "LINE_STRIP_ADJACENCY", constants.line_strip_adjacency);
-    PyModule_AddObject(module, "TRIANGLES_ADJACENCY", constants.triangles_adjacency);
-    PyModule_AddObject(module, "TRIANGLE_STRIP_ADJACENCY", constants.triangle_strip_adjacency);
-    PyModule_AddObject(module, "PATCHES", constants.patches);
-    PyModule_AddObject(module, "NEAREST", constants.nearest);
-    PyModule_AddObject(module, "LINEAR", constants.linear);
-    PyModule_AddObject(module, "NEAREST_MIPMAP_NEAREST", constants.nearest_mipmap_nearest);
-    PyModule_AddObject(module, "LINEAR_MIPMAP_NEAREST", constants.linear_mipmap_nearest);
-    PyModule_AddObject(module, "NEAREST_MIPMAP_LINEAR", constants.nearest_mipmap_linear);
-    PyModule_AddObject(module, "LINEAR_MIPMAP_LINEAR", constants.linear_mipmap_linear);
-    PyModule_AddObject(module, "ZERO", constants.zero);
-    PyModule_AddObject(module, "ONE", constants.one);
-    PyModule_AddObject(module, "SRC_COLOR", constants.src_color);
-    PyModule_AddObject(module, "ONE_MINUS_SRC_COLOR", constants.one_minus_src_color);
-    PyModule_AddObject(module, "SRC_ALPHA", constants.src_alpha);
-    PyModule_AddObject(module, "ONE_MINUS_SRC_ALPHA", constants.one_minus_src_alpha);
-    PyModule_AddObject(module, "DST_ALPHA", constants.dst_alpha);
-    PyModule_AddObject(module, "ONE_MINUS_DST_ALPHA", constants.one_minus_dst_alpha);
-    PyModule_AddObject(module, "DST_COLOR", constants.dst_color);
-    PyModule_AddObject(module, "ONE_MINUS_DST_COLOR", constants.one_minus_dst_color);
-    PyModule_AddObject(module, "DEFAULT_BLENDING", constants.default_blending);
-    PyModule_AddObject(module, "ADDITIVE_BLENDING", constants.additive_blending);
-    PyModule_AddObject(module, "PREMULTIPLIED_ALPHA", constants.premultiplied_alpha);
-    PyModule_AddObject(module, "FUNC_ADD", constants.func_add);
-    PyModule_AddObject(module, "FUNC_SUBTRACT", constants.func_subtract);
-    PyModule_AddObject(module, "FUNC_REVERSE_SUBTRACT", constants.func_reverse_subtract);
-    PyModule_AddObject(module, "MIN", constants.min);
-    PyModule_AddObject(module, "MAX", constants.max);
-    PyModule_AddObject(module, "FIRST_VERTEX_CONVENTION", constants.first_vertex_convention);
-    PyModule_AddObject(module, "LAST_VERTEX_CONVENTION", constants.last_vertex_convention);
-    PyModule_AddObject(module, "VERTEX_ATTRIB_ARRAY_BARRIER_BIT", constants.vertex_attrib_array_barrier_bit);
-    PyModule_AddObject(module, "ELEMENT_ARRAY_BARRIER_BIT", constants.element_array_barrier_bit);
-    PyModule_AddObject(module, "UNIFORM_BARRIER_BIT", constants.uniform_barrier_bit);
-    PyModule_AddObject(module, "TEXTURE_FETCH_BARRIER_BIT", constants.texture_fetch_barrier_bit);
-    PyModule_AddObject(module, "SHADER_IMAGE_ACCESS_BARRIER_BIT", constants.shader_image_access_barrier_bit);
-    PyModule_AddObject(module, "COMMAND_BARRIER_BIT", constants.command_barrier_bit);
-    PyModule_AddObject(module, "PIXEL_BUFFER_BARRIER_BIT", constants.pixel_buffer_barrier_bit);
-    PyModule_AddObject(module, "TEXTURE_UPDATE_BARRIER_BIT", constants.texture_update_barrier_bit);
-    PyModule_AddObject(module, "BUFFER_UPDATE_BARRIER_BIT", constants.buffer_update_barrier_bit);
-    PyModule_AddObject(module, "FRAMEBUFFER_BARRIER_BIT", constants.framebuffer_barrier_bit);
-    PyModule_AddObject(module, "TRANSFORM_FEEDBACK_BARRIER_BIT", constants.transform_feedback_barrier_bit);
-    PyModule_AddObject(module, "ATOMIC_COUNTER_BARRIER_BIT", constants.atomic_counter_barrier_bit);
-    PyModule_AddObject(module, "SHADER_STORAGE_BARRIER_BIT", constants.shader_storage_barrier_bit);
-    PyModule_AddObject(module, "ALL_BARRIER_BITS", constants.all_barrier_bits);
+    PyModule_AddObject(module, "NOTHING", new_ref(constants.nothing));
+    PyModule_AddObject(module, "BLEND", new_ref(constants.blend));
+    PyModule_AddObject(module, "DEPTH_TEST", new_ref(constants.depth_test));
+    PyModule_AddObject(module, "CULL_FACE", new_ref(constants.cull_face));
+    PyModule_AddObject(module, "RASTERIZER_DISCARD", new_ref(constants.rasterizer_discard));
+    PyModule_AddObject(module, "PROGRAM_POINT_SIZE", new_ref(constants.program_point_size));
+    PyModule_AddObject(module, "POINTS", new_ref(constants.points));
+    PyModule_AddObject(module, "LINES", new_ref(constants.lines));
+    PyModule_AddObject(module, "LINE_LOOP", new_ref(constants.line_loop));
+    PyModule_AddObject(module, "LINE_STRIP", new_ref(constants.line_strip));
+    PyModule_AddObject(module, "TRIANGLES", new_ref(constants.triangles));
+    PyModule_AddObject(module, "TRIANGLE_STRIP", new_ref(constants.triangle_strip));
+    PyModule_AddObject(module, "TRIANGLE_FAN", new_ref(constants.triangle_fan));
+    PyModule_AddObject(module, "LINES_ADJACENCY", new_ref(constants.lines_adjacency));
+    PyModule_AddObject(module, "LINE_STRIP_ADJACENCY", new_ref(constants.line_strip_adjacency));
+    PyModule_AddObject(module, "TRIANGLES_ADJACENCY", new_ref(constants.triangles_adjacency));
+    PyModule_AddObject(module, "TRIANGLE_STRIP_ADJACENCY", new_ref(constants.triangle_strip_adjacency));
+    PyModule_AddObject(module, "PATCHES", new_ref(constants.patches));
+    PyModule_AddObject(module, "NEAREST", new_ref(constants.nearest));
+    PyModule_AddObject(module, "LINEAR", new_ref(constants.linear));
+    PyModule_AddObject(module, "NEAREST_MIPMAP_NEAREST", new_ref(constants.nearest_mipmap_nearest));
+    PyModule_AddObject(module, "LINEAR_MIPMAP_NEAREST", new_ref(constants.linear_mipmap_nearest));
+    PyModule_AddObject(module, "NEAREST_MIPMAP_LINEAR", new_ref(constants.nearest_mipmap_linear));
+    PyModule_AddObject(module, "LINEAR_MIPMAP_LINEAR", new_ref(constants.linear_mipmap_linear));
+    PyModule_AddObject(module, "ZERO", new_ref(constants.zero));
+    PyModule_AddObject(module, "ONE", new_ref(constants.one));
+    PyModule_AddObject(module, "SRC_COLOR", new_ref(constants.src_color));
+    PyModule_AddObject(module, "ONE_MINUS_SRC_COLOR", new_ref(constants.one_minus_src_color));
+    PyModule_AddObject(module, "SRC_ALPHA", new_ref(constants.src_alpha));
+    PyModule_AddObject(module, "ONE_MINUS_SRC_ALPHA", new_ref(constants.one_minus_src_alpha));
+    PyModule_AddObject(module, "DST_ALPHA", new_ref(constants.dst_alpha));
+    PyModule_AddObject(module, "ONE_MINUS_DST_ALPHA", new_ref(constants.one_minus_dst_alpha));
+    PyModule_AddObject(module, "DST_COLOR", new_ref(constants.dst_color));
+    PyModule_AddObject(module, "ONE_MINUS_DST_COLOR", new_ref(constants.one_minus_dst_color));
+    PyModule_AddObject(module, "DEFAULT_BLENDING", new_ref(constants.default_blending));
+    PyModule_AddObject(module, "ADDITIVE_BLENDING", new_ref(constants.additive_blending));
+    PyModule_AddObject(module, "PREMULTIPLIED_ALPHA", new_ref(constants.premultiplied_alpha));
+    PyModule_AddObject(module, "FUNC_ADD", new_ref(constants.func_add));
+    PyModule_AddObject(module, "FUNC_SUBTRACT", new_ref(constants.func_subtract));
+    PyModule_AddObject(module, "FUNC_REVERSE_SUBTRACT", new_ref(constants.func_reverse_subtract));
+    PyModule_AddObject(module, "MIN", new_ref(constants.min));
+    PyModule_AddObject(module, "MAX", new_ref(constants.max));
+    PyModule_AddObject(module, "FIRST_VERTEX_CONVENTION", new_ref(constants.first_vertex_convention));
+    PyModule_AddObject(module, "LAST_VERTEX_CONVENTION", new_ref(constants.last_vertex_convention));
+    PyModule_AddObject(module, "VERTEX_ATTRIB_ARRAY_BARRIER_BIT", new_ref(constants.vertex_attrib_array_barrier_bit));
+    PyModule_AddObject(module, "ELEMENT_ARRAY_BARRIER_BIT", new_ref(constants.element_array_barrier_bit));
+    PyModule_AddObject(module, "UNIFORM_BARRIER_BIT", new_ref(constants.uniform_barrier_bit));
+    PyModule_AddObject(module, "TEXTURE_FETCH_BARRIER_BIT", new_ref(constants.texture_fetch_barrier_bit));
+    PyModule_AddObject(module, "SHADER_IMAGE_ACCESS_BARRIER_BIT", new_ref(constants.shader_image_access_barrier_bit));
+    PyModule_AddObject(module, "COMMAND_BARRIER_BIT", new_ref(constants.command_barrier_bit));
+    PyModule_AddObject(module, "PIXEL_BUFFER_BARRIER_BIT", new_ref(constants.pixel_buffer_barrier_bit));
+    PyModule_AddObject(module, "TEXTURE_UPDATE_BARRIER_BIT", new_ref(constants.texture_update_barrier_bit));
+    PyModule_AddObject(module, "BUFFER_UPDATE_BARRIER_BIT", new_ref(constants.buffer_update_barrier_bit));
+    PyModule_AddObject(module, "FRAMEBUFFER_BARRIER_BIT", new_ref(constants.framebuffer_barrier_bit));
+    PyModule_AddObject(module, "TRANSFORM_FEEDBACK_BARRIER_BIT", new_ref(constants.transform_feedback_barrier_bit));
+    PyModule_AddObject(module, "ATOMIC_COUNTER_BARRIER_BIT", new_ref(constants.atomic_counter_barrier_bit));
+    PyModule_AddObject(module, "SHADER_STORAGE_BARRIER_BIT", new_ref(constants.shader_storage_barrier_bit));
+    PyModule_AddObject(module, "ALL_BARRIER_BITS", new_ref(constants.all_barrier_bits));
 
     PyModule_AddObject(module, "__version__", PyUnicode_FromString("6.0.0a1"));
     return module;

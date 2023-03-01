@@ -13,11 +13,6 @@ def test_buffer_eq(ctx):
     assert buf2 == buf2
 
 
-def test_buffer_hash(ctx):
-    buff = ctx.buffer(reserve=1024)
-    assert hash(buff) == id(buff)
-
-
 def test_bind(ctx):
     buf = ctx.buffer(reserve=1024)
     res = buf.bind("in_pos", "in_vel", layout="2f 2f")

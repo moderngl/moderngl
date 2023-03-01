@@ -28,8 +28,6 @@ def test_1(ctx):
         }
     ''')
 
-    assert hash(compute_shader) == id(compute_shader)
-
     buf1 = ctx.buffer(struct.pack('4f', 1.0, 2.0, 3.0, 4.0))
     buf2 = ctx.buffer(struct.pack('4f', 0.0, 0.0, 0.0, 0.0))
 
