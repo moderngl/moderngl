@@ -3749,7 +3749,7 @@ MGLRenderbuffer * MGLContext_depth_renderbuffer(MGLContext * self, PyObject * ar
     int args_ok = PyArg_ParseTupleAndKeywords(
         args,
         kwargs,
-        "(II)I",
+        "(II)|I",
         (char **)keywords,
         &width,
         &height,
