@@ -2799,6 +2799,11 @@ MGLProgram * MGLContext_program(MGLContext * self, PyObject * args, PyObject * k
 
     int interleaved = !strcmp(varyings_capture_mode, "interleaved");
 
+    outputs = PySequence_Tuple(outputs);
+    if (!outputs) {
+        return NULL;
+    }
+
     int num_outputs = (int)PyTuple_GET_SIZE(outputs);
 
     for (int i = 0; i < num_outputs; ++i) {
@@ -7886,9 +7891,8 @@ PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args, PyOb
     int args_ok = PyArg_ParseTupleAndKeywords(
         args,
         kwargs,
-        "O!|OIIII",
+        "O|OIIII",
         (char **)keywords,
-        &PyList_Type,
         &outputs,
         &mode_arg,
         &vertices,
@@ -7899,6 +7903,12 @@ PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * args, PyOb
 
     if (!args_ok) {
         return 0;
+    }
+
+    if (!PySequence_Check(outputs)) {
+        outputs = Py_BuildValue("(O)", outputs);
+    } else {
+        outputs = PySequence_Tuple(outputs);
     }
 
     int mode = mode_arg != Py_None ? PyLong_AsLong(mode_arg) : self->mode;
