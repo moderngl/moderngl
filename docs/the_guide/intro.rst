@@ -23,7 +23,7 @@ across several platforms. How this is done under the hood is up to the
 vendors (AMD, Nvidia, Intel, ARM .. etc) as long as the the specifications are
 followed.
 
-`OpenGL`_ have gone though many versions and it can be confusing when looking
+`OpenGL`_ has gone though many versions and it can be confusing when looking
 up resources. Today we separate "Old OpenGL" and "Modern OpenGL".
 From 2008 to 2010 version 3.x of OpenGL evolved until version
 3.3 and 4.0 was released simultaneously.
@@ -53,11 +53,11 @@ OpenGL code using the **Fixed Pipeline** (Old OpenGL) would use functions like
 ``glLoadIdentity``, ``glBegin``, ``glEnd``, ``glVertexPointer``,
 ``glColorPointer``, ``glPushMatrix`` and ``glPopMatrix``.
 The api had strong opinions and limitations on what you
-could do hiding what really went on under the hood.
+could do, hiding what really went on under the hood.
 
 OpenGL code using the **Programmable Pipeline** (Modern OpenGL) would use
 functions like ``glCreateProgram``, ``UseProgram``. ``glCreateShader``,
-``VertexAttrib*``, ``glBindBuffer*``, ``glUniform*``.
+``VertexAttrib*``, ``glBindBuffer*``, and ``glUniform*``.
 This API mainly works with buffers of data and smaller programs
 called "shaders" running on the GPU to process this data
 using the **OpenGL Shading Language (GLSL)**. This gives
@@ -67,7 +67,7 @@ OpenGL pipeline (actually not that complicated).
 Beyond OpenGL
 -------------
 
-OpenGL has a lot of "baggage" after 25 years and hardware have
+OpenGL has a lot of "baggage" after 25 years and hardware has
 drastically changed since its inception. Plans for "OpenGL 5"
 was started as the **Next Generation OpenGL Initiative (glNext)**.
 This Turned into the `Vulkan`_ API and was a grounds-up redesign
