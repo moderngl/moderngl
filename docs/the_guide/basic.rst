@@ -189,7 +189,8 @@ while output values are called **varyings**.
     vao = ctx.vertex_array(program, [])
 
     # Create a buffer allocating room for 20 32 bit floats
-    buffer = ctx.buffer(reserve=NUM_VERTICES * 8)
+    # num of vertices (10) * num of varyings per vertex (2) * size of float in bytes (4)
+    buffer = ctx.buffer(reserve=NUM_VERTICES * 2 * 4)
 
     # Start a transform with buffer as the destination.
     # We force the vertex shader to run 10 times
@@ -201,7 +202,7 @@ while output values are called **varyings**.
     for i in range(0, 20, 2):
         print("value = {}, product = {}".format(*data[i:i+2]))
 
-Output the program is::
+Output of the program is::
 
     value = 0.0, product = 0.0
     value = 1.0, product = 1.0
