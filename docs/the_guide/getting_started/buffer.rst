@@ -15,19 +15,44 @@ The buffer is cleared by writing zeros to the allocated memory area. However, th
 
     buf.clear()
 
-
 ModernGL allows you to create 2 types of buffer: dynamic and non-dynamic. To do this, when creating a buffer, use the keyword argument ``dynamic=True/False`` (by default ``False``)::
-    
+
     buf = ctx.buffer(reserve=32, dynamic=True)
+
+.. Note::
+
+    Using the ``dynamic=True`` parameter tells the GPU that actions with this :py:class:`Buffer` will be performed very often. This parameter is optional, but is recommended if the :py:class:`Buffer` is used frequently.
 
 Later, using the :py:meth:`Buffer.orphan` function, you can change the buffer size at any time::
 
     buf.orphan(size=64)
 
-However, if this buffer has already been added to the :py:class:`VertexArray`, then when calling ``vao.render()`` you will need to specify the new number of vertices in the ``vertices`` parameter. For example::
+After changing the buffer size, you will need to write data there. This is done using the :py:meth:`Buffer.write` function. This function will write data from RAM to GPU memory::
+
+    buf.write(b'any bytes data')
+
+However, if the size of this buffer was changed after it was added to :py:class:`VertexArray`, then when calling :py:meth:`VertexArray.render()` you will need to specify the new number of vertices in the ``vertices`` parameter. For example::
 
     # If from the contents of this buffer every 12 bytes fall on one vertex.
     vao.render(vertices=buf.size // 4 // 3)
+
+The same will need to be done when calling the :py:meth:`VertexArray.transform` function::
+
+    # If from the contents of this buffer every 12 bytes fall on one vertex.
+    # output_buf - the buffer into which the transformation will be performed.
+    vao.transform(output_buf, vertices=buf.size // 4 // 3)
+
+After :py:meth:`VertexArray.transform` writes data to ``output_buf`` using a :doc:`vertex shader <basic>`, you may need to read it — use :py:meth:`Buffer.read`. This function will read data from GPU memory into RAM::
+
+    bytes_data = buf.read()
+
+.. Warning::
+
+    Transferring data between RAM and GPU memory comes at a huge performance cost. It is recommended to use :py:meth:`Buffer.write` and :py:meth:`Buffer.read` as little as possible.
+
+    If you just need to copy data between buffers, look towards the :py:meth:`Context.copy_buffer` function::
+
+        ctx.copy_buffer(destination_buf, source_buf)
 
 In our example, we simply create a static buffer and write data immediately when it is created::
 
@@ -35,14 +60,16 @@ In our example, we simply create a static buffer and write data immediately when
 
 We called it `VBO`_ (Vertex Buffer Object) because we will store vertex data in this buffer.
 
-.. Note::
-    For the convenience of transferring data to the GPU memory [in a dedicated :py:class:`Buffer` area], here we use the `NumPy`_ library.
+.. Sidebar::
 
-    `NumPy`_ installation::
+    .. Note::
+        For the convenience of transferring data to the GPU memory [in a dedicated :py:class:`Buffer` area], here we use the `NumPy`_ library.
 
-        pip install numpy
+        `NumPy`_ installation::
 
-    If you want fewer dependencies, you can try Python's built-in `struct`_ module with the ``struct.pack()`` and ``struct.unpack()`` methods.
+            pip install numpy
+
+        If you want fewer dependencies, you can try Python's built-in `struct`_ module with the ``struct.pack()`` and ``struct.unpack()`` methods.
 
 .. rubric:: Entire source
 
