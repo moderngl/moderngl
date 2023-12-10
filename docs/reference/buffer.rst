@@ -50,21 +50,6 @@ Methods
     :param int offset: The offset.
     :param bytes chunk: The chunk to use repeatedly.
 
-.. py:method:: Buffer.orphan(size: int = -1) -> None:
-
-    Changing the buffer size.
-
-    This method expands or reduces the buffer. Its use is much more efficient and faster than creating a new buffer, since expanding a buffer in GPU memory is easier than creating a new one.
-
-    In OpenGL this is also called buffer re-specification.
-
-    :param int size: The new byte size of the buffer. If not supplied the buffer size will be unchanged.
-
-    Example::
-
-        buf = ctx.buffer(reserve=32)
-        buf.orphan(size=64)
-
 .. py:method:: Buffer.bind_to_uniform_block(binding: int = 0, *, offset: int = 0, size: int = -1) -> None:
 
     Bind the buffer to a uniform block.
