@@ -5,7 +5,7 @@ Vertex Array
 
 :py:class:`VertexArray` is something like a pipeline, where as arguments it takes a :py:class:`Program`, a :py:class:`Buffer` with input data, and the names of input variables for this program.
 
-Vertex Array in ModernGL can be initialized in two ways: one buffer for all input variables or one buffer for each input variable.
+:py:class:`VertexArray` in ModernGL can be initialized in two ways: one buffer for all input variables or one buffer for each input variable.
 
 One input buffer for all input variables (simple :py:class:`VertexArray` version)::
     
