@@ -117,6 +117,12 @@ class Query:
     def __exit__(self, *args):
         self.mglo.end()
 
+    def begin(self):
+        self.mglo.begin()
+
+    def end(self):
+        self.mglo.end()
+
     @property
     def samples(self):
         return self.mglo.samples
