@@ -7,8 +7,6 @@ No experience with OpenGL is required, just an understanding of how it works.
 .. toctree::
     :maxdepth: 2
 
-    basic.rst
-    program.rst
-    buffer.rst
-    vertex_array.rst
-    rendering.rst
+    low_start/index.rst
+    first_rendering/index.rst
+    triangles_draw/index.rst

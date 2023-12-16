@@ -42,7 +42,7 @@ The same will need to be done when calling the :py:meth:`VertexArray.transform` 
     # output_buf - the buffer into which the transformation will be performed.
     vao.transform(output_buf, vertices=buf.size // 4 // 3)
 
-After :py:meth:`VertexArray.transform` writes data to ``output_buf`` using a :doc:`vertex shader <basic>`, you may need to read it — use :py:meth:`Buffer.read`. This function will read data from GPU memory into RAM::
+After :py:meth:`VertexArray.transform` writes data to ``output_buf`` using a :doc:`vertex shader <../low_start/shader_transform>`, you may need to read it — use :py:meth:`Buffer.read`. This function will read data from GPU memory into RAM::
 
     bytes_data = buf.read()
 
