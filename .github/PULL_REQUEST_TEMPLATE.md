@@ -17,5 +17,3 @@ Write here.
 - Please follow the pep8 style guide.
 
 -->
-
-<!-- Please add yourself to the README.md too! -->
