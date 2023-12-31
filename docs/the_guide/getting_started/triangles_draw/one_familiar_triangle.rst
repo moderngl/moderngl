@@ -27,8 +27,9 @@ At this point you can try out the fragment shader, for example, let's draw a lig
 
 .. rubric:: Fragment shader
 
-.. literalinclude:: light.frag.glsl
+.. literalinclude:: lighted.frag.glsl
     :language: glsl
+    :emphasize-lines: 8-9
 
 .. figure:: lighted_triangle.png
     :alt: Lighted triangle

@@ -7,3 +7,4 @@ Drawing the first triangles. Closer to real rendering.
     :maxdepth: 2
 
     one_familiar_triangle.rst
+    uniform.rst
