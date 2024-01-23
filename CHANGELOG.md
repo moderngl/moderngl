@@ -9,11 +9,30 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [5.10.0](https://github.com/moderngl/moderngl/compare/5.9.0...5.10.0)
 
-...
+- Adding pre-built wheels for MacOS ARM
+- Adding size verify when writing to Uniforms
+- Adding a new methods: [get_context()](https://moderngl.readthedocs.io/en/latest/reference/moderngl.html#moderngl.moderngl.get_context) and `init_context()` (documentation is not ready yet)
+- Complementing old and adding new items to ["The Guide"](https://moderngl.readthedocs.io/en/latest/the_guide/index.html)
+- Redesign of ["The Guide"](https://moderngl.readthedocs.io/en/latest/the_guide/index.html) in the documentation
+- Adding shadow mapping example (see `examples/*`)
+- Improving code reliability (robustness)
 
 ## [5.9.0](https://github.com/moderngl/moderngl/compare/5.8.0...5.9.0)
 
-...
+- Removing Python 3.7 support, adding Python 3.12 support
+- Fixing memory leaks
+- Transferring constants from `moderngl` to `moderngl.Context` (safely)
+- Dividing documentation into annotations (`moderngl-stubs/__init__.pyi`) and full documentation (`docs/*`)
+- Implemented new property: [Context.depth_clamp_range](https://moderngl.readthedocs.io/en/latest/reference/context.html#Context.depth_clamp_range)
+- Adding shader includes
+- Adding an example of creating a separate window object
+- Adding access to input attributes in SPIR-V programs (via SPIR-V parsing) (example: `vao = ctx.vertex_array(spv_program, buffer, 0, 1)` (if your SPIR-V compiler did not erase attribute names, they can also be used))
+- Adding access to program attributes by their location numbers (example: `vao = ctx.vertex_array(program, buffer, 0, 1)`)
+- Adding descriptions for methods in documentation: `Context.memory_barrier()` and `Context.depth_clamp_range()`
+- Fixed inaccuracies in documentation
+- Implemented depth cube maps: [Context.depth_texture_cube()](https://moderngl.readthedocs.io/en/latest/reference/context.html#Context.depth_texture_cube)
+- Update build documentation command (sphinx) (see in `README.md`)
+- Minor changes to `README.md`
 
 ## [5.8.0](https://github.com/moderngl/moderngl/compare/5.7.4...5.8.0)
 
