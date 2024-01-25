@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Adding an example of creating a separate window object
 - Adding access to input attributes in SPIR-V programs (via SPIR-V parsing) (example: `vao = ctx.vertex_array(spv_program, buffer, 0, 1)` (if your SPIR-V compiler did not erase attribute names, they can also be used))
 - Adding access to program attributes by their location numbers (example: `vao = ctx.vertex_array(program, buffer, 0, 1)`)
-- Adding descriptions for methods in documentation: `Context.memory_barrier()` and `Context.depth_clamp_range()`
+- Adding descriptions for [Context.memory_barrier()](https://moderngl.readthedocs.io/en/latest/reference/context.html#Context.memory_barrier) and [Context.depth_clamp_range](https://moderngl.readthedocs.io/en/latest/reference/context.html#Context.depth_clamp_range) in the documentation
 - Fixed inaccuracies in documentation
 - Implemented depth cube maps: [Context.depth_texture_cube()](https://moderngl.readthedocs.io/en/latest/reference/context.html#Context.depth_texture_cube)
 - Update build documentation command (sphinx) (see in `README.md`)
