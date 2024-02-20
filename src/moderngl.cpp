@@ -1865,7 +1865,7 @@ static PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * arg
         read_depth = true;
     }
 
-    int expected_size = viewport_rect.width * components * data_type->size;
+    unsigned long long expected_size = viewport_rect.width * components * data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * viewport_rect.height;
 
@@ -3621,7 +3621,7 @@ static PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
         return Py_BuildValue("(Oi)", renderbuffer, renderbuffer->renderbuffer_obj);
     }
 
-    int expected_size = width * components * data_type->size;
+    unsigned long long expected_size = width * components * data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height;
 
@@ -3788,7 +3788,7 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
         return Py_BuildValue("(Oi)", renderbuffer, renderbuffer->renderbuffer_obj);
     }
 
-    int expected_size = width * 4;
+    unsigned long long expected_size = width * 4;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height;
 
@@ -3967,7 +3967,7 @@ static PyObject * MGLTexture_read(MGLTexture * self, PyObject * args) {
     width = width > 1 ? width : 1;
     height = height > 1 ? height : 1;
 
-    int expected_size = width * self->components * self->data_type->size;
+    unsigned long long expected_size = width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height;
 
@@ -4050,7 +4050,7 @@ static PyObject * MGLTexture_read_into(MGLTexture * self, PyObject * args) {
     width = width > 1 ? width : 1;
     height = height > 1 ? height : 1;
 
-    int expected_size = width * self->components * self->data_type->size;
+    unsigned long long expected_size = width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height;
 
@@ -4151,7 +4151,7 @@ static PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
         }
     }
 
-    int expected_size = viewport_rect.width * self->components * self->data_type->size;
+    unsigned long long expected_size = viewport_rect.width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * viewport_rect.height;
 
@@ -4596,7 +4596,7 @@ static PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
         return 0;
     }
 
-    int expected_size = width * components * data_type->size;
+    unsigned long long expected_size = width * components * data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height * depth;
 
@@ -4695,7 +4695,7 @@ static PyObject * MGLTexture3D_read(MGLTexture3D * self, PyObject * args) {
         return 0;
     }
 
-    int expected_size = self->width * self->components * self->data_type->size;
+    unsigned long long expected_size = self->width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * self->height * self->depth;
 
@@ -4739,7 +4739,7 @@ static PyObject * MGLTexture3D_read_into(MGLTexture3D * self, PyObject * args) {
         return 0;
     }
 
-    int expected_size = self->width * self->components * self->data_type->size;
+    unsigned long long expected_size = self->width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * self->height * self->depth;
 
@@ -4824,7 +4824,7 @@ static PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args) {
         }
     }
 
-    int expected_size = viewport_cube.width * self->components * self->data_type->size;
+    unsigned long long expected_size = viewport_cube.width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * viewport_cube.height * viewport_cube.depth;
 
@@ -5221,7 +5221,7 @@ static PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
         return 0;
     }
 
-    int expected_size = width * components * data_type->size;
+    unsigned long long expected_size = width * components * data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height * layers;
 
@@ -5321,7 +5321,7 @@ static PyObject * MGLTextureArray_read(MGLTextureArray * self, PyObject * args) 
         return 0;
     }
 
-    int expected_size = self->width * self->components * self->data_type->size;
+    unsigned long long expected_size = self->width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * self->height * self->layers;
 
@@ -5386,7 +5386,7 @@ static PyObject * MGLTextureArray_read_into(MGLTextureArray * self, PyObject * a
         return 0;
     }
 
-    int expected_size = self->width * self->components * self->data_type->size;
+    unsigned long long expected_size = self->width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * self->height * self->layers;
 
@@ -5472,7 +5472,7 @@ static PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args)
         }
     }
 
-    int expected_size = viewport_cube.width * self->components * self->data_type->size;
+    unsigned long long expected_size = viewport_cube.width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * viewport_cube.height * viewport_cube.depth;
 
@@ -5862,7 +5862,7 @@ static PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
         return 0;
     }
 
-    int expected_size = width * components * data_type->size;
+    unsigned long long expected_size = width * components * data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height * 6;
 
@@ -5985,7 +5985,7 @@ static PyObject * MGLContext_depth_texture_cube(MGLContext * self, PyObject * ar
         return 0;
     }
 
-    int expected_size = width * 4;
+    unsigned long long expected_size = width * 4;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height * 6;
 
@@ -6104,7 +6104,7 @@ static PyObject * MGLTextureCube_read(MGLTextureCube * self, PyObject * args) {
         return 0;
     }
 
-    int expected_size = self->width * self->components * self->data_type->size;
+    unsigned long long expected_size = self->width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * self->height;
 
@@ -6155,7 +6155,7 @@ static PyObject * MGLTextureCube_read_into(MGLTextureCube * self, PyObject * arg
         return 0;
     }
 
-    int expected_size = self->width * self->components * self->data_type->size;
+    unsigned long long expected_size = self->width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * self->height;
 
@@ -6247,7 +6247,7 @@ static PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args) {
         }
     }
 
-    int expected_size = viewport_rect.width * self->components * self->data_type->size;
+    unsigned long long expected_size = viewport_rect.width * self->components * self->data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * viewport_rect.height;
 
@@ -8573,7 +8573,7 @@ static PyObject * expected_size(PyObject * self, PyObject * args) {
         return 0;
     }
 
-    int expected_size = width * components * data_type->size;
+    unsigned long long expected_size = width * components * data_type->size;
     expected_size = (expected_size + alignment - 1) / alignment * alignment;
     expected_size = expected_size * height * depth;
     return PyLong_FromLong(expected_size);
