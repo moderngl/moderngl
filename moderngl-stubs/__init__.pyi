@@ -1974,7 +1974,7 @@ class Context:
         self,
         program: Program,
         buffer: Buffer,
-        *attributes: Union[List[str], Tuple[str, ...]],
+        *attributes: str,
         index_buffer: Optional[Buffer] = None,
         index_element_size: int = 4,
         mode: Optional[int] = None,
