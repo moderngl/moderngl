@@ -99,6 +99,51 @@ cd moderngl
 python -m pip install -e .
 ```
 
+## Using GLSL in ModernGL
+
+GLSL (OpenGL Shading Language) is integral for shader programming using the ModernGL library. It allows developers to execute code on the GPU, enhancing graphics rendering performance. This concise introduction covers the core concepts necessary for starting with GLSL in ModernGL.
+
+Data Types
+
+GLSL offers standard data types similar to C, including int, float, double, and bool, as well as graphics-specific types like vectors (vec2, vec3, vec4) and matrices (mat2, mat3, mat4) for efficient graphics computations.
+Inputs and Outputs
+  ```
+    Attributes: Per-vertex data passed to the vertex shader. Commonly used for positions, normals, and texture coordinates.
+    Varyings: Interpolated data passed from the vertex to the fragment shader, such as colors or texture coordinates.
+    Output: Fragment shader's output, typically the color of the pixel (fragColor).
+  ```
+
+Uniforms
+
+Uniforms are global variables declared in shaders, constant for all vertices or fragments for a single draw call. They're ideal for passing data from your application, like transformation matrices or material properties, to the shader.
+Shader Types
+  ```
+    Vertex Shader: Processes each vertex's attributes. It's the first stage in the shader pipeline, used for transformations and passing data to the fragment shader.
+    Fragment Shader: Calculates the color of each pixel. It uses data interpolated from the vertex shader to apply textures, lighting, and color.
+    Geometry Shader: Processes primitives (points, lines, triangles) formed by vertices from the vertex shader. It can add or remove vertices from the primitive.
+    Tessellation Shaders: Control the tessellation of patches, allowing for smoother geometries at varying distances.
+    Compute Shader: Handles general-purpose computing tasks not directly related to rendering images, like physics simulations or post-processing effects.
+  ```
+Example
+  ```
+  glsl
+  
+  // Vertex Shader
+  #version 330 core
+  in vec3 position;
+  uniform mat4 modelViewProjection;
+  void main() {
+      gl_Position = modelViewProjection * vec4(position, 1.0);
+  }
+  
+  // Fragment Shader
+  #version 330 core
+  out vec4 fragColor;
+  void main() {
+      fragColor = vec4(1.0); // Set pixel color to white
+  }
+  ```
+This basic example demonstrates a vertex shader transforming vertex positions with a matrix and a fragment shader setting the color of each pixel to white.
 ## Notes
 
 ModernGL may be faster than other libraries providing direct OpenGL access.
