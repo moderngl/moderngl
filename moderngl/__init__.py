@@ -1202,6 +1202,7 @@ class Context:
     CULL_FACE = 4
     RASTERIZER_DISCARD = 8
     PROGRAM_POINT_SIZE = 16
+    COLOR_LOGIC_OP = 32
 
     # Primitive modes
 
@@ -1251,6 +1252,25 @@ class Context:
     FUNC_REVERSE_SUBTRACT = 0x800B
     MIN = 0x8007
     MAX = 0x8008
+
+    # Logic Ops
+
+    CLEAR = 0x1500
+    AND = 0x1501
+    AND_REVERSE = 0x1502
+    COPY = 0x1503
+    AND_INVERTED = 0x1504
+    NOOP = 0x1505
+    XOR = 0x1506
+    OR = 0x1507
+    NOR = 0x1508
+    EQUIV = 0x1509
+    INVERT = 0x150A
+    OR_REVERSE = 0x150B
+    COPY_INVERTED = 0x150C
+    OR_INVERTED = 0x150D
+    NAND = 0x150E
+    SET = 0x150F
 
     # Provoking vertex
 
@@ -1359,6 +1379,14 @@ class Context:
             self.mglo.blend_equation = tuple([value])
         else:
             self.mglo.blend_equation = tuple(value)
+
+    @property
+    def logic_op(self):
+        raise NotImplementedError()
+
+    @logic_op.setter
+    def logic_op(self, value):
+        self.mglo.logic_op = tuple([value])
 
     @property
     def depth_clamp_range(self):
@@ -2035,6 +2063,7 @@ def _resolve_module_constants(scope):
         "CULL_FACE",
         "RASTERIZER_DISCARD",
         "PROGRAM_POINT_SIZE",
+        "COLOR_LOGIC_OP",
         "POINTS",
         "LINES",
         "LINE_LOOP",
@@ -2071,6 +2100,25 @@ def _resolve_module_constants(scope):
         "FUNC_REVERSE_SUBTRACT",
         "MIN",
         "MAX",
+        # Table 17.3 from https://registry.khronos.org/OpenGL/specs/gl/glspec46.core.pdf 
+        # LogicOp 
+        "CLEAR",
+        "AND",
+        "AND_REVERSE",
+        "COPY",
+        "AND_INVERTED",
+        "NOOP",
+        "XOR",
+        "OR",
+        "NOR",
+        "EQUIV",
+        "INVERT",
+        "OR_REVERSE",
+        "COPY_INVERTED",
+        "OR_INVERTED",
+        "NAND",
+        "SET",
+        # end of table 17.3
         "FIRST_VERTEX_CONVENTION",
         "LAST_VERTEX_CONVENTION",
         "VERTEX_ATTRIB_ARRAY_BARRIER_BIT",
