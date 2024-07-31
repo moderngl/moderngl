@@ -3,6 +3,7 @@ from collections import deque
 
 from _moderngl import Attribute, Error, InvalidObject, StorageBlock, Subroutine, Uniform, UniformBlock, Varying
 from _moderngl import parse_spv_inputs as _parse_spv
+from _moderngl import convert_glsl_to_spirv as _to_spv
 
 try:
     from moderngl import mgl
@@ -1705,7 +1706,20 @@ class Context:
         fragment_outputs=None,
         attributes=None,
         varyings_capture_mode="interleaved",
+        to_spirv=False,
     ):
+        if to_spirv:
+            if vertex_shader is not None:
+                vertex_shader = _to_spv(vertex_shader, 'vert')
+            if fragment_shader is not None:
+                fragment_shader = _to_spv(fragment_shader, 'frag')
+            if geometry_shader is not None:
+                geometry_shader = _to_spv(geometry_shader, 'geom')
+            if tess_control_shader is not None:
+                tess_control_shader = _to_spv(tess_control_shader, 'tesc')
+            if tess_evaluation_shader is not None:
+                tess_evaluation_shader = _to_spv(tess_evaluation_shader, 'tese')
+
         if varyings_capture_mode not in ("interleaved", "separate"):
             raise ValueError("varyings_capture_mode must be interleaved or separate")
 
@@ -1861,7 +1875,10 @@ class Context:
         res.extra = None
         return res
 
-    def compute_shader(self, source):
+    def compute_shader(self, source, to_spirv=False):
+        if to_spirv:
+            source = _to_spv(source, 'comp')
+
         res = ComputeShader.__new__(ComputeShader)
         res.mglo, _members, _, _, res._glo = self.mglo.program(
             None,

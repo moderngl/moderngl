@@ -1,4 +1,7 @@
 import struct
+import shutil
+import platform
+import subprocess
 from typing import Any, Dict, List, Tuple
 
 
@@ -436,6 +439,46 @@ def make_varying(name, number, array_length, dimension):
     return res
 
 
+def convert_glsl_to_spirv(glsl_code, shader_type):
+    if shutil.which('glslangValidator') is None:
+        raise RuntimeError("glslangValidator not found. Make sure it is installed and available in PATH")
+    
+    if isinstance(glsl_code, bytes) and int.from_bytes(glsl_code[:4], "little") == 0x07230203:
+        raise ValueError("The code has already been converted to SPIR-V, it is impossible to convert it again")
+    
+    if shader_type not in ['vert', 'tesc', 'tese', 'geom', 'frag', 'comp']:
+        raise ValueError(
+            f"Unknown shader type. The following are available: vert, tesc, tese, geom, frag, or comp. Not {shader_type}")
+    
+    if isinstance(glsl_code, str):    
+        glsl_bytes = glsl_code[glsl_code.find('#'):].encode('utf-8')
+    else:
+        glsl_bytes = glsl_code[glsl_code.find(b'#'):]
+
+    current_platform = platform.system().lower()
+    if current_platform == 'windows':
+        output_file = 'CON'
+    elif current_platform in ['linux', 'darwin']:
+        output_file = '/dev/stdout'
+    else:
+        raise OSError(f"OS {platform.system()} not supported")
+
+    process = subprocess.Popen(
+        ['glslangValidator', '--stdin', '-S', shader_type, '-V', '-o', output_file],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    stdout, stderr = process.communicate(input=glsl_bytes)
+
+    if process.returncode != 0:
+        error_message = stderr.decode('utf-8') if stderr else stdout.decode('utf-8')
+        raise RuntimeError(
+            f"Problems converting GLSL to SPIR-V: exit code {process.returncode}. Details: {error_message}")
+
+    return stdout.rstrip(b'stdin\n')
+
+
 class Spv:
     INT32 = 1 << 0
     INT64 = 1 << 1
@@ -651,7 +694,7 @@ def parse_spv_inputs(program: int, spv: bytes) -> Dict[int, Attribute]:
 
     extracted_collected: Dict[int, Tuple[str, int, int, int, int]] = {}  # id : variable_info
     for ids in exrtacted_general_ids:
-        # to_add: Tuple[str, int, int, int] = ()  # name, class, type, location, arr_length
+        # to_add: Tuple[str, int, int, int, int] = ()  # name, class, type, location, arr_length
         name, cls, typ, location, arr_length = "", -1, -1, -1, -1
         if ids in extracted_names:
             name = extracted_names[ids]
