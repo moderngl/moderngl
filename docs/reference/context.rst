@@ -247,7 +247,7 @@ Objects
     :param bool time: Query ``GL_TIME_ELAPSED`` or not.
     :param bool primitives: Query ``GL_PRIMITIVES_GENERATED`` or not.
 
-.. py:method:: Context.compute_shader(source: str, to_spirv: bool = False)
+.. py:method:: Context.compute_shader(source: str, to_spirv: bool = False) -> ComputeShader
 
     A :py:class:`ComputeShader` is a Shader Stage that is used entirely \
     for computing arbitrary information. While it can do rendering, it \
