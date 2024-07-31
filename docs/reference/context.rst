@@ -12,7 +12,7 @@ Context
 Objects
 -------
 
-.. py:method:: Context.program(vertex_shader: str, fragment_shader: str, geometry_shader: str, tess_control_shader: str, tess_evaluation_shader: str, varyings: Tuple[str, ...], fragment_outputs: Dict[str, int], varyings_capture_mode: str = 'interleaved') -> Program
+.. py:method:: Context.program(vertex_shader: str, fragment_shader: str, geometry_shader: str, tess_control_shader: str, tess_evaluation_shader: str, varyings: Tuple[str, ...], fragment_outputs: Dict[str, int], varyings_capture_mode: str = 'interleaved', to_spirv: bool = False) -> Program
 
     Create a :py:class:`Program` object.
 
@@ -30,6 +30,7 @@ Objects
     :param str tess_evaluation_shader: The tessellation evaluation shader source.
     :param list varyings: A list of varyings.
     :param dict fragment_outputs: A dictionary of fragment outputs.
+    :param bool to_spirv: Compile shaders to SPIR-V using ``glslangValidator`` (to use this parameter, install ``glslang-tools`` on Linux or Vulkan SDK on Windows/macOS and configure PATH).
 
 .. py:method:: Context.buffer(data = None, reserve: int = 0, dynamic: bool = False) -> Buffer
 
@@ -246,13 +247,14 @@ Objects
     :param bool time: Query ``GL_TIME_ELAPSED`` or not.
     :param bool primitives: Query ``GL_PRIMITIVES_GENERATED`` or not.
 
-.. py:method:: Context.compute_shader(...)
+.. py:method:: Context.compute_shader(source: str, to_spirv: bool = False)
 
     A :py:class:`ComputeShader` is a Shader Stage that is used entirely \
     for computing arbitrary information. While it can do rendering, it \
     is generally used for tasks not directly related to drawing.
 
     :param str source: The source of the compute shader.
+    :param bool to_spirv: Compile shader to SPIR-V using ``glslangValidator`` (to use this parameter, install ``glslang-tools`` on Linux or Vulkan SDK on Windows/macOS and configure PATH).
 
 External Objects
 ----------------

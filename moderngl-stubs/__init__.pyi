@@ -1119,7 +1119,7 @@ class Context:
     See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glDepthRange.xhtml for more info.
 
     Example::
-        
+
         # For glDisable(GL_DEPTH_CLAMP) and glDepthRange(0, 1)
         ctx.depth_clamp_range = None
 
@@ -2013,6 +2013,7 @@ class Context:
         varyings: Tuple[str, ...] = (),
         fragment_outputs: Optional[Dict[str, int]] = None,
         varyings_capture_mode: str = "interleaved",
+        to_spirv: bool = False
     ) -> Program:
         """
         Create a :py:class:`Program` object.
@@ -2032,6 +2033,10 @@ class Context:
             tess_evaluation_shader (str): The tessellation evaluation shader source.
             varyings (list): A list of varyings.
             fragment_outputs (dict): A dictionary of fragment outputs.
+
+        Keyword Args:
+            to_spirv (bool): Compile shaders to SPIR-V using glslangValidator.
+
         Returns:
             :py:class:`Program` object
         """
@@ -2160,7 +2165,7 @@ class Context:
         Returns:
             :py:class:`Renderbuffer` object
         """
-    def compute_shader(self, source: str | bytes | ConvertibleToShaderSource) -> "ComputeShader":
+    def compute_shader(self, source: str | bytes | ConvertibleToShaderSource, to_spirv: bool = False) -> "ComputeShader":
         """
         A :py:class:`ComputeShader` is a Shader Stage that is used entirely \
         for computing arbitrary information. While it can do rendering, it \
@@ -2168,6 +2173,9 @@ class Context:
 
         Args:
             source (str): The source of the compute shader.
+
+        Keyword Args:
+            to_spirv (bool): Compile shader to SPIR-V using glslangValidator.
 
         Returns:
             :py:class:`ComputeShader` object
