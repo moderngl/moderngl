@@ -440,31 +440,36 @@ def make_varying(name, number, array_length, dimension):
 
 
 def convert_glsl_to_spirv(glsl_code, shader_type):
-    if shutil.which('glslangValidator') is None:
-        raise RuntimeError("glslangValidator not found. Make sure it is installed and available in PATH")
-    
+    supported_utils = ['glslangValidator', 'glslc']
+    available_utils = [util for util in supported_utils if shutil.which(util)]
+
+    if len(available_utils) < 1:
+        raise RuntimeError("glslangValidator or glslc were not found. Make sure it is installed and available in PATH")
+
     if isinstance(glsl_code, bytes) and int.from_bytes(glsl_code[:4], "little") == 0x07230203:
         raise ValueError("The code has already been converted to SPIR-V, it is impossible to convert it again")
-    
+
     if shader_type not in ['vert', 'tesc', 'tese', 'geom', 'frag', 'comp']:
         raise ValueError(
             f"Unknown shader type. The following are available: vert, tesc, tese, geom, frag, or comp. Not {shader_type}")
-    
-    if isinstance(glsl_code, str):    
+
+    if isinstance(glsl_code, str):
         glsl_bytes = glsl_code[glsl_code.find('#'):].encode('utf-8')
     else:
         glsl_bytes = glsl_code[glsl_code.find(b'#'):]
 
-    current_platform = platform.system().lower()
-    if current_platform == 'windows':
+    output_file = '/dev/stdout'
+    if platform.system().lower() == 'windows':
         output_file = 'CON'
-    elif current_platform in ['linux', 'darwin']:
-        output_file = '/dev/stdout'
-    else:
-        raise OSError(f"OS {platform.system()} not supported")
+
+    command = []
+    if available_utils[0] == supported_utils[0]:
+        command = ['glslangValidator', '--stdin', '-S', shader_type, '-V', '-o', output_file]
+    elif available_utils[0] == supported_utils[1]:
+        command = ['glslc', f'-fshader-stage={shader_type}', '-', '-o', '-']
 
     process = subprocess.Popen(
-        ['glslangValidator', '--stdin', '-S', shader_type, '-V', '-o', output_file],
+        command,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
