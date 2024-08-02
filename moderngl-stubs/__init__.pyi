@@ -2035,7 +2035,7 @@ class Context:
             fragment_outputs (dict): A dictionary of fragment outputs.
 
         Keyword Args:
-            to_spirv (bool): Compile shaders to SPIR-V using glslangValidator.
+            to_spirv (bool): Compile shaders to SPIR-V using ``glslangValidator`` or ``glslc``.
 
         Returns:
             :py:class:`Program` object
@@ -2175,7 +2175,7 @@ class Context:
             source (str): The source of the compute shader.
 
         Keyword Args:
-            to_spirv (bool): Compile shader to SPIR-V using glslangValidator.
+            to_spirv (bool): Compile shader to SPIR-V using ``glslangValidator`` or ``glslc``.
 
         Returns:
             :py:class:`ComputeShader` object

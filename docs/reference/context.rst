@@ -30,7 +30,7 @@ Objects
     :param str tess_evaluation_shader: The tessellation evaluation shader source.
     :param list varyings: A list of varyings.
     :param dict fragment_outputs: A dictionary of fragment outputs.
-    :param bool to_spirv: Compile shaders to SPIR-V using ``glslangValidator`` (to use this parameter, install ``glslang-tools`` on Linux or Vulkan SDK on Windows/macOS and configure PATH).
+    :param bool to_spirv: Compile the shaders to SPIRV using ``glslangValidator`` or ``glslc``. To use ``glslangValidator``, install ``glslang-tools`` on Linux or **Vulkan SDK** on Windows/macOS and configure the ``PATH``. For ``glslc``, make sure that you have the **Vulkan SDK** installed and configured correctly.
 
 .. py:method:: Context.buffer(data = None, reserve: int = 0, dynamic: bool = False) -> Buffer
 
@@ -254,7 +254,7 @@ Objects
     is generally used for tasks not directly related to drawing.
 
     :param str source: The source of the compute shader.
-    :param bool to_spirv: Compile shader to SPIR-V using ``glslangValidator`` (to use this parameter, install ``glslang-tools`` on Linux or Vulkan SDK on Windows/macOS and configure PATH).
+    :param bool to_spirv: Compile the shader to SPIRV using ``glslangValidator`` or ``glslc``. To use ``glslangValidator``, install ``glslang-tools`` on Linux or **Vulkan SDK** on Windows/macOS and configure the ``PATH``. For ``glslc``, make sure that you have the **Vulkan SDK** installed and configured correctly.
 
 External Objects
 ----------------
