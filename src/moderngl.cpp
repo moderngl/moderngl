@@ -30,6 +30,7 @@ enum MGLEnableFlag {
     MGL_CULL_FACE = 4,
     MGL_RASTERIZER_DISCARD = 8,
     MGL_PROGRAM_POINT_SIZE = 16,
+    MGL_COLOR_LOGIC_OP = 32,
     MGL_INVALID = 0x40000000,
 };
 
@@ -99,6 +100,7 @@ struct MGLContext {
     int enable_flags;
     int front_face;
     int cull_face;
+    int logic_op;
     int depth_func;
     bool depth_clamp;
     double depth_range[2];
@@ -3483,6 +3485,12 @@ static PyObject * MGLScope_begin(MGLScope * self, PyObject * args) {
         gl.Enable(GL_PROGRAM_POINT_SIZE);
     } else {
         gl.Disable(GL_PROGRAM_POINT_SIZE);
+    }
+
+    if (flags & MGL_COLOR_LOGIC_OP) {
+        gl.Enable(GL_COLOR_LOGIC_OP);
+    } else {
+        gl.Disable(GL_COLOR_LOGIC_OP);
     }
 
     Py_RETURN_NONE;
@@ -7270,6 +7278,10 @@ static PyObject * MGLContext_enable(MGLContext * self, PyObject * args) {
         self->gl.Enable(GL_PROGRAM_POINT_SIZE);
     }
 
+    if (flags & MGL_COLOR_LOGIC_OP) {
+        self->gl.Enable(GL_COLOR_LOGIC_OP);
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -7306,6 +7318,10 @@ static PyObject * MGLContext_disable(MGLContext * self, PyObject * args) {
 
     if (flags & MGL_PROGRAM_POINT_SIZE) {
         self->gl.Disable(GL_PROGRAM_POINT_SIZE);
+    }
+
+    if (flags & MGL_COLOR_LOGIC_OP) {
+        self->gl.Disable(GL_COLOR_LOGIC_OP);
     }
 
     Py_RETURN_NONE;
@@ -8047,6 +8063,29 @@ static int MGLContext_set_blend_equation(MGLContext * self, PyObject * value, vo
     }
 
     self->gl.BlendEquationSeparate(equation[0], equation[1]);
+    return 0;
+}
+
+static PyObject * MGLContext_get_logic_op(MGLContext * self, void * closure) {
+    int logic_op = self->logic_op;
+    return PyLong_FromLong(logic_op);
+}
+
+static int MGLContext_set_logic_op(MGLContext * self, PyObject * value, void * closure) {
+    int op;
+
+    int args_ok = PyArg_ParseTuple(
+        value,
+        "i",
+        &op
+    );
+
+    if (!args_ok) {
+        return 0;
+    }
+
+    self->logic_op = op;
+    self->gl.LogicOp(self->logic_op);
     return 0;
 }
 
@@ -8883,6 +8922,7 @@ static PyGetSetDef MGLContext_getset[] = {
     {(char *)"depth_clamp_range", (getter)MGLContext_get_depth_clamp_range, (setter)MGLContext_set_depth_clamp_range},
     {(char *)"blend_func", (getter)MGLContext_get_blend_func, (setter)MGLContext_set_blend_func},
     {(char *)"blend_equation", (getter)MGLContext_get_blend_equation, (setter)MGLContext_set_blend_equation},
+    {(char *)"logic_op", (getter)MGLContext_get_logic_op, (setter)MGLContext_set_logic_op},
     {(char *)"multisample", (getter)MGLContext_get_multisample, (setter)MGLContext_set_multisample},
 
     {(char *)"provoking_vertex", (getter)MGLContext_get_provoking_vertex, (setter)MGLContext_set_provoking_vertex},
