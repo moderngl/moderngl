@@ -2220,7 +2220,11 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
 
     const GLMethods & gl = program->context->gl;
 
+    printf("__LINE__ = %d\n", __LINE__);
+
+    printf("gl.CreateProgram()\n");
     int program_obj = gl.CreateProgram();
+    printf("returned %d\n", program_obj);
 
     if (!program_obj) {
         MGLError_Set("cannot create program");
@@ -2229,16 +2233,22 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
 
     int shader_objs[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
+    printf("__LINE__ = %d\n", __LINE__);
+
     for (int i = 0; i < NUM_SHADER_SLOTS; ++i) {
         if (shaders[i] == Py_None) {
             continue;
         }
 
+        printf("gl.CreateShader(%x)\n", SHADER_TYPE[i]);
         int shader_obj = gl.CreateShader(SHADER_TYPE[i]);
+        printf("returned %d\n", program_obj);
         if (!shader_obj) {
             MGLError_Set("cannot create shader");
             return 0;
         }
+
+        printf("__LINE__ = %d\n", __LINE__);
 
         if (PyObject_HasAttrString(shaders[i], "to_shader_source")) {
             shaders[i] = PyObject_CallMethod(shaders[i], "to_shader_source", NULL);
@@ -2249,23 +2259,34 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             Py_INCREF(shaders[i]);
         }
 
+        printf("__LINE__ = %d\n", __LINE__);
+
         if (PyUnicode_Check(shaders[i])) {
+            printf("__LINE__ = %d\n", __LINE__);
             shaders[i] = PyObject_CallMethod(helper, "resolve_includes", "(ON)", self, shaders[i]);
             if (!shaders[i]) {
                 return NULL;
             }
             const char * source_str = PyUnicode_AsUTF8(shaders[i]);
+            printf("gl.ShaderSource(%d, ...)\n", shader_obj);
             gl.ShaderSource(shader_obj, 1, &source_str, NULL);
+            printf("gl.CompileShader(%d, ...)\n", shader_obj);
             gl.CompileShader(shader_obj);
         } else if (PyBytes_Check(shaders[i])) {
+            printf("__LINE__ = %d\n", __LINE__);
             unsigned * spv = (unsigned *)PyBytes_AsString(shaders[i]);
             if (spv[0] == 0x07230203) {
                 int spv_length = (int)PyBytes_Size(shaders[i]);
+                printf("gl.ShaderBinary()\n", shader_obj);
                 gl.ShaderBinary(1, (unsigned *)&shader_obj, GL_SHADER_BINARY_FORMAT_SPIR_V, spv, spv_length);
+                printf("gl.SpecializeShader(%d, ...)\n", shader_obj);
                 gl.SpecializeShader(shader_obj, "main", 0, NULL, NULL);
             } else {
+            printf("__LINE__ = %d\n", __LINE__);
                 const char * source_str = PyBytes_AsString(shaders[i]);
+                printf("gl.ShaderSource(%d, ...)\n", shader_obj);
                 gl.ShaderSource(shader_obj, 1, &source_str, NULL);
+                printf("gl.CompileShader(%d, ...)\n", shader_obj);
                 gl.CompileShader(shader_obj);
             }
         } else {
@@ -2273,9 +2294,12 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             return NULL;
         }
 
+        printf("before Py_DECREF\n");
         Py_DECREF(shaders[i]);
+        printf("after Py_DECREF\n");
 
         int compiled = GL_FALSE;
+        printf("gl.GetShaderiv(%d, GL_COMPILE_STATUS, ...)\n", shader_obj);
         gl.GetShaderiv(shader_obj, GL_COMPILE_STATUS, &compiled);
 
         if (!compiled) {
@@ -2306,11 +2330,15 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             const char * underline = SHADER_NAME_UNDERLINE[i];
 
             int log_len = 0;
+            printf("gl.GetShaderiv(%d, GL_INFO_LOG_LENGTH, ...)\n", shader_obj);
             gl.GetShaderiv(shader_obj, GL_INFO_LOG_LENGTH, &log_len);
+            printf("returned log_len=%d\n", log_len);
 
             char * log = new char[log_len];
+            printf("gl.GetShaderInfoLog(%d, ...)\n", shader_obj);
             gl.GetShaderInfoLog(shader_obj, log_len, &log_len, log);
 
+            printf("gl.DeleteShader(%d, ...)\n", shader_obj);
             gl.DeleteShader(shader_obj);
 
             MGLError_Set("%s\n\n%s\n%s\n%s\n", message, title, underline, log);
@@ -2320,10 +2348,14 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         }
 
         shader_objs[i] = shader_obj;
+        printf("gl.AttachShader(%d, %d)\n", program_obj, shader_obj);
         gl.AttachShader(program_obj, shader_obj);
     }
 
+    printf("__LINE__ = %d\n", __LINE__);
+
     if (varyings_count) {
+        printf("__LINE__ = %d\n", __LINE__);
         const char * varyings_array[64];
         for (int i = 0; i < varyings_count; ++i) {
             PyObject * item = PyTuple_GetItem(varyings_arg, i);
@@ -2335,8 +2367,11 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         }
 
         int capture_mode = interleaved ? GL_INTERLEAVED_ATTRIBS : GL_SEPARATE_ATTRIBS;
+        printf("gl.TransformFeedbackVaryings(%d, %d, ...)\n", program_obj, varyings_count);
         gl.TransformFeedbackVaryings(program_obj, varyings_count, varyings_array, capture_mode);
     }
+
+    printf("__LINE__ = %d\n", __LINE__);
 
     {
         PyObject * key = NULL;
@@ -2344,33 +2379,44 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         Py_ssize_t pos = 0;
 
         while (PyDict_Next(fragment_outputs, &pos, &key, &value)) {
+            printf("gl.BindFragDataLocation(%d, ...)\n", program_obj);
             gl.BindFragDataLocation(program_obj, PyLong_AsLong(value), PyUnicode_AsUTF8(key));
         }
     }
 
+    printf("gl.LinkProgram(%d)\n", program_obj);
     gl.LinkProgram(program_obj);
+    printf("returned\n");
 
     // Delete the shader objects after the program is linked
     for (int i = 0; i < NUM_SHADER_SLOTS; ++i) {
         if (shader_objs[i]) {
+            printf("gl.DeleteShader(%d)\n", shader_objs[i]);
             gl.DeleteShader(shader_objs[i]);
         }
     }
 
     int linked = GL_FALSE;
+    printf("gl.GetProgramiv(%d)\n", program_obj);
     gl.GetProgramiv(program_obj, GL_LINK_STATUS, &linked);
+    printf("returned linked=%d\n", linked);
 
     if (!linked) {
+        printf("__LINE__ = %d\n", __LINE__);
         const char * message = "GLSL Linker failed";
         const char * title = "Program";
         const char * underline = "=======";
 
         int log_len = 0;
+        printf("gl.GetProgramiv(%d, GL_INFO_LOG_LENGTH, ...)\n", program_obj);
         gl.GetProgramiv(program_obj, GL_INFO_LOG_LENGTH, &log_len);
+        printf("returned log_len=%d\n", log_len);
 
         char * log = new char[log_len];
+        printf("gl.GetProgramInfoLog(%d, ...)\n", program_obj);
         gl.GetProgramInfoLog(program_obj, log_len, &log_len, log);
 
+        printf("gl.DeleteProgram(%d)\n", program_obj);
         gl.DeleteProgram(program_obj);
 
         MGLError_Set("%s\n\n%s\n%s\n%s\n", message, title, underline, log);
@@ -2379,16 +2425,21 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         return 0;
     }
 
+    printf("__LINE__ = %d\n", __LINE__);
     program->program_obj = program_obj;
 
     if (shaders[GEOMETRY_SHADER_SLOT] != Py_None) {
+        printf("__LINE__ = %d\n", __LINE__);
 
         int geometry_in = 0;
         int geometry_out = 0;
         program->geometry_vertices = 0;
 
+        printf("gl.GetProgramiv(%d, GL_GEOMETRY_INPUT_TYPE, ...)\n", program_obj);
         gl.GetProgramiv(program_obj, GL_GEOMETRY_INPUT_TYPE, &geometry_in);
+        printf("gl.GetProgramiv(%d, GL_GEOMETRY_OUTPUT_TYPE, ...)\n", program_obj);
         gl.GetProgramiv(program_obj, GL_GEOMETRY_OUTPUT_TYPE, &geometry_out);
+        printf("gl.GetProgramiv(%d, GL_GEOMETRY_VERTICES_OUT, ...)\n", program_obj);
         gl.GetProgramiv(program_obj, GL_GEOMETRY_VERTICES_OUT, &program->geometry_vertices);
 
         switch (geometry_in) {
@@ -2497,6 +2548,8 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         program->geometry_vertices = 0;
     }
 
+    printf("__LINE__ = %d\n", __LINE__);
+
     if (PyErr_Occurred()) {
         Py_DECREF(program);
         return 0;
@@ -2510,14 +2563,22 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
     int num_uniform_blocks = 0;
     int num_storage_blocks = 0;
 
+    printf("gl.GetProgramiv(%d, GL_ACTIVE_ATTRIBUTES, ...)\n", program_obj);
     gl.GetProgramiv(program->program_obj, GL_ACTIVE_ATTRIBUTES, &num_attributes);
+    printf("gl.GetProgramiv(%d, GL_TRANSFORM_FEEDBACK_VARYINGS, ...)\n", program_obj);
     gl.GetProgramiv(program->program_obj, GL_TRANSFORM_FEEDBACK_VARYINGS, &num_varyings);
+    printf("gl.GetProgramiv(%d, GL_ACTIVE_UNIFORMS, ...)\n", program_obj);
     gl.GetProgramiv(program->program_obj, GL_ACTIVE_UNIFORMS, &num_uniforms);
+    printf("gl.GetProgramiv(%d, GL_ACTIVE_UNIFORM_BLOCKS, ...)\n", program_obj);
     gl.GetProgramiv(program->program_obj, GL_ACTIVE_UNIFORM_BLOCKS, &num_uniform_blocks);
 
     if (self->version_code >= 430) {
+        printf("gl.GetProgramInterfaceiv(%d, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, ...)\n", program_obj);
         gl.GetProgramInterfaceiv(program->program_obj, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &num_storage_blocks);
+        printf("returned num_storage_blocks=%d\n", num_storage_blocks);
     }
+
+    printf("__LINE__ = %d\n", __LINE__);
 
     program->num_varyings = num_varyings;
 
@@ -2525,13 +2586,18 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
     PyObject * attribute_locations = PyDict_New();
     PyObject * attribute_types = PyDict_New();
 
+    printf("__LINE__ = %d\n", __LINE__);
+
     for (int i = 0; i < num_attributes; ++i) {
+        printf("__LINE__ = %d\n", __LINE__);
         int type = 0;
         int array_length = 0;
         int name_len = 0;
         char name[256];
 
+        printf("gl.GetActiveAttrib(%d, %d, ...)\n", program->program_obj, i);
         gl.GetActiveAttrib(program->program_obj, i, 256, &name_len, &array_length, (GLenum *)&type, name);
+        printf("gl.GetAttribLocation(%d, ...)\n", program->program_obj);
         PyObject * location = PyLong_FromLong(gl.GetAttribLocation(program->program_obj, name));
 
         clean_glsl_name(name, name_len);
@@ -2548,19 +2614,26 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         Py_DECREF(location);
     }
 
+    printf("__LINE__ = %d\n", __LINE__);
+
     for (int i = 0; i < num_varyings; ++i) {
+        printf("__LINE__ = %d\n", __LINE__);
         int type = 0;
         int array_length = 0;
         int dimension = 0;
         int name_len = 0;
         char name[256];
 
+        printf("gl.GetTransformFeedbackVarying(%d, %d, ...)\n", program->program_obj, i);
         gl.GetTransformFeedbackVarying(program->program_obj, i, 256, &name_len, &array_length, (GLenum *)&type, name);
+        printf("returned\n");
 
         PyObject * item = PyObject_CallMethod(helper, "make_varying", "(siii)", name, i, array_length, dimension);
         PyDict_SetItemString(members_dict, name, item);
         Py_DECREF(item);
     }
+
+    printf("__LINE__ = %d\n", __LINE__);
 
     for (int i = 0; i < num_uniforms; ++i) {
         int type = 0;
@@ -2568,7 +2641,9 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         int name_len = 0;
         char name[256];
 
+        printf("gl.GetActiveUniform(%d, %d, ...)\n", program->program_obj, i);
         gl.GetActiveUniform(program->program_obj, i, 256, &name_len, &array_length, (GLenum *)&type, name);
+        printf("gl.GetUniformLocation(%d, ...)\n", program->program_obj);
         int location = gl.GetUniformLocation(program->program_obj, name);
 
         clean_glsl_name(name, name_len);
@@ -2586,13 +2661,19 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         Py_DECREF(item);
     }
 
+    printf("__LINE__ = %d\n", __LINE__);
+
     for (int i = 0; i < num_uniform_blocks; ++i) {
+        printf("__LINE__ = %d\n", __LINE__);
         int size = 0;
         int name_len = 0;
         char name[256];
 
+        printf("gl.GetActiveUniformBlockName(%d, %d, ...)\n", program->program_obj, i);
         gl.GetActiveUniformBlockName(program->program_obj, i, 256, &name_len, name);
+        printf("gl.GetUniformBlockIndex(%d, ...)\n", program->program_obj);
         int index = gl.GetUniformBlockIndex(program->program_obj, name);
+        printf("gl.GetActiveUniformBlockiv(%d, %d, ...)\n", program->program_obj, index);
         gl.GetActiveUniformBlockiv(program->program_obj, index, GL_UNIFORM_BLOCK_DATA_SIZE, &size);
 
         clean_glsl_name(name, name_len);
@@ -2606,10 +2687,14 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         Py_DECREF(item);
     }
 
+    printf("__LINE__ = %d\n", __LINE__);
+
     for(int i = 0; i < num_storage_blocks; ++i) {
+        printf("__LINE__ = %d\n", __LINE__);
         int name_len = 0;
         char name[256];
 
+        printf("gl.GetProgramResourceName(%d, GL_SHADER_STORAGE_BLOCK, %d, ...)\n", program->program_obj, i);
         gl.GetProgramResourceName(program_obj, GL_SHADER_STORAGE_BLOCK, i, 256, &name_len, name);
         clean_glsl_name(name, name_len);
 
@@ -2624,10 +2709,13 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
 
     PyObject * geom_info;
     if (program->geometry_vertices) {
+        printf("__LINE__ = %d\n", __LINE__);
         geom_info = Py_BuildValue("(iii)", program->geometry_input, program->geometry_output, program->geometry_vertices);
     } else {
+        printf("__LINE__ = %d\n", __LINE__);
         geom_info = Py_BuildValue("(OOi)", Py_None, Py_None, 0);
     }
+    printf("__LINE__ = %d\n", __LINE__);
     PyObject * members_and_attributes = Py_BuildValue("(NNN)", members_dict, attribute_locations, attribute_types);
     return Py_BuildValue("(ONNNi)", program, members_and_attributes, PyTuple_New(0), geom_info, program->program_obj);
 }
