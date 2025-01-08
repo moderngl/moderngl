@@ -72,7 +72,7 @@ class Example(mglw.WindowConfig):
         self.vao = self.ctx.vertex_array(self.program, [])
         self.vao.vertices = 3
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear()
         self.program['seed'] = (-0.8, 0.156)
         self.program['iter'] = 100

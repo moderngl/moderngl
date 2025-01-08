@@ -183,7 +183,7 @@ class WaterMain(mglw.WindowConfig):
         self.water.update_normals()
         self.renderer.update_caustics(self.matrices, self.water)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.matrices.view = glm.lookAt(
             self.eye, (0.0, 0.0, 0.0), (0.0, 1.0, 0.0))
 

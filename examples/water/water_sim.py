@@ -52,7 +52,7 @@ class WaterSimulation(mglw.WindowConfig):
             elif key == 264: # down arrow
                 self.heavy -= 1
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         angle = time * 0.2
         self.matrix.projection = glm.perspective(
             45.0, self.aspect_ratio, 0.1, 1000.0)
