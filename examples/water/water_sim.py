@@ -45,7 +45,7 @@ class WaterSimulation(mglw.WindowConfig):
     def heavy(self, value):
         self._heavy = min(10, max(0, value))
 
-    def key_event(self, key, action, modifiers):
+    def on_key_event(self, key, action, modifiers):
         if action == 1:
             if key == 265: # up arrow
                 self.heavy += 1
