@@ -46,7 +46,7 @@ class GenerateData(Example):
         print(output_array_0)
         print(output_array_1)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         exit(0)
 
 

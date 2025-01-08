@@ -63,7 +63,7 @@ class SimpleColorTriangle(Example):
             ],
         )
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.vao.render()
 

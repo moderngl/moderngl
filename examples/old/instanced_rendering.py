@@ -63,7 +63,7 @@ class InstancedRendering(Example):
             [(self.vbo, '2f 4f', 'in_vert', 'in_color')],
         )
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.BLEND)
         self.scale.value = (0.5, self.aspect_ratio * 0.5)

@@ -27,7 +27,7 @@ class QModernGLWidget(QtOpenGL.QGLWidget):
     def init(self):
         pass
 
-    def render(self):
+    def on_render(self):
         pass
 
 
@@ -55,5 +55,5 @@ class QModernGLWidgetOld(QtWidgets.QOpenGLWidget):
     def init(self):
         pass
 
-    def render(self):
+    def on_render(self):
         pass

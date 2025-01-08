@@ -14,7 +14,7 @@ class EmptyWindow(Example):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear(
             (math.sin(time) + 1.0) / 2,
             (math.sin(time + 2) + 1.0) / 2,

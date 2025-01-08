@@ -65,7 +65,7 @@ class WireframeTerrain(Example):
         self.vao = self.ctx.vertex_array(self.prog, vao_content, self.ibo)
         self.texture = self.load_texture_2d('noise.jpg')
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         angle = time * 0.2
 
         self.ctx.clear(1.0, 1.0, 1.0)

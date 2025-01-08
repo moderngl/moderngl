@@ -74,7 +74,7 @@ class Particles(Example):
 
         self.idx = 0
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.point_size = 2.0
 

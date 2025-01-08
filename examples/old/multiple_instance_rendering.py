@@ -109,7 +109,7 @@ class InstancedRendering(Example):
 
         self.vao = self.ctx.vertex_array(self.prog, vao_content, self.index_buffer)
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.vao.render(instances=8)
 

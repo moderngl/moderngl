@@ -69,7 +69,7 @@ class CrateExample(Example):
         self.vao = self.scene.root_nodes[0].mesh.vao.instance(self.prog)
         self.texture = self.load_texture_2d('crate.png')
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         angle = time
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST)

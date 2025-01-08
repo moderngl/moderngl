@@ -164,7 +164,7 @@ class ShadowMappingSample(Example):
 
         self.ctx.enable(moderngl.CULL_FACE)
 
-    def render(self, time: float, _frame_time: float):
+    def on_render(self, time: float, _frame_time: float):
         # pass 0: clear buffers
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST)

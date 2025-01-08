@@ -63,7 +63,7 @@ class SubprocessTest(moderngl_window.WindowConfig):
         except Empty:
             pass
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear()
         self.texture.use()
         self.program["model"].write(matrix44.create_from_axis_rotation([0.0, 0.0, 1.0], time, dtype="f4"))

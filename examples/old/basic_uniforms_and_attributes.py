@@ -54,7 +54,7 @@ class UniformsAndAttributes(Example):
         self.vbo = self.ctx.buffer(vertices)
         self.vao = self.ctx.vertex_array(self.prog, [self.vbo.bind('vert')])
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         sin_scale = np.sin(np.deg2rad(time * 60))
 
         self.ctx.clear(1.0, 1.0, 1.0)

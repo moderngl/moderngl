@@ -81,7 +81,7 @@ class InstancedCrates(Example):
         self.crate_x += np.random.uniform(-0.2, 0.2, 32 * 32)
         self.crate_y += np.random.uniform(-0.2, 0.2, 32 * 32)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         angle = time * 0.2
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST)

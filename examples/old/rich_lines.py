@@ -93,7 +93,7 @@ class RichLines(Example):
             Matrix44.orthogonal_projection(0, 1600, 800, 0, 0.5, -0.5, dtype="f4")
         )
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(1, 1, 1, 1)
         self.ctx.enable(moderngl.BLEND)
         self.vao.render(moderngl.LINE_STRIP_ADJACENCY)

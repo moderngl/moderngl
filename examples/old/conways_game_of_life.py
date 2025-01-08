@@ -130,7 +130,7 @@ class Conway(Example):
         self.tao = self.ctx.vertex_array(self.transform_prog, [])
         self.pbo = self.ctx.buffer(reserve=pixels.nbytes)  # buffer to store the result
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(1.0, 1.0, 1.0)
 
         # Bind texture to channel 0

@@ -92,7 +92,7 @@ class PerspectiveProjection(Example):
         self.vbo = self.ctx.buffer(grid)
         self.vao = self.ctx.vertex_array(self.prog, [self.vbo.bind('vert')])
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.vao.render(moderngl.LINES, 65 * 4)
 

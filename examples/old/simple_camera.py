@@ -206,7 +206,7 @@ class PerspectiveProjection(Example):
         else:
             self.states[key] = False
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.move_camera()
 
         self.ctx.clear(1.0, 1.0, 1.0)

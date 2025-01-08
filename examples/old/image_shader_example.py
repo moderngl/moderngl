@@ -18,7 +18,7 @@ class ImageProcessing(moderngl_window.WindowConfig):
         self.image_processing = ImageTransformer(self.ctx, self.window_size)
         self.texture = self.load_texture_2d("data/ball.png")
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.image_processing.render(self.texture, target=self.ctx.screen)
 
         # Headless
@@ -92,7 +92,7 @@ class ImageTransformer:
             ]
         )
 
-    def render(self, texture, target=None):
+    def on_render(self, texture, target=None):
         if target:
             target.use()
         else:
