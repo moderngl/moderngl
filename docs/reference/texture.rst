@@ -18,13 +18,14 @@ Texture
 Methods
 -------
 
-.. py:method:: Texture.read(alignment: int = 1) -> bytes
+.. py:method:: Texture.read(alignment: int = 1, gil=False) -> bytes
 
     Read the pixel data as bytes into system memory.
 
     :param int alignment: The byte alignment of the pixels.
+    :param bool gil: Whether to hold the GIL while waiting for the data.
 
-.. py:method:: Texture.read_into(buffer: Any, alignment: int = 1, write_offset: int = 0)
+.. py:method:: Texture.read_into(buffer: Any, alignment: int = 1, write_offset: int = 0, gil=False)
 
     Read the content of the texture into a bytearray or :py:class:`~moderngl.Buffer`.
 
@@ -44,6 +45,7 @@ Methods
     :param bytearray buffer: The buffer that will receive the pixels.
     :param int alignment: The byte alignment of the pixels.
     :param int write_offset: The write offset.
+    :param bool gil: Whether to hold the GIL while waiting for the data.
 
 .. py:method:: Texture.write(data: Any, viewport: tuple, alignment: int = 1)
 

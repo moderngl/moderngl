@@ -26,14 +26,15 @@ Methods
     :param bytes data: The data.
     :param int offset: The offset in bytes.
 
-.. py:method:: Buffer.read(size: int = -1, *, offset: int = 0) -> bytes:
+.. py:method:: Buffer.read(size: int = -1, *, offset: int = 0, gil=False) -> bytes:
 
     Read the content.
 
     :param int size: The size in bytes. Value ``-1`` means all.
     :param int offset: The offset in bytes.
+    :param bool gil: Whether to hold the GIL while waiting for the data.
 
-.. py:method:: Buffer.read_into(buffer: Any, size: int = -1, *, offset: int = 0, write_offset: int = 0) -> None:
+.. py:method:: Buffer.read_into(buffer: Any, size: int = -1, *, offset: int = 0, write_offset: int = 0, gil=False) -> None:
 
     Read the content into a buffer.
 
@@ -41,6 +42,7 @@ Methods
     :param int size: The size in bytes. Value ``-1`` means all.
     :param int offset: The read offset in bytes.
     :param int write_offset: The write offset in bytes.
+    :param bool gil: Whether to hold the GIL while waiting for the data.
 
 .. py:method:: Buffer.clear(size: int = -1, *, offset: int = 0, chunk: Any = None) -> None:
 

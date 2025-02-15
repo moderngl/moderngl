@@ -38,7 +38,7 @@ Methods
     :param tuple viewport: The viewport.
     :param tuple color: Optional tuple replacing the red, green, blue and alpha arguments
 
-.. py:method:: Framebuffer.read(viewport=..., components: int = 3, attachment: int = 0, alignment: int = 1, dtype: str = 'f1', clamp: bool = False) -> bytes
+.. py:method:: Framebuffer.read(viewport=..., components: int = 3, attachment: int = 0, alignment: int = 1, dtype: str = 'f1', clamp: bool = False, gil: bool = False) -> bytes
 
     Read the content of the framebuffer.
 
@@ -48,6 +48,7 @@ Methods
     :param int alignment: The byte alignment of the pixels.
     :param str dtype: Data type.
     :param bool clamp: Clamps floating point values to ``[0.0, 1.0]``
+    :param bool gil: Whether to hold the GIL while waiting for the data.
 
     .. code:: python
 
@@ -60,7 +61,7 @@ Methods
         # Read the lower left 10 x 10 pixels from the first color attachment
         data = fbo.read(viewport=(0, 0, 10, 10))
 
-.. py:method:: Framebuffer.read_into(buffer, viewport, components: int = 3, attachment: int = 0, alignment: int = 1, dtype: str = 'f1', write_offset: int = 0) -> None
+.. py:method:: Framebuffer.read_into(buffer, viewport, components: int = 3, attachment: int = 0, alignment: int = 1, dtype: str = 'f1', write_offset: int = 0, gil: bool = False) -> None
 
     Read the content of the framebuffer into a buffer.
 
@@ -71,6 +72,7 @@ Methods
     :param int alignment: The byte alignment of the pixels.
     :param str dtype: Data type.
     :param int write_offset: The write offset.
+    :param bool gil: Whether to hold the GIL while waiting for the data.
 
 .. py:method:: Framebuffer.use()
 

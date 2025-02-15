@@ -90,17 +90,17 @@ class Buffer:
     def write_chunks(self, data, start, step, count):
         self.mglo.write_chunks(data, start, step, count)
 
-    def read(self, size=-1, offset=0):
-        return self.mglo.read(size, offset)
+    def read(self, size=-1, offset=0, gil=False):
+        return self.mglo.read(size, offset, gil)
 
-    def read_into(self, buffer, size=-1, offset=0, write_offset=0):
-        return self.mglo.read_into(buffer, size, offset, write_offset)
+    def read_into(self, buffer, size=-1, offset=0, write_offset=0, gil=False):
+        return self.mglo.read_into(buffer, size, offset, write_offset, gil)
 
-    def read_chunks(self, chunk_size, start, step, count):
-        return self.mglo.read_chunks(chunk_size, start, step, count)
+    def read_chunks(self, chunk_size, start, step, count, gil=False):
+        return self.mglo.read_chunks(chunk_size, start, step, count, gil)
 
-    def read_chunks_into(self, buffer, chunk_size, start, step, count, write_offset=0):
-        return self.mglo.read(buffer, chunk_size, start, step, count, write_offset)
+    def read_chunks_into(self, buffer, chunk_size, start, step, count, write_offset=0, gil=False):
+        return self.mglo.read(buffer, chunk_size, start, step, count, write_offset, gil)
 
     def clear(self, size=-1, offset=0, chunk=None):
         self.mglo.clear(size, offset, chunk)
@@ -359,22 +359,22 @@ class Framebuffer:
         self.ctx.fbo = self
         self.mglo.use()
 
-    def read(self, viewport=None, components=3, attachment=0, alignment=1, dtype="f1", clamp=False):
+    def read(self, viewport=None, components=3, attachment=0, alignment=1, dtype="f1", clamp=False, gil=False):
         if viewport is None:
             viewport = (0, 0, self.width, self.height)
         if len(viewport) == 2:
             viewport = (0, 0, *viewport)
         res, mem = mgl.writable_bytes(mgl.expected_size(viewport[2], viewport[3], 1, components, alignment, dtype))
-        self.mglo.read_into(mem, viewport, components, attachment, alignment, clamp, dtype, 0)
+        self.mglo.read_into(mem, viewport, components, attachment, alignment, clamp, dtype, 0, gil)
         return res
 
-    def read_into(
-        self, buffer, viewport=None, components=3, attachment=0, alignment=1, dtype="f1", clamp=False, write_offset=0
-    ):
+    def read_into(self, buffer, 
+            viewport=None, components=3, attachment=0, alignment=1, dtype="f1", 
+            clamp=False, write_offset=0, gil=False):
         if type(buffer) is Buffer:
             buffer = buffer.mglo
 
-        return self.mglo.read_into(buffer, viewport, components, attachment, alignment, clamp, dtype, write_offset)
+        return self.mglo.read_into(buffer, viewport, components, attachment, alignment, clamp, dtype, write_offset, gil)
 
     def release(self):
         if not isinstance(self.mglo, InvalidObject):
@@ -830,14 +830,14 @@ class Texture:
         else:
             self._label = value
 
-    def read(self, level=0, alignment=1):
-        return self.mglo.read(level, alignment)
+    def read(self, level=0, alignment=1, gil=False):
+        return self.mglo.read(level, alignment, gil)
 
-    def read_into(self, buffer, level=0, alignment=1, write_offset=0):
+    def read_into(self, buffer, level=0, alignment=1, write_offset=0, gil=False):
         if type(buffer) is Buffer:
             buffer = buffer.mglo
 
-        return self.mglo.read_into(buffer, level, alignment, write_offset)
+        return self.mglo.read_into(buffer, level, alignment, write_offset, gil)
 
     def write(self, data, viewport=None, level=0, alignment=1):
         if type(data) is Buffer:
@@ -970,14 +970,14 @@ class Texture3D:
         else:
             self._label = value
 
-    def read(self, alignment=1):
-        return self.mglo.read(alignment)
+    def read(self, alignment=1, gil=False):
+        return self.mglo.read(alignment, gil)
 
-    def read_into(self, buffer, alignment=1, write_offset=0):
+    def read_into(self, buffer, alignment=1, write_offset=0, gil=False):
         if type(buffer) is Buffer:
             buffer = buffer.mglo
 
-        return self.mglo.read_into(buffer, alignment, write_offset)
+        return self.mglo.read_into(buffer, alignment, write_offset, gil)
 
     def write(self, data, viewport=None, alignment=1):
         if type(data) is Buffer:
@@ -1094,14 +1094,14 @@ class TextureCube:
         else:
             self._label = value
 
-    def read(self, face, alignment=1):
-        return self.mglo.read(face, alignment)
+    def read(self, face, alignment=1, gil=False):
+        return self.mglo.read(face, alignment, gil)
 
-    def read_into(self, buffer, face, alignment=1, write_offset=0):
+    def read_into(self, buffer, face, alignment=1, write_offset=0, gil=False):
         if type(buffer) is Buffer:
             buffer = buffer.mglo
 
-        return self.mglo.read_into(buffer, face, alignment, write_offset)
+        return self.mglo.read_into(buffer, face, alignment, write_offset, gil)
 
     def write(self, face, data, viewport=None, alignment=1):
         if type(data) is Buffer:
@@ -1235,14 +1235,14 @@ class TextureArray:
         else:
             self._label = value
 
-    def read(self, alignment=1):
-        return self.mglo.read(alignment)
+    def read(self, alignment=1, gil=False):
+        return self.mglo.read(alignment, gil)
 
-    def read_into(self, buffer, alignment=1, write_offset=0):
+    def read_into(self, buffer, alignment=1, write_offset=0, gil=False):
         if type(buffer) is Buffer:
             buffer = buffer.mglo
 
-        return self.mglo.read_into(buffer, alignment, write_offset)
+        return self.mglo.read_into(buffer, alignment, write_offset, gil)
 
     def write(self, data, viewport=None, alignment=1):
         if type(data) is Buffer:
