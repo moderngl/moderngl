@@ -975,20 +975,29 @@ static PyObject * MGLBuffer_read(MGLBuffer * self, PyObject * args) {
         return 0;
     }
 
-    const GLMethods & gl = self->context->gl;
+    PyObject * data = PyBytes_FromStringAndSize(0, size);
+    if (!data) {
+        return 0;
+    }
+    char * ptr = PyBytes_AS_STRING(data);
 
+    PyThreadState * _save;
+    Py_UNBLOCK_THREADS
+    
+    const GLMethods & gl = self->context->gl;
     gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
     void * map = gl.MapBufferRange(GL_ARRAY_BUFFER, offset, size, GL_MAP_READ_BIT);
-
     if (!map) {
+        Py_BLOCK_THREADS
+        Py_DECREF(data);
         MGLError_Set("cannot map the buffer");
         return 0;
     }
-
-    PyObject * data = PyBytes_FromStringAndSize((const char *)map, size);
+    
+    memcpy(ptr, map, size);
 
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
-
+    Py_BLOCK_THREADS
     return data;
 }
 
@@ -1034,16 +1043,24 @@ static PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args) {
         return 0;
     }
 
+    PyThreadState * _save;
+    Py_UNBLOCK_THREADS
+    
     const GLMethods & gl = self->context->gl;
-
     gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
     void * map = gl.MapBufferRange(GL_ARRAY_BUFFER, offset, size, GL_MAP_READ_BIT);
+    if (!map) {
+        Py_BLOCK_THREADS
+        PyBuffer_Release(&buffer_view);
+        MGLError_Set("cannot map the buffer");
+        return 0;
+    }
 
     char * ptr = (char *)buffer_view.buf + write_offset;
     memcpy(ptr, map, size);
 
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
-
+    Py_BLOCK_THREADS
     PyBuffer_Release(&buffer_view);
     Py_RETURN_NONE;
 }
@@ -1077,9 +1094,6 @@ static PyObject * MGLBuffer_write_chunks(MGLBuffer * self, PyObject * args) {
         return 0;
     }
 
-    const GLMethods & gl = self->context->gl;
-    gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
-
     Py_ssize_t chunk_size = buffer_view.len / count;
 
     if (buffer_view.len != chunk_size * count) {
@@ -1098,6 +1112,8 @@ static PyObject * MGLBuffer_write_chunks(MGLBuffer * self, PyObject * args) {
         return 0;
     }
 
+    const GLMethods & gl = self->context->gl;
+    gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
     char * write_ptr = (char *)gl.MapBufferRange(GL_ARRAY_BUFFER, 0, self->size, GL_MAP_WRITE_BIT);
     char * read_ptr = (char *)buffer_view.buf;
 
@@ -1148,20 +1164,26 @@ static PyObject * MGLBuffer_read_chunks(MGLBuffer * self, PyObject * args) {
         MGLError_Set("size error");
         return 0;
     }
+    
+    PyObject * data = PyBytes_FromStringAndSize(0, chunk_size * count);
+    if (!data) {
+        return 0;
+    }
+    char * write_ptr = PyBytes_AS_STRING(data);
 
+    PyThreadState * _save;
+    Py_UNBLOCK_THREADS
+    
     const GLMethods & gl = self->context->gl;
-
     gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
-
     char * read_ptr = (char *)gl.MapBufferRange(GL_ARRAY_BUFFER, 0, self->size, GL_MAP_READ_BIT);
 
     if (!read_ptr) {
+        Py_BLOCK_THREADS
+        Py_DECREF(data);
         MGLError_Set("cannot map the buffer");
         return 0;
     }
-
-    PyObject * data = PyBytes_FromStringAndSize(0, chunk_size * count);
-    char * write_ptr = PyBytes_AS_STRING(data);
 
     read_ptr += start;
     for (Py_ssize_t i = 0; i < count; ++i) {
@@ -1171,6 +1193,7 @@ static PyObject * MGLBuffer_read_chunks(MGLBuffer * self, PyObject * args) {
     }
 
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
+    Py_BLOCK_THREADS
     return data;
 }
 
@@ -1205,14 +1228,16 @@ static PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) 
         return 0;
     }
 
+    PyThreadState * _save;
+    Py_UNBLOCK_THREADS
+    
     const GLMethods & gl = self->context->gl;
-
     gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
-
     char * read_ptr = (char *)gl.MapBufferRange(GL_ARRAY_BUFFER, 0, self->size, GL_MAP_READ_BIT);
     char * write_ptr = (char *)buffer_view.buf + write_offset;
 
     if (!read_ptr) {
+        Py_BLOCK_THREADS
         MGLError_Set("cannot map the buffer");
         return 0;
     }
@@ -1225,6 +1250,7 @@ static PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) 
     }
 
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
+    Py_BLOCK_THREADS
     PyBuffer_Release(&buffer_view);
     Py_RETURN_NONE;
 }
@@ -1271,10 +1297,12 @@ static PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
 
     const GLMethods & gl = self->context->gl;
     gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
-
     char * map = (char *)gl.MapBufferRange(GL_ARRAY_BUFFER, offset, size, GL_MAP_WRITE_BIT);
 
     if (!map) {
+        if (chunk != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         MGLError_Set("cannot map the buffer");
         return 0;
     }
@@ -1291,11 +1319,9 @@ static PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
     }
 
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
-
     if (chunk != Py_None) {
         PyBuffer_Release(&buffer_view);
     }
-
     Py_RETURN_NONE;
 }
 
@@ -1396,6 +1422,7 @@ static int MGLBuffer_tp_as_buffer_get_view(MGLBuffer * self, Py_buffer * view, i
     int access = (flags == PyBUF_SIMPLE) ? GL_MAP_READ_BIT : (GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
 
     const GLMethods & gl = self->context->gl;
+    
     gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
     void * map = gl.MapBufferRange(GL_ARRAY_BUFFER, 0, self->size, access);
 
@@ -1948,12 +1975,14 @@ static PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * arg
             gl.ClampColor(GL_CLAMP_READ_COLOR, GL_FIXED_ONLY);
         }
 
+        Py_BEGIN_ALLOW_THREADS
         gl.BindFramebuffer(GL_FRAMEBUFFER, self->framebuffer_obj);
         gl.ReadBuffer(read_depth ? GL_NONE : (GL_COLOR_ATTACHMENT0 + attachment));
         gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
         gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
         gl.ReadPixels(viewport_rect.x, viewport_rect.y, viewport_rect.width, viewport_rect.height, base_format, pixel_type, ptr);
         gl.BindFramebuffer(GL_FRAMEBUFFER, self->context->bound_framebuffer->framebuffer_obj);
+        Py_END_ALLOW_THREADS
 
         PyBuffer_Release(&buffer_view);
     }
@@ -4010,6 +4039,7 @@ static PyObject * MGLTexture_read(MGLTexture * self, PyObject * args) {
 
     const GLMethods & gl = self->context->gl;
 
+    Py_BEGIN_ALLOW_THREADS
     gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
     gl.BindTexture(GL_TEXTURE_2D, self->texture_obj);
 
@@ -4037,6 +4067,7 @@ static PyObject * MGLTexture_read(MGLTexture * self, PyObject * args) {
     // printf("level_height: %d\n", level_height);
 
     gl.GetTexImage(GL_TEXTURE_2D, level, base_format, pixel_type, data);
+    Py_END_ALLOW_THREADS
 
     return result;
 }
@@ -4122,11 +4153,13 @@ static PyObject * MGLTexture_read_into(MGLTexture * self, PyObject * args) {
 
         const GLMethods & gl = self->context->gl;
 
+        Py_BEGIN_ALLOW_THREADS
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_2D, self->texture_obj);
         gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
         gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
         gl.GetTexImage(GL_TEXTURE_2D, level, base_format, pixel_type, ptr);
+        Py_END_ALLOW_THREADS
 
         PyBuffer_Release(&buffer_view);
 
@@ -4189,11 +4222,11 @@ static PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
     int pixel_type = self->data_type->gl_type;
     int format = self->depth ? GL_DEPTH_COMPONENT : self->data_type->base_format[self->components];
 
+    const GLMethods & gl = self->context->gl;
+
     if (Py_TYPE(data) == MGLBuffer_type) {
 
         MGLBuffer * buffer = (MGLBuffer *)data;
-
-        const GLMethods & gl = self->context->gl;
 
         gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer_obj);
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
@@ -4218,8 +4251,6 @@ static PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
             }
             return 0;
         }
-
-        const GLMethods & gl = self->context->gl;
 
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_2D, self->texture_obj);
@@ -4738,12 +4769,14 @@ static PyObject * MGLTexture3D_read(MGLTexture3D * self, PyObject * args) {
 
     const GLMethods & gl = self->context->gl;
 
+    Py_BEGIN_ALLOW_THREADS
     gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
     gl.BindTexture(GL_TEXTURE_3D, self->texture_obj);
 
     gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
     gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
     gl.GetTexImage(GL_TEXTURE_3D, 0, base_format, pixel_type, data);
+    Py_END_ALLOW_THREADS
 
     return result;
 }
@@ -4777,11 +4810,11 @@ static PyObject * MGLTexture3D_read_into(MGLTexture3D * self, PyObject * args) {
     int pixel_type = self->data_type->gl_type;
     int format = self->data_type->base_format[self->components];
 
+    const GLMethods & gl = self->context->gl;
+
     if (Py_TYPE(data) == MGLBuffer_type) {
 
         MGLBuffer * buffer = (MGLBuffer *)data;
-
-        const GLMethods & gl = self->context->gl;
 
         gl.BindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer_obj);
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
@@ -4808,13 +4841,14 @@ static PyObject * MGLTexture3D_read_into(MGLTexture3D * self, PyObject * args) {
         }
 
         char * ptr = (char *)buffer_view.buf + write_offset;
-
-        const GLMethods & gl = self->context->gl;
+        
+        Py_BEGIN_ALLOW_THREADS
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_3D, self->texture_obj);
         gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
         gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
         gl.GetTexImage(GL_TEXTURE_3D, 0, format, pixel_type, ptr);
+        Py_END_ALLOW_THREADS
 
         PyBuffer_Release(&buffer_view);
 
@@ -4862,11 +4896,11 @@ static PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args) {
     int pixel_type = self->data_type->gl_type;
     int format = self->data_type->base_format[self->components];
 
+    const GLMethods & gl = self->context->gl;
+
     if (Py_TYPE(data) == MGLBuffer_type) {
 
         MGLBuffer * buffer = (MGLBuffer *)data;
-
-        const GLMethods & gl = self->context->gl;
 
         gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer_obj);
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
@@ -4891,8 +4925,6 @@ static PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args) {
             }
             return 0;
         }
-
-        const GLMethods & gl = self->context->gl;
 
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_3D, self->texture_obj);
@@ -5364,6 +5396,7 @@ static PyObject * MGLTextureArray_read(MGLTextureArray * self, PyObject * args) 
 
     const GLMethods & gl = self->context->gl;
 
+    Py_BEGIN_ALLOW_THREADS
     gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
     gl.BindTexture(GL_TEXTURE_2D_ARRAY, self->texture_obj);
 
@@ -5391,6 +5424,7 @@ static PyObject * MGLTextureArray_read(MGLTextureArray * self, PyObject * args) 
     // printf("level_height: %d\n", level_height);
 
     gl.GetTexImage(GL_TEXTURE_2D_ARRAY, 0, base_format, pixel_type, data);
+    Py_END_ALLOW_THREADS
 
     return result;
 }
@@ -5424,11 +5458,11 @@ static PyObject * MGLTextureArray_read_into(MGLTextureArray * self, PyObject * a
     int pixel_type = self->data_type->gl_type;
     int format = self->data_type->base_format[self->components];
 
+    const GLMethods & gl = self->context->gl;
+
     if (Py_TYPE(data) == MGLBuffer_type) {
 
         MGLBuffer * buffer = (MGLBuffer *)data;
-
-        const GLMethods & gl = self->context->gl;
 
         gl.BindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer_obj);
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
@@ -5456,13 +5490,13 @@ static PyObject * MGLTextureArray_read_into(MGLTextureArray * self, PyObject * a
 
         char * ptr = (char *)buffer_view.buf + write_offset;
 
-        const GLMethods & gl = self->context->gl;
-
+        Py_BEGIN_ALLOW_THREADS
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_2D_ARRAY, self->texture_obj);
         gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
         gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
         gl.GetTexImage(GL_TEXTURE_2D_ARRAY, 0, format, pixel_type, ptr);
+        Py_END_ALLOW_THREADS
 
         PyBuffer_Release(&buffer_view);
 
@@ -5510,11 +5544,11 @@ static PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args)
     int pixel_type = self->data_type->gl_type;
     int format = self->data_type->base_format[self->components];
 
+    const GLMethods & gl = self->context->gl;
+
     if (Py_TYPE(data) == MGLBuffer_type) {
 
         MGLBuffer * buffer = (MGLBuffer *)data;
-
-        const GLMethods & gl = self->context->gl;
 
         gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer_obj);
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
@@ -5539,8 +5573,6 @@ static PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args)
             }
             return 0;
         }
-
-        const GLMethods & gl = self->context->gl;
 
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_2D_ARRAY, self->texture_obj);
@@ -6147,12 +6179,14 @@ static PyObject * MGLTextureCube_read(MGLTextureCube * self, PyObject * args) {
 
     const GLMethods & gl = self->context->gl;
 
+    Py_BEGIN_ALLOW_THREADS
     gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
     gl.BindTexture(GL_TEXTURE_CUBE_MAP, self->texture_obj);
 
     gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
     gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
     gl.GetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, format, pixel_type, data);
+    Py_END_ALLOW_THREADS
 
     return result;
 }
@@ -6193,11 +6227,11 @@ static PyObject * MGLTextureCube_read_into(MGLTextureCube * self, PyObject * arg
     int pixel_type = self->data_type->gl_type;
     int format = self->depth ? GL_DEPTH_COMPONENT : self->data_type->base_format[self->components];
 
+    const GLMethods & gl = self->context->gl;
+
     if (Py_TYPE(data) == MGLBuffer_type) {
 
         MGLBuffer * buffer = (MGLBuffer *)data;
-
-        const GLMethods & gl = self->context->gl;
 
         gl.BindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer_obj);
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
@@ -6225,12 +6259,13 @@ static PyObject * MGLTextureCube_read_into(MGLTextureCube * self, PyObject * arg
 
         char * ptr = (char *)buffer_view.buf + write_offset;
 
-        const GLMethods & gl = self->context->gl;
+        Py_BEGIN_ALLOW_THREADS
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_CUBE_MAP, self->texture_obj);
         gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
         gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
         gl.GetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, format, pixel_type, ptr);
+        Py_END_ALLOW_THREADS
 
         PyBuffer_Release(&buffer_view);
 
@@ -6292,11 +6327,11 @@ static PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args) {
     int pixel_type = self->data_type->gl_type;
     int format = self->depth ? GL_DEPTH_COMPONENT : self->data_type->base_format[self->components];
 
+    const GLMethods & gl = self->context->gl;
+
     if (Py_TYPE(data) == MGLBuffer_type) {
 
         MGLBuffer * buffer = (MGLBuffer *)data;
-
-        const GLMethods & gl = self->context->gl;
 
         gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer_obj);
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
@@ -6319,8 +6354,6 @@ static PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args) {
             PyBuffer_Release(&buffer_view);
             return 0;
         }
-
-        const GLMethods & gl = self->context->gl;
 
         gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_CUBE_MAP, self->texture_obj);
@@ -7544,7 +7577,9 @@ static PyObject * MGLContext_disable_direct(MGLContext * self, PyObject * args) 
 }
 
 static PyObject * MGLContext_finish(MGLContext * self, PyObject * args) {
+    Py_BEGIN_ALLOW_THREADS
     self->gl.Finish();
+    Py_END_ALLOW_THREADS
     Py_RETURN_NONE;
 }
 
