@@ -9,7 +9,7 @@ def test_1(ctx):
 
     fbo1.clear(1.0, 0.0, 0.0, 0.0, viewport=(2, 2))
     fbo1.clear(0.0, 1.0, 0.0, 0.0, viewport=(2, 0, 2, 2))
-    fbo1.clear(0.0, 0.0, 1.0, 0.0, viewport=(0, 2, 2, 2))
+    fbo1.clear(0.0, 0.0, 1.0, 0.0, viewport=(0, 2, 2, 2), stencil=0)
 
     assert fbo1.read((2, 2)), b'\xff\x00\x00' * 2 * 2
     assert fbo1.read((2, 0, 2, 2)), b'\x00\xff\x00' * 2 * 2

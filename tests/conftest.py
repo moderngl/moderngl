@@ -19,6 +19,7 @@ VERSION_CODES = 430, 410, 330
 _ctx = None
 _fbo = None  # Fake framebuffer to avoid errors during transforms
 
+
 @pytest.fixture(scope="session")
 def ctx_static():
     """Session context"""
@@ -64,14 +65,16 @@ def _get_context():
     _fbo.use()
     return _ctx
 
+
 def _create_context():
     """
     Create a new context.
 
     This is the only place context creation should happen.
-    For now we just brute force context creation.
+    For now, we just brute force context creation.
 """
     return moderngl.create_context(standalone=True, context=egl.create_context(glversion=330, mode="standalone"))
+
 
 def _clean_ctx(ctx):
     """Clean the context"""
@@ -85,7 +88,7 @@ def _clean_ctx(ctx):
     ctx.cull_face = 'back'
     ctx.wireframe = False
     ctx.provoking_vertex = moderngl.FIRST_VERTEX_CONVENTION
-    ctx.polygon_offset = 0.0, 0.0    
+    ctx.polygon_offset = 0.0, 0.0
     ctx.gc()
 
 
@@ -119,7 +122,7 @@ def color_prog(ctx_static):
 def ndc_quad(ctx_static):
     """Creates a buffer with an NDC quad."""
     quad = [
-        -1.0,  1.0,
+        -1.0, 1.0,
         -1.0, -1.0,
         1.0, 1.0,
         1.0, -1.0,

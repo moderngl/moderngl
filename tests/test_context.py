@@ -1,7 +1,9 @@
 import pytest
 import OpenGL
-OpenGL.ERROR_CHECKING = False # Don't want PyOpenGL to raise any exceptions
+
+OpenGL.ERROR_CHECKING = False  # Don't want PyOpenGL to raise any exceptions
 from OpenGL import GL
+
 
 def test_create_destroy(ctx_new):
     """Create and destroy a context"""
@@ -31,9 +33,9 @@ def test_extensions(ctx_new):
 def test_clear_errors(ctx_new):
     ctx = ctx_new
     # Reading the error state should reset it, as with glGetError
-    ctx.enable_direct(1) # Not a valid glEnable value
+    ctx.enable_direct(1)  # Not a valid glEnable value
     assert ctx.error == "GL_INVALID_ENUM"
-    assert ctx.error == "GL_NO_ERROR" # calling glGetError resets the error state
+    assert ctx.error == "GL_NO_ERROR"  # calling glGetError resets the error state
 
     # Clearing the error state should reset it
     ctx.enable_direct(1)
@@ -66,6 +68,7 @@ def test_attributes(ctx_new):
     assert isinstance(ctx.NOTHING, int)
     assert isinstance(ctx.BLEND, int)
     assert isinstance(ctx.DEPTH_TEST, int)
+    assert isinstance(ctx.STENCIL_TEST, int)
     assert isinstance(ctx.CULL_FACE, int)
     assert isinstance(ctx.RASTERIZER_DISCARD, int)
     assert isinstance(ctx.PROGRAM_POINT_SIZE, int)
@@ -149,12 +152,14 @@ def test_enable_direct(ctx_new):
     ctx.disable_direct(GL_PROGRAM_POINT_SIZE)
     assert ctx.error == "GL_NO_ERROR"
 
+
 def test_depth_clamp_range(ctx):
     ctx.depth_clamp_range = 0, 1
     assert ctx.error == "GL_NO_ERROR"
 
     ctx.depth_clamp_range = None
     assert ctx.error == "GL_NO_ERROR"
+
 
 def test_info(ctx):
     assert isinstance(ctx.info, dict)
@@ -248,7 +253,7 @@ def test_context_gc(ctx_new):
     # cs = ctx.compute_shader(
     #     """
     #     #version 450
-        
+
     #     layout(local_size_x=4, local_size_y=4) in;
 
     #     layout(rgba8, binding=0) uniform imageCube img_in;
