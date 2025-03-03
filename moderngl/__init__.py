@@ -313,6 +313,14 @@ class Framebuffer:
         self.mglo.depth_mask = value
 
     @property
+    def stencil_mask(self):
+        return self.mglo.stencil_mask
+
+    @stencil_mask.setter
+    def stencil_mask(self, value):
+        self.mglo.stencil_mask = value
+
+    @property
     def width(self):
         return self._size[0]
 
@@ -372,6 +380,7 @@ class Framebuffer:
         depth=1.0,
         viewport=None,
         color=None,
+        stencil=0
     ):
         if color is not None:
             red, green, blue, alpha, *_ = tuple(color) + (0.0, 0.0, 0.0, 0.0)
@@ -379,7 +388,7 @@ class Framebuffer:
         if viewport is not None:
             viewport = tuple(viewport)
 
-        self.mglo.clear(red, green, blue, alpha, depth, viewport)
+        self.mglo.clear(red, green, blue, alpha, depth, viewport, stencil)
 
     def use(self):
         self.ctx.fbo = self
@@ -523,7 +532,7 @@ class Program:
 
     def draw_mesh_tasks_indirect(self, buffer, offset=0, drawcount=1, stride=0):
         return self.mglo.draw_mesh_tasks_indirect(buffer.mglo, offset, drawcount, stride)
-    
+
     def draw_mesh_tasks_indirect_count(self, buffer, offset, drawcount_offset, maxdrawcount, stride=0):
         return self.mglo.draw_mesh_tasks_indirect_count(buffer.mglo, offset, drawcount_offset, maxdrawcount, stride)
 
@@ -787,6 +796,7 @@ class Texture:
         self._samples = None
         self._dtype = None
         self._depth = None
+        self._use_stencilbuffer = None
         self._glo = None
         self.ctx = None
         self.extra = None
@@ -877,6 +887,10 @@ class Texture:
     @property
     def depth(self):
         return self._depth
+
+    @property
+    def use_stencil_buffer(self):
+        return self._use_stencilbuffer
 
     @property
     def glo(self):
@@ -1512,6 +1526,7 @@ class Context:
     CULL_FACE = 4
     RASTERIZER_DISCARD = 8
     PROGRAM_POINT_SIZE = 16
+    STENCIL_TEST = 32
 
     # Primitive modes
 
@@ -1561,6 +1576,17 @@ class Context:
     FUNC_REVERSE_SUBTRACT = 0x800B
     MIN = 0x8007
     MAX = 0x8008
+
+    # Stencil op constants
+
+    KEEP = 0x1E00
+    ZERO = 0
+    REPLACE = 0x1E01
+    INCR = 0x1E02
+    INCR_WRAP = 0x8507
+    DECR = 0x1E03
+    DECR_WRAP = 0x8508
+    INVERT = 0x150A
 
     # Provoking vertex
 
@@ -1650,6 +1676,22 @@ class Context:
     @depth_func.setter
     def depth_func(self, value):
         self.mglo.depth_func = value
+
+    @property
+    def stencil_func(self):
+        raise NotImplementedError()
+
+    @stencil_func.setter
+    def stencil_func(self, value):
+        self.mglo.stencil_func = tuple(value)
+
+    @property
+    def stencil_op(self):
+        raise NotImplementedError()
+
+    @stencil_op.setter
+    def stencil_op(self, value):
+        self.mglo.stencil_op = tuple(value)
 
     @property
     def blend_func(self):
@@ -1853,11 +1895,12 @@ class Context:
         depth=1.0,
         viewport=None,
         color=None,
+        stencil=0
     ):
         if color is not None:
             red, green, blue, alpha, *_ = tuple(color) + (0.0, 0.0, 0.0, 0.0)
 
-        self.mglo.fbo.clear(red, green, blue, alpha, depth, viewport)
+        self.mglo.fbo.clear(red, green, blue, alpha, depth, viewport, stencil)
 
     def enable_only(self, flags):
         self.mglo.enable_only(flags)
@@ -1998,11 +2041,11 @@ class Context:
         return res
 
     def depth_texture(
-        self, size, data=None, samples=0, alignment=4, renderbuffer=False
+        self, size, data=None, samples=0, alignment=4, renderbuffer=False, use_stencilbuffer=False
     ):
         res = Texture.__new__(Texture)
         res.mglo, res._glo = self.mglo.depth_texture(
-            size, data, samples, alignment, renderbuffer
+            size, data, samples, alignment, renderbuffer, use_stencilbuffer
         )
         res._size = size
         res._components = 1
@@ -2230,7 +2273,7 @@ class Context:
             color_attachments = (color_attachments,)
 
         ca_mglo = tuple(x.mglo for x in color_attachments)
-        da_mglo = None if depth_attachment is None else depth_attachment.mglo
+        da_mglo = depth_attachment.mglo if depth_attachment else None
 
         res = Framebuffer.__new__(Framebuffer)
         res.mglo, res._size, res._samples, res._glo = self.mglo.framebuffer(
@@ -2271,7 +2314,7 @@ class Context:
 
     def depth_renderbuffer(self, size, samples=0):
         res = Renderbuffer.__new__(Renderbuffer)
-        res.mglo, res._glo = self.mglo.depth_texture(size, None, samples, 1, True)
+        res.mglo, res._glo = self.mglo.depth_texture(size, None, samples, 1, True, False)
         res._size = size
         res._components = 1
         res._samples = samples
@@ -2526,6 +2569,7 @@ def _resolve_module_constants(scope):
         "CULL_FACE",
         "RASTERIZER_DISCARD",
         "PROGRAM_POINT_SIZE",
+        "STENCIL_TEST",
         "POINTS",
         "LINES",
         "LINE_LOOP",
@@ -2578,6 +2622,14 @@ def _resolve_module_constants(scope):
         "ATOMIC_COUNTER_BARRIER_BIT",
         "SHADER_STORAGE_BARRIER_BIT",
         "ALL_BARRIER_BITS",
+        "KEEP",
+        "ZERO",
+        "REPLACE",
+        "INCR",
+        "INCR_WRAP",
+        "DECR",
+        "DECR_WRAP",
+        "INVERT",
     ]
 
     for c in _constants:

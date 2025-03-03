@@ -31,6 +31,7 @@ enum MGLEnableFlag {
     MGL_CULL_FACE = 4,
     MGL_RASTERIZER_DISCARD = 8,
     MGL_PROGRAM_POINT_SIZE = 16,
+    MGL_STENCIL_TEST = 32,
     MGL_INVALID = 0x40000000,
 };
 
@@ -110,6 +111,12 @@ struct MGLContext {
     int depth_func;
     bool depth_clamp;
     double depth_range[2];
+    int stencil_func_func;
+    int stencil_func_ref;
+    int stencil_func_mask;
+    int stencil_op_sfail;
+    int stencil_op_dpfail;
+    int stencil_op_dppass;
     int blend_func_src;
     int blend_func_dst;
     bool wireframe;
@@ -229,6 +236,7 @@ struct MGLFramebuffer {
     int height;
     int samples;
     bool depth_mask;
+    int stencil_mask;
     bool released;
 };
 
@@ -329,6 +337,7 @@ struct MGLTexture {
     int compare_func;
     float anisotropy;
     bool depth;
+    bool stencil;
     bool repeat_x;
     bool repeat_y;
     bool external;
@@ -1436,14 +1445,16 @@ struct AttachmentParameters {
     int samples;
     int renderbuffer;
     int glo;
+    bool stencil;
 };
 
 static int attachment_parameters(PyObject * attachment, AttachmentParameters * parameters, int must_be_depth) {
-    int width = 0, height = 0, samples = 0, renderbuffer = 0, glo = 0, depth = 0;
+    int width = 0, height = 0, samples = 0, renderbuffer = 0, glo = 0, depth = 0, stencil = 0;
 
     if (Py_TYPE(attachment) == MGLTexture_type) {
         MGLTexture * image = (MGLTexture *)attachment;
         depth = image->depth;
+        stencil = image->stencil;
         width = image->width;
         height = image->height;
         samples = image->samples;
@@ -1475,6 +1486,7 @@ static int attachment_parameters(PyObject * attachment, AttachmentParameters * p
     parameters->samples = samples;
     parameters->renderbuffer = renderbuffer;
     parameters->glo = glo;
+    parameters->stencil = stencil;
     return 1;
 }
 
@@ -1534,11 +1546,12 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
             MGLError_Set("invalid depth attachment");
             return NULL;
         }
+        const GLenum attachment = params.stencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT;
         if (params.renderbuffer) {
-            gl.FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, params.glo);
+            gl.FramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, params.glo);
         } else {
             int target = params.samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-            gl.FramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, target, params.glo, 0);
+            gl.FramebufferTexture2D(GL_FRAMEBUFFER, attachment, target, params.glo, 0);
         }
     }
 
@@ -1596,6 +1609,8 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     }
 
     framebuffer->depth_mask = (depth_attachment_arg != Py_None);
+    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glStencilMask.xhtml
+    framebuffer->stencil_mask = ~(GLuint)(0);
 
     framebuffer->viewport = rect(0, 0, params.width, params.height);
     framebuffer->dynamic = false;
@@ -1735,9 +1750,10 @@ static PyObject * MGLFramebuffer_release(MGLFramebuffer * self, PyObject * args)
 
 static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
     float r, g, b, a, depth;
+    unsigned int stencil;
     PyObject * viewport_arg;
 
-    if (!PyArg_ParseTuple(args, "fffffO", &r, &g, &b, &a, &depth, &viewport_arg)) {
+    if (!PyArg_ParseTuple(args, "fffffOI", &r, &g, &b, &a, &depth, &viewport_arg, &stencil)) {
         return 0;
     }
 
@@ -1759,6 +1775,7 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
 
     gl.ClearColor(r, g, b, a);
     gl.ClearDepth(depth);
+    gl.ClearStencil(stencil);
 
     if (self->draw_buffers_len == 1) {
         gl.ColorMask(self->color_mask[0] & 1, self->color_mask[0] & 2, self->color_mask[0] & 4, self->color_mask[0] & 8);
@@ -1769,12 +1786,13 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
     }
 
     gl.DepthMask(self->depth_mask);
+    gl.StencilMask(self->stencil_mask);
 
     // Respect the passed in viewport even with scissor enabled
     if (viewport_arg != Py_None) {
         gl.Enable(GL_SCISSOR_TEST);
         gl.Scissor(viewport_rect.x, viewport_rect.y, viewport_rect.width, viewport_rect.height);
-        gl.Clear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        gl.Clear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         // restore scissor if enabled
         if (self->scissor_enabled) {
@@ -1794,7 +1812,8 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
                 self->scissor.width, self->scissor.height
             );
         }
-        gl.Clear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        gl.Clear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
     }
 
     gl.BindFramebuffer(GL_FRAMEBUFFER, self->context->bound_framebuffer->framebuffer_obj);
@@ -1936,7 +1955,7 @@ static PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * arg
             return 0;
         }
 
-        if (buffer_view.len < write_offset + expected_size) {
+        if (buffer_view.len < (Py_ssize_t)(write_offset + expected_size)) {
             MGLError_Set("the buffer is too small");
             PyBuffer_Release(&buffer_view);
             return 0;
@@ -2126,6 +2145,31 @@ static int MGLFramebuffer_set_depth_mask(MGLFramebuffer * self, PyObject * value
 
     return 0;
 }
+
+static PyObject * MGLFramebuffer_get_stencil_mask(MGLFramebuffer * self, void * closure) {
+    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glStencilMask.xhtml
+    // > Initially, the mask is all 1's.
+    GLuint stencil_mask = ~(GLuint)(0);
+    if (self->stencil_mask)
+        stencil_mask = self->stencil_mask;
+    return PyLong_FromLong(stencil_mask);
+}
+
+static int MGLFramebuffer_set_stencil_mask(MGLFramebuffer * self, PyObject * value, void * closure) {
+    const int stencil_mask = PyLong_AsLong(value);
+    if (PyErr_Occurred()) {
+        MGLError_Set("the stencil_mask must be a int not %s", Py_TYPE(value)->tp_name);
+        return -1;
+    }
+    self->stencil_mask = stencil_mask;
+
+    if (self->framebuffer_obj == self->context->bound_framebuffer->framebuffer_obj) {
+        const GLMethods & gl = self->context->gl;
+        gl.StencilMask(self->stencil_mask);
+    }
+    return 0;
+}
+
 
 static PyObject * MGLFramebuffer_get_bits(MGLFramebuffer * self, void * closure) {
     if (self->framebuffer_obj) {
@@ -3535,6 +3579,12 @@ static PyObject * MGLScope_begin(MGLScope * self, PyObject * args) {
         gl.Disable(GL_DEPTH_TEST);
     }
 
+    if (flags & MGL_STENCIL_TEST) {
+        gl.Enable(GL_STENCIL_TEST);
+    } else {
+        gl.Disable(GL_STENCIL_TEST);
+    }
+
     if (flags & MGL_CULL_FACE) {
         gl.Enable(GL_CULL_FACE);
     } else {
@@ -3574,6 +3624,12 @@ static PyObject * MGLScope_end(MGLScope * self, PyObject * args) {
         gl.Enable(GL_DEPTH_TEST);
     } else {
         gl.Disable(GL_DEPTH_TEST);
+    }
+
+    if (flags & MGL_STENCIL_TEST) {
+        gl.Enable(GL_STENCIL_TEST);
+    } else {
+        gl.Disable(GL_STENCIL_TEST);
     }
 
     if (flags & MGL_CULL_FACE) {
@@ -3731,7 +3787,7 @@ static PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
         buffer_view.buf = 0;
     }
 
-    if (buffer_view.len != expected_size) {
+    if ((size_t)(buffer_view.len) != expected_size) {
         MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
@@ -3814,16 +3870,18 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
     int samples;
     int alignment;
     int use_renderbuffer;
+    int use_stencilbuffer;
 
     int args_ok = PyArg_ParseTuple(
         args,
-        "(II)OIIp",
+        "(II)OIIpp",
         &width,
         &height,
         &data,
         &samples,
         &alignment,
-        &use_renderbuffer
+        &use_renderbuffer,
+        &use_stencilbuffer
     );
 
     if (!args_ok) {
@@ -3845,6 +3903,8 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
         return 0;
     }
 
+    const GLenum internalformat = use_stencilbuffer ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
+
     if (use_renderbuffer) {
         const GLMethods & gl = self->gl;
 
@@ -3863,9 +3923,9 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
         gl.BindRenderbuffer(GL_RENDERBUFFER, renderbuffer->renderbuffer_obj);
 
         if (samples == 0) {
-            gl.RenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+            gl.RenderbufferStorage(GL_RENDERBUFFER, internalformat, width, height);
         } else {
-            gl.RenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, width, height);
+            gl.RenderbufferStorageMultisample(GL_RENDERBUFFER, samples, internalformat, width, height);
         }
 
         renderbuffer->width = width;
@@ -3898,7 +3958,7 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
         buffer_view.buf = 0;
     }
 
-    if (buffer_view.len != expected_size) {
+    if ((size_t)(buffer_view.len) != expected_size) {
         MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
@@ -3906,8 +3966,8 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
         return 0;
     }
 
-    int texture_target = samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-    int pixel_type = GL_FLOAT;
+    const int texture_target = samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    const int pixel_type = use_stencilbuffer ? GL_UNSIGNED_INT_24_8 : GL_FLOAT;
 
     const GLMethods & gl = self->gl;
 
@@ -3935,7 +3995,9 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
         gl.TexParameteri(texture_target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         gl.PixelStorei(GL_PACK_ALIGNMENT, alignment);
         gl.PixelStorei(GL_UNPACK_ALIGNMENT, alignment);
-        gl.TexImage2D(texture_target, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, pixel_type, buffer_view.buf);
+        const GLenum format = use_stencilbuffer ? GL_DEPTH_STENCIL : GL_DEPTH_COMPONENT;
+        gl.TexImage2D(texture_target, 0, internalformat, width, height, 0, format, pixel_type, buffer_view.buf);
+
         gl.TexParameteri(texture_target, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
         gl.TexParameteri(texture_target, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
     }
@@ -3952,6 +4014,7 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
 
     texture->compare_func = GL_LEQUAL;
     texture->depth = true;
+    texture->stencil = use_stencilbuffer;
 
     texture->min_filter = GL_LINEAR;
     texture->mag_filter = GL_LINEAR;
@@ -4174,7 +4237,7 @@ static PyObject * MGLTexture_read_into(MGLTexture * self, PyObject * args) {
             return 0;
         }
 
-        if (buffer_view.len < write_offset + expected_size) {
+        if (buffer_view.len < (Py_ssize_t)(write_offset + expected_size)) {
             MGLError_Set("the buffer is too small");
             PyBuffer_Release(&buffer_view);
             return 0;
@@ -4273,7 +4336,7 @@ static PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
             return 0;
         }
 
-        if (buffer_view.len != expected_size) {
+        if (buffer_view.len != (Py_ssize_t)expected_size) {
             MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
             if (data != Py_None) {
                 PyBuffer_Release(&buffer_view);
@@ -4706,7 +4769,7 @@ static PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
         buffer_view.buf = 0;
     }
 
-    if (buffer_view.len != expected_size) {
+    if (buffer_view.len != (Py_ssize_t)expected_size) {
         MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
@@ -4863,7 +4926,7 @@ static PyObject * MGLTexture3D_read_into(MGLTexture3D * self, PyObject * args) {
             return 0;
         }
 
-        if (buffer_view.len < write_offset + expected_size) {
+        if (buffer_view.len < (Py_ssize_t)(write_offset + expected_size)) {
             MGLError_Set("the buffer is too small");
             PyBuffer_Release(&buffer_view);
             return 0;
@@ -4946,7 +5009,7 @@ static PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args) {
             return 0;
         }
 
-        if (buffer_view.len != expected_size) {
+        if (buffer_view.len != (Py_ssize_t)expected_size) {
             MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
             if (data != Py_None) {
                 PyBuffer_Release(&buffer_view);
@@ -5331,7 +5394,7 @@ static PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
         buffer_view.buf = 0;
     }
 
-    if (buffer_view.len != expected_size) {
+    if (buffer_view.len != (Py_ssize_t)expected_size) {
         MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
@@ -5510,7 +5573,7 @@ static PyObject * MGLTextureArray_read_into(MGLTextureArray * self, PyObject * a
             return 0;
         }
 
-        if (buffer_view.len < write_offset + expected_size) {
+        if (buffer_view.len < (Py_ssize_t)(write_offset + expected_size)) {
             MGLError_Set("the buffer is too small");
             PyBuffer_Release(&buffer_view);
             return 0;
@@ -5594,7 +5657,7 @@ static PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args)
             return 0;
         }
 
-        if (buffer_view.len != expected_size) {
+        if (buffer_view.len != (Py_ssize_t)expected_size) {
             MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
             if (data != Py_None) {
                 PyBuffer_Release(&buffer_view);
@@ -5972,7 +6035,7 @@ static PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
         buffer_view.buf = 0;
     }
 
-    if (buffer_view.len != expected_size) {
+    if (buffer_view.len != (Py_ssize_t)expected_size) {
         MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
@@ -6095,7 +6158,7 @@ static PyObject * MGLContext_depth_texture_cube(MGLContext * self, PyObject * ar
         buffer_view.buf = 0;
     }
 
-    if (buffer_view.len != expected_size) {
+    if (buffer_view.len != (Py_ssize_t)expected_size) {
         MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
@@ -6279,7 +6342,7 @@ static PyObject * MGLTextureCube_read_into(MGLTextureCube * self, PyObject * arg
             return 0;
         }
 
-        if (buffer_view.len < write_offset + expected_size) {
+        if (buffer_view.len < (Py_ssize_t)(write_offset + expected_size)) {
             MGLError_Set("the buffer is too small");
             PyBuffer_Release(&buffer_view);
             return 0;
@@ -6376,7 +6439,7 @@ static PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args) {
             return 0;
         }
 
-        if (buffer_view.len != expected_size) {
+        if (buffer_view.len != (Py_ssize_t)expected_size) {
             MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
             PyBuffer_Release(&buffer_view);
             return 0;
@@ -7474,6 +7537,12 @@ static PyObject * MGLContext_enable_only(MGLContext * self, PyObject * args) {
         self->gl.Disable(GL_DEPTH_TEST);
     }
 
+    if (flags & MGL_STENCIL_TEST) {
+        self->gl.Enable(GL_STENCIL_TEST);
+    } else {
+        self->gl.Disable(GL_STENCIL_TEST);
+    }
+
     if (flags & MGL_CULL_FACE) {
         self->gl.Enable(GL_CULL_FACE);
     } else {
@@ -7518,6 +7587,10 @@ static PyObject * MGLContext_enable(MGLContext * self, PyObject * args) {
         self->gl.Enable(GL_DEPTH_TEST);
     }
 
+    if (flags & MGL_STENCIL_TEST) {
+        self->gl.Enable(GL_STENCIL_TEST);
+    }
+
     if (flags & MGL_CULL_FACE) {
         self->gl.Enable(GL_CULL_FACE);
     }
@@ -7554,6 +7627,10 @@ static PyObject * MGLContext_disable(MGLContext * self, PyObject * args) {
 
     if (flags & MGL_DEPTH_TEST) {
         self->gl.Disable(GL_DEPTH_TEST);
+    }
+
+    if (flags & MGL_STENCIL_TEST) {
+        self->gl.Disable(GL_STENCIL_TEST);
     }
 
     if (flags & MGL_CULL_FACE) {
@@ -8222,6 +8299,38 @@ static int MGLContext_set_point_size(MGLContext * self, PyObject * value, void *
     return 0;
 }
 
+static int parse_stencil_func(PyObject * arg, int * value) {
+    arg = PySequence_Tuple(arg);
+    if (!arg) {
+        PyErr_Clear();
+        return 0;
+    }
+    int size = (int)PyTuple_Size(arg);
+    if (size == 3) {
+        const char * func = PyUnicode_AsUTF8(PyTuple_GetItem(arg, 0));
+        if (PyErr_Occurred()) {
+            return 0;
+        }
+        int stencil_func_func = compare_func_from_string(func);
+        if (!stencil_func_func) {
+            return 0;
+        }
+        value[0] = stencil_func_func;
+
+        value[1] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
+        value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            return 0;
+        }
+    }
+    else {
+        return 0;
+    }
+    Py_DECREF(arg);
+    return 1;
+}
+
 static int parse_blend_func(PyObject * arg, int * value) {
     arg = PySequence_Tuple(arg);
     if (!arg) {
@@ -8259,6 +8368,11 @@ static PyObject * MGLContext_get_blend_func(MGLContext * self, void * closure) {
     return Py_BuildValue("(ii)", self->blend_func_src, self->blend_func_dst);
 }
 
+// NOTE: currently never called from python
+static PyObject * MGLContext_get_stencil_func(MGLContext * self, void * closure) {
+    return Py_BuildValue("(Oii)", compare_func_to_string(self->stencil_func_func), self->stencil_func_ref, self->stencil_func_mask);
+}
+
 static int MGLContext_set_blend_func(MGLContext * self, PyObject * value, void * closure) {
     int func[4] = {};
     if (!parse_blend_func(value, func)) {
@@ -8267,6 +8381,70 @@ static int MGLContext_set_blend_func(MGLContext * self, PyObject * value, void *
     }
 
     self->gl.BlendFuncSeparate(func[0], func[1], func[2], func[3]);
+    return 0;
+}
+
+static int MGLContext_set_stencil_func(MGLContext * self, PyObject * value, void * closure) {
+    int func[3] = {};
+    if (!parse_stencil_func(value, func)) {
+        MGLError_Set("invalid stencil func");
+        return -1;
+    }
+
+    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glStencilFunc.xhtml
+    // glStencilFunc is the same as calling glStencilFuncSeparate with face set to GL_FRONT_AND_BACK.
+    self->gl.StencilFuncSeparate(GL_FRONT_AND_BACK, func[0], func[1], func[2]);
+    return 0;
+}
+
+static int parse_stencil_op(PyObject * arg, int * value) {
+    if (PyLong_Check(arg)) {
+        value[0] = PyLong_AsLong(arg);
+        value[1] = value[0];
+        value[2] = value[0];
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            return 0;
+        }
+        return 1;
+    }
+    arg = PySequence_Tuple(arg);
+    if (!arg) {
+        PyErr_Clear();
+        return 0;
+    }
+    const int size = (int)PyTuple_Size(arg);
+    if (size == 3) {
+        value[0] = PyLong_AsLong(PyTuple_GetItem(arg, 0));
+        value[1] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
+        value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
+    }
+    else {
+        return 0;
+    }
+    if (PyErr_Occurred()) {
+        PyErr_Clear();
+        return 0;
+    }
+    Py_DECREF(arg);
+    return 1;
+}
+
+// NOTE: currently never called from python
+static PyObject * MGLContext_get_stencil_op(MGLContext * self, void * closure) {
+    return Py_BuildValue("(iii)", self->stencil_op_sfail, self->stencil_op_dpfail, self->stencil_op_dppass);
+}
+
+static int MGLContext_set_stencil_op(MGLContext * self, PyObject * value, void * closure) {
+    int op[3] = {};
+    if (!parse_stencil_op(value, op)) {
+        MGLError_Set("invalid stencil op");
+        return -1;
+    }
+
+    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glStencilOp.xhtml
+    // glStencilOp is the same as calling glStencilOpSeparate with face set to GL_FRONT_AND_BACK.
+    self->gl.StencilOpSeparate(GL_FRONT_AND_BACK, op[0], op[1], op[2]);
     return 0;
 }
 
@@ -9208,6 +9386,8 @@ static PyGetSetDef MGLContext_getset[] = {
     {(char *)"blend_func", (getter)MGLContext_get_blend_func, (setter)MGLContext_set_blend_func},
     {(char *)"blend_equation", (getter)MGLContext_get_blend_equation, (setter)MGLContext_set_blend_equation},
     {(char *)"multisample", (getter)MGLContext_get_multisample, (setter)MGLContext_set_multisample},
+    {(char *)"stencil_func", (getter)MGLContext_get_stencil_func, (setter)MGLContext_set_stencil_func},
+    {(char *)"stencil_op", (getter)MGLContext_get_stencil_op, (setter)MGLContext_set_stencil_op},
 
     {(char *)"provoking_vertex", (getter)MGLContext_get_provoking_vertex, (setter)MGLContext_set_provoking_vertex},
     {(char *)"polygon_offset", (getter)MGLContext_get_polygon_offset, (setter)MGLContext_set_polygon_offset},
@@ -9243,6 +9423,7 @@ static PyGetSetDef MGLFramebuffer_getset[] = {
     {(char *)"scissor", (getter)MGLFramebuffer_get_scissor, (setter)MGLFramebuffer_set_scissor},
     {(char *)"color_mask", (getter)MGLFramebuffer_get_color_mask, (setter)MGLFramebuffer_set_color_mask},
     {(char *)"depth_mask", (getter)MGLFramebuffer_get_depth_mask, (setter)MGLFramebuffer_set_depth_mask},
+    {(char *)"stencil_mask", (getter)MGLFramebuffer_get_stencil_mask, (setter)MGLFramebuffer_set_stencil_mask},
 
     {(char *)"bits", (getter)MGLFramebuffer_get_bits, NULL},
     {},
