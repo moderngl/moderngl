@@ -423,12 +423,12 @@ class Scene:
         # 6. Use a different fragment shader that outputs a single (border) color.
         # 7. Draw the objects again, but only if their fragments' stencil values are not equal to 1.
         self.ctx.stencil_func = ("!=", 1, 0xFF)
-        # render scene
         self.outline_material.color = (0, 1, 0)
-        scale = 0.075
-        self.outline_crate.render((0.0, 0.0, 0.0), 0.2 * (1 + scale))
-        self.outline_car.render((-0.4, 0.0, 0.0), 0.2 * (1 + scale))
-        self.outline_car.render((0.4, 0.0, 0.0), 0.2 * (1 + scale))
+        # render scene
+        scale = 1.075
+        self.outline_crate.render((0.0, 0.0, 0.0), 0.2 * scale)
+        self.outline_car.render((-0.4, 0.0, 0.0), 0.2 * scale)
+        self.outline_car.render((0.4, 0.0, 0.0), 0.2 * scale)
         # 8.a Enable depth testing again
         self.ctx.enable(self.ctx.DEPTH_TEST)
         # 8.b restore stencil func to GL_KEEP.

@@ -111,19 +111,29 @@ class TestStencil:
 
         # Incorrect tuple size=4
         with pytest.raises(moderngl.Error):
-            self.ctx.stencil_func = (
-                "1",
-                0x0,
-                0x0,
-                0x0,
-            )
+            self.ctx.stencil_func = ("1", 0x0, 0x0, 0x0)
 
+        # "==" is GL_EQUAL => "=" doesn't exist !
         with pytest.raises(moderngl.Error):
-            # "==" is GL_EQUAL => "=" doesn't exist !
             self.ctx.stencil_func = ("=", 0, ~0)
+
+        # wrong type for the 1st argument: expected valid string, got integer)
+        with pytest.raises(moderngl.Error):
+            self.ctx.stencil_func = (42, 0, ~0)
+
+        # wrong type for the 1st argument: expected valid string, got integer)
+        with pytest.raises(moderngl.Error):
+            self.ctx.stencil_func = (42, "1", 0, ~0)
+
+        # invert 1st and 2nd arguments
+        with pytest.raises(moderngl.Error):
+            self.ctx.stencil_func = ("1", "front_and_back", 0, ~0)
 
         # Working versions
         self.ctx.stencil_func = "1", 0, ~0
+        self.ctx.stencil_func = "front_and_back", "1", 0, ~0
+        self.ctx.stencil_func = "front", "1", 0, ~0
+        self.ctx.stencil_func = "back", "1", 0, ~0
 
     def test_invalid_stencil_op(self):
         # TypeError: Not iterable
@@ -142,22 +152,26 @@ class TestStencil:
         with pytest.raises(moderngl.Error):
             self.ctx.stencil_op = moderngl.KEEP, moderngl.ZERO,
 
-        # Incorrect tuple size=4
-        with pytest.raises(moderngl.Error):
-            self.ctx.stencil_op = moderngl.KEEP, moderngl.ZERO, moderngl.ZERO, moderngl.ZERO
-
         # Incorrect tuple size=5
         with pytest.raises(moderngl.Error):
-            self.ctx.stencil_op = (
-                moderngl.KEEP,
-                moderngl.ZERO,
-                moderngl.ZERO,
-                moderngl.ZERO,
-                moderngl.ZERO,
-            )
+            self.ctx.stencil_op = "front_and_back", moderngl.KEEP, moderngl.ZERO, moderngl.KEEP, moderngl.ZERO
+
+        # Good tuple size=4 but wrong type for the first argument (expected string got int)
+        with pytest.raises(moderngl.Error):
+            self.ctx.stencil_op = 42, moderngl.ZERO, moderngl.ZERO, moderngl.ZERO
+        # Good tuple size=4 but wrong string value for the first argument ("42" means nothing for selected face name)
+        with pytest.raises(moderngl.Error):
+            self.ctx.stencil_op = "42", moderngl.ZERO, moderngl.ZERO, moderngl.ZERO
+        # Good tuple size=4 but wrong type for the second argument (expected int got string)
+        with pytest.raises(moderngl.Error):
+            self.ctx.stencil_op = "front", "moderngl.ZERO", moderngl.ZERO, moderngl.ZERO
 
         # Working versions
-        self.ctx.stencil_op = moderngl.KEEP, moderngl.ZERO, moderngl.ZERO
+        # use implicitely 'front_and_back' for selected face
+        self.ctx.stencil_op = moderngl.KEEP, moderngl.ZERO, moderngl.REPLACE
+        self.ctx.stencil_op = "front_and_back", moderngl.INCR, moderngl.INCR_WRAP, moderngl.DECR
+        self.ctx.stencil_op = "front", moderngl.DECR_WRAP, moderngl.KEEP, moderngl.KEEP
+        self.ctx.stencil_op = "back", moderngl.KEEP, moderngl.KEEP, moderngl.KEEP
 
     def test_get_values(self):
         with pytest.raises(NotImplementedError):

@@ -1580,7 +1580,6 @@ class Context:
     # Stencil op constants
 
     KEEP = 0x1E00
-    ZERO = 0
     REPLACE = 0x1E01
     INCR = 0x1E02
     INCR_WRAP = 0x8507

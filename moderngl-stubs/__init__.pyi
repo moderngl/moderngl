@@ -1156,7 +1156,7 @@ class Context:
         ctx.depth_clamp_range = (near, far)
     """
 
-    stencil_func: Tuple[str, int, int]
+    stencil_func: Union[Tuple[str, int, int], Tuple[str, str, int, int]]
     """
     Set the default stencil func.
 
@@ -1172,7 +1172,7 @@ class Context:
         ctx.stencil_func = '1'   # GL_ALWAYS
     """
 
-    stencil_op: Tuple[str, str, str]
+    stencil_op: Union[Tuple[str, str, str], Tuple[str, str, str, str]]
     # TODO: write (proper) documentation
     """
     tuple: Set the stencil op (write only).    

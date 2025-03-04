@@ -111,12 +111,6 @@ struct MGLContext {
     int depth_func;
     bool depth_clamp;
     double depth_range[2];
-    int stencil_func_func;
-    int stencil_func_ref;
-    int stencil_func_mask;
-    int stencil_op_sfail;
-    int stencil_op_dpfail;
-    int stencil_op_dppass;
     int blend_func_src;
     int blend_func_dst;
     bool wireframe;
@@ -474,6 +468,13 @@ static int compare_func_from_string(const char * str) {
     if (!strcmp(str, "!=")) return GL_NOTEQUAL;
     if (!strcmp(str, "0")) return GL_NEVER;
     if (!strcmp(str, "1")) return GL_ALWAYS;
+    return 0;
+}
+
+static int stencil_face_from_string(const char * str) {
+    if (!strcmp(str, "front_and_back")) return GL_FRONT_AND_BACK;
+    if (!strcmp(str, "front")) return GL_FRONT;
+    if (!strcmp(str, "back")) return GL_BACK;
     return 0;
 }
 
@@ -1609,7 +1610,6 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     }
 
     framebuffer->depth_mask = (depth_attachment_arg != Py_None);
-    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glStencilMask.xhtml
     framebuffer->stencil_mask = ~(GLuint)(0);
 
     framebuffer->viewport = rect(0, 0, params.width, params.height);
@@ -2147,7 +2147,6 @@ static int MGLFramebuffer_set_depth_mask(MGLFramebuffer * self, PyObject * value
 }
 
 static PyObject * MGLFramebuffer_get_stencil_mask(MGLFramebuffer * self, void * closure) {
-    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glStencilMask.xhtml
     // > Initially, the mask is all 1's.
     GLuint stencil_mask = ~(GLuint)(0);
     if (self->stencil_mask)
@@ -8307,6 +8306,8 @@ static int parse_stencil_func(PyObject * arg, int * value) {
     }
     int size = (int)PyTuple_Size(arg);
     if (size == 3) {
+        if (!PyUnicode_Check(PyTuple_GetItem(arg, 0)))
+            return 0;
         const char * func = PyUnicode_AsUTF8(PyTuple_GetItem(arg, 0));
         if (PyErr_Occurred()) {
             return 0;
@@ -8315,14 +8316,36 @@ static int parse_stencil_func(PyObject * arg, int * value) {
         if (!stencil_func_func) {
             return 0;
         }
-        value[0] = stencil_func_func;
-
-        value[1] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
-        value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
+        value[0] = GL_FRONT_AND_BACK;
+        value[1] = stencil_func_func;
+        value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
+        value[3] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
         if (PyErr_Occurred()) {
             PyErr_Clear();
             return 0;
         }
+    }
+    else if (size == 4) {
+        if (!PyUnicode_Check(PyTuple_GetItem(arg, 0)))
+            return 0;
+        const char * str = PyUnicode_AsUTF8(PyTuple_GetItem(arg, 0));
+        const GLenum stencil_face = stencil_face_from_string(str);
+        if (!stencil_face)
+            return 0;
+        if (!PyUnicode_Check(PyTuple_GetItem(arg, 1)))
+            return 0;
+        const char * func = PyUnicode_AsUTF8(PyTuple_GetItem(arg, 1));
+        if (PyErr_Occurred()) {
+            return 0;
+        }
+        int stencil_func_func = compare_func_from_string(func);
+        if (!stencil_func_func) {
+            return 0;
+        }
+        value[0] = stencil_face;
+        value[1] = stencil_func_func;
+        value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
+        value[3] = PyLong_AsLong(PyTuple_GetItem(arg, 3));
     }
     else {
         return 0;
@@ -8370,7 +8393,7 @@ static PyObject * MGLContext_get_blend_func(MGLContext * self, void * closure) {
 
 // NOTE: currently never called from python
 static PyObject * MGLContext_get_stencil_func(MGLContext * self, void * closure) {
-    return Py_BuildValue("(Oii)", compare_func_to_string(self->stencil_func_func), self->stencil_func_ref, self->stencil_func_mask);
+    return Py_BuildValue(NULL);
 }
 
 static int MGLContext_set_blend_func(MGLContext * self, PyObject * value, void * closure) {
@@ -8385,29 +8408,17 @@ static int MGLContext_set_blend_func(MGLContext * self, PyObject * value, void *
 }
 
 static int MGLContext_set_stencil_func(MGLContext * self, PyObject * value, void * closure) {
-    int func[3] = {};
+    int func[4] = {};
     if (!parse_stencil_func(value, func)) {
         MGLError_Set("invalid stencil func");
         return -1;
     }
 
-    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glStencilFunc.xhtml
-    // glStencilFunc is the same as calling glStencilFuncSeparate with face set to GL_FRONT_AND_BACK.
-    self->gl.StencilFuncSeparate(GL_FRONT_AND_BACK, func[0], func[1], func[2]);
+    self->gl.StencilFuncSeparate(func[0], func[1], func[2], func[3]);
     return 0;
 }
 
 static int parse_stencil_op(PyObject * arg, int * value) {
-    if (PyLong_Check(arg)) {
-        value[0] = PyLong_AsLong(arg);
-        value[1] = value[0];
-        value[2] = value[0];
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            return 0;
-        }
-        return 1;
-    }
     arg = PySequence_Tuple(arg);
     if (!arg) {
         PyErr_Clear();
@@ -8415,9 +8426,23 @@ static int parse_stencil_op(PyObject * arg, int * value) {
     }
     const int size = (int)PyTuple_Size(arg);
     if (size == 3) {
-        value[0] = PyLong_AsLong(PyTuple_GetItem(arg, 0));
+        // glStencilOp is the same as calling glStencilOpSeparate with face set to GL_FRONT_AND_BACK.
+        value[0] = GL_FRONT_AND_BACK;
+        value[1] = PyLong_AsLong(PyTuple_GetItem(arg, 0));
+        value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
+        value[3] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
+    }
+    else if (size == 4) {
+        if (!PyUnicode_Check(PyTuple_GetItem(arg, 0)))
+            return 0;
+        const char * str = PyUnicode_AsUTF8(PyTuple_GetItem(arg, 0));
+        const GLenum stencil_face = stencil_face_from_string(str);
+        if (!stencil_face)
+            return 0;
+        value[0] = stencil_face;
         value[1] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
         value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
+        value[3] = PyLong_AsLong(PyTuple_GetItem(arg, 3));
     }
     else {
         return 0;
@@ -8432,19 +8457,17 @@ static int parse_stencil_op(PyObject * arg, int * value) {
 
 // NOTE: currently never called from python
 static PyObject * MGLContext_get_stencil_op(MGLContext * self, void * closure) {
-    return Py_BuildValue("(iii)", self->stencil_op_sfail, self->stencil_op_dpfail, self->stencil_op_dppass);
+    return Py_BuildValue(NULL);
 }
 
 static int MGLContext_set_stencil_op(MGLContext * self, PyObject * value, void * closure) {
-    int op[3] = {};
+    int op[4] = {};
     if (!parse_stencil_op(value, op)) {
         MGLError_Set("invalid stencil op");
         return -1;
     }
 
-    // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glStencilOp.xhtml
-    // glStencilOp is the same as calling glStencilOpSeparate with face set to GL_FRONT_AND_BACK.
-    self->gl.StencilOpSeparate(GL_FRONT_AND_BACK, op[0], op[1], op[2]);
+    self->gl.StencilOpSeparate(op[0], op[1], op[2], op[3]);
     return 0;
 }
 
