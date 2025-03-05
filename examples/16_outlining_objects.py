@@ -91,10 +91,11 @@ class RenderScreen:
             vertex_shader='''
                 #version 330 core
 
-                vec2 positions[3] = vec2[](
+                const vec2 positions[4] = vec2[](
                     vec2(-1.0, -1.0),
-                    vec2(3.0, -1.0),
-                    vec2(-1.0, 3.0)
+                    vec2(1.0, -1.0),                    
+                    vec2(-1.0, 1.0),
+                    vec2(1.0, 1.0)
                 );
 
                 void main() {
@@ -115,8 +116,8 @@ class RenderScreen:
             ''',
         )
         self.sampler = self.ctx.sampler(texture=texture)
-        self.vao = self.ctx.vertex_array(self.program, [])
-        self.vao.vertices = 3
+        self.vao = self.ctx.vertex_array(self.program, [], mode=self.ctx.TRIANGLE_STRIP)
+        self.vao.vertices = 4
 
     def render(self, now):
         self.ctx.enable_only(self.ctx.NOTHING)
@@ -356,11 +357,25 @@ class Scene:
         self.ctx = moderngl.get_context()
 
         size = pygame.display.get_window_size()
-        self.screen = self.ctx.texture(size, 4)
+        self.screen = self.ctx.texture(size, components=3)
         self.depth = self.ctx.depth_texture(size, use_stencilbuffer=True)
         self.framebuffer = self.ctx.framebuffer(color_attachments=[self.screen], depth_attachment=self.depth)
 
         self.uniform_buffer = UniformBuffer()
+        # set statics scene lights in uniform buffer
+        self.uniform_buffer.set_light(
+            light_index=0,
+            position=(1.0, 2.0, 3.0),
+            color=(1.0, 1.0, 1.0),
+            power=10.0,
+        )
+        self.uniform_buffer.set_light(
+            light_index=1,
+            position=(-2.0, -1.0, 4.0),
+            color=(1.0, 1.0, 1.0),
+            power=10.0,
+        )
+
         self.texture = ImageTexture('examples/data/textures/crate.png')
 
         self.color_material = ColorMaterial()
@@ -377,27 +392,10 @@ class Scene:
 
         self.render_screen = RenderScreen(self.screen)
 
-    def render(self):
-        now = pygame.time.get_ticks() / 1000.0
-
-        eye = (math.cos(now), math.sin(now), 0.5)
-
-        self.framebuffer.use()
-        self.ctx.clear()
-
-        self.uniform_buffer.set_camera(eye, (0.0, 0.0, 0.0))
-        self.uniform_buffer.set_light(
-            light_index=0,
-            position=(1.0, 2.0, 3.0),
-            color=(1.0, 1.0, 1.0),
-            power=10.0,
-        )
-        self.uniform_buffer.set_light(
-            light_index=1,
-            position=(-2.0, -1.0, 4.0),
-            color=(1.0, 1.0, 1.0),
-            power=10.0,
-        )
+    def render_outlining(self):
+        """
+        inspired by: https://learnopengl.com/Advanced-OpenGL/Stencil-testing
+        """
         self.uniform_buffer.use()
 
         # 1. Enable stencil writing
@@ -423,9 +421,9 @@ class Scene:
         # 6. Use a different fragment shader that outputs a single (border) color.
         # 7. Draw the objects again, but only if their fragments' stencil values are not equal to 1.
         self.ctx.stencil_func = ("!=", 1, 0xFF)
-        self.outline_material.color = (0, 1, 0)
+        self.outline_material.color = (1, 1, 1)
         # render scene
-        scale = 1.075
+        scale = 1.05
         self.outline_crate.render((0.0, 0.0, 0.0), 0.2 * scale)
         self.outline_car.render((-0.4, 0.0, 0.0), 0.2 * scale)
         self.outline_car.render((0.4, 0.0, 0.0), 0.2 * scale)
@@ -436,6 +434,18 @@ class Scene:
         # self.ctx.stencil_func = ("1", 1, 0xFF)
         # self.ctx.stencil_op = (moderngl.KEEP, moderngl.KEEP, moderngl.KEEP)
         self.ctx.disable(moderngl.STENCIL_TEST)
+
+    def render(self):
+        # clear framebuffer
+        self.framebuffer.use()
+        self.ctx.clear()
+
+        # update uniform buffer
+        now = pygame.time.get_ticks() / 1000.0
+        eye = (math.cos(now), math.sin(now), 0.5)
+        self.uniform_buffer.set_camera(eye, (0.0, 0.0, 0.0))
+
+        self.render_outlining()
 
         # Post-processing rendering
         self.ctx.screen.use()
