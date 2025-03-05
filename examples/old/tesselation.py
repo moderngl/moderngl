@@ -86,7 +86,7 @@ class Tessellation(Example):
         vbo = self.ctx.buffer(vertices.astype('f4'))
         self.vao = self.ctx.simple_vertex_array(self.prog, vbo, 'in_pos')
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(0.2, 0.4, 0.7)
         self.vao.render(mode=moderngl.PATCHES)
 

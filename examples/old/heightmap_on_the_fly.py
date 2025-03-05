@@ -153,7 +153,7 @@ class HeightmapOnTheFly(Example):
         self.prog['dim'] = self.dim - 1
         self.prog['terrain_size'] = 1.0
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear()
         self.ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
         angle = time * 0.2

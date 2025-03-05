@@ -105,7 +105,7 @@ class GrowingBuffers(Example):
         self.points = Points(self.ctx, 12 * 10)
         self.points.add(10)
 
-    def render(self, time, frametime):
+    def on_render(self, time, frametime):
         self.points.render(time)
 
         # Add more points every 60 frames

@@ -234,7 +234,7 @@ class Particles(Example):
         # Query object to inspect render calls
         self.query = self.ctx.query(primitives=True)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.transform['ft'].value = max(frame_time, 0.02)
 
         if not self.mouse_control:

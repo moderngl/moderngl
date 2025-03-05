@@ -51,7 +51,7 @@ class HelloWorld(Example):
         )
         self.vao = self.ctx.vertex_array(self.prog, [])
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.vao.render(mode=moderngl.POINTS, vertices=100, instances=2)
 

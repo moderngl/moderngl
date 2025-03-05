@@ -74,7 +74,7 @@ class PolygonOffset(moderngl_window.WindowConfig):
         self.projection = Matrix44.perspective_projection(60, self.wnd.aspect_ratio, 1, 100, dtype="f4")
         self.poly_offset_enabled = True
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear()
         self.ctx.enable(self.ctx.DEPTH_TEST | self.ctx.CULL_FACE)
 

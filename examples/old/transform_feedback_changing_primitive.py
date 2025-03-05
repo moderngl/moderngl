@@ -85,7 +85,7 @@ class GenerateData(Example):
             [(self.buffer, '3f', 'in_vert')]
         )
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.wnd.clear()
         self.vao.render(mode=moderngl.TRIANGLES)
 

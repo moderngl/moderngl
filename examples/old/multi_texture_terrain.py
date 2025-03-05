@@ -98,7 +98,7 @@ class MultiTextireTerrain(Example):
         self.prog['Cracks'].value = 3
         self.prog['Darken'].value = 4
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         angle = time * 0.2
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST)

@@ -87,7 +87,7 @@ class ColorsAndTexture(Example):
         # texture on billboard
         self.texture = self.load_texture_2d('infographic-1.jpg')
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
 

@@ -203,7 +203,7 @@ class Particles(Example):
         self.vao1.transform(self.vbo2, moderngl.POINTS, self.nb_particles)
         self.ctx.copy_buffer(self.vbo1, self.vbo2)
 
-    def render(self, time, _frame_time) -> None:
+    def on_render(self, time, _frame_time) -> None:
         # Physic pass: update particles system
         self.update_particles(time)
         # Rendering pass: render particles system

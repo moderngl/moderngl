@@ -74,7 +74,7 @@ class RenderTextureCompute(Example):
         self.texture.filter = mgl.NEAREST, mgl.NEAREST
         self.quad_fs = geometry.quad_fs()
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(0.3, 0.3, 0.3)
 
         w, h = self.texture.size

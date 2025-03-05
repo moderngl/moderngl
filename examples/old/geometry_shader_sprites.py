@@ -134,7 +134,7 @@ class GeoSprites(Example):
             ]
         )
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear()
         self.ctx.enable(moderngl.BLEND)
 

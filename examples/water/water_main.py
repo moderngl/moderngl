@@ -117,12 +117,12 @@ class WaterMain(mglw.WindowConfig):
         self.center = center
         self.prev_hit = next_hit
 
-    def mouse_release_event(self, x: int, y: int, button: int):
+    def on_mouse_release_event(self, x: int, y: int, button: int):
         if button == 1:
             self.mode = EventMode.NoEvent
             self.tracer = None
 
-    def mouse_press_event(self, x: int, y: int, button: int):
+    def on_mouse_press_event(self, x: int, y: int, button: int):
         self.tracer = RayTracer(self.ctx.viewport, self.matrices)
         ray = self.tracer.get_ray_for_pixel(x, y)
         sphere_hit_test: HitTest = RayTracer.hit_test_sphere(
@@ -143,7 +143,7 @@ class WaterMain(mglw.WindowConfig):
             self.tracer_mesh = WaterMain.dbg_tracer_mesh(
                 self.ctx, self.tracer, point_on_panel)
 
-    def mouse_drag_event(self, x: int, y: int, dx: int, dy: int):
+    def on_mouse_drag_event(self, x: int, y: int, dx: int, dy: int):
         match self.mode:
             case EventMode.AddDrop:
                 self.add_drop(x, y)
@@ -153,7 +153,7 @@ class WaterMain(mglw.WindowConfig):
             case EventMode.MoveSpahere:
                 self.move_sphere(x, y)
 
-    def key_event(self, key, action, modifiers):
+    def on_key_event(self, key, action, modifiers):
         if key == ord('G') and action == 1:
             self.use_gravity = not self.use_gravity
 
@@ -183,7 +183,7 @@ class WaterMain(mglw.WindowConfig):
         self.water.update_normals()
         self.renderer.update_caustics(self.matrices, self.water)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.matrices.view = glm.lookAt(
             self.eye, (0.0, 0.0, 0.0), (0.0, 1.0, 0.0))
 

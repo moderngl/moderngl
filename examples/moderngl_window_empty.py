@@ -15,25 +15,25 @@ class Example(mglw.WindowConfig):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear(
             (math.sin(time) + 1.0) / 2,
             (math.sin(time + 2) + 1.0) / 2,
             (math.sin(time + 3) + 1.0) / 2,
         )
 
-    def resize(self, width: int, heigh: int):
+    def on_resize(self, width: int, height: int):
         """
         Pick window resizes in case we need yo update
         internal states when this happens.
         """
-        print("Window resized to", width, heigh)
+        print("Window resized to", width, height)
 
-    def iconify(self, iconify: bool):
+    def on_iconify(self, iconified: bool):
         """Window hide/minimize and restore"""
-        print("Window was iconified:", iconify)
+        print("Window was iconified:", iconified)
 
-    def key_event(self, key, action, modifiers):
+    def on_key_event(self, key, action, modifiers):
         keys = self.wnd.keys
 
         # Key presses
@@ -89,24 +89,24 @@ class Example(mglw.WindowConfig):
             if key == keys.M:
                 self.wnd.mouse_exclusivity = not self.wnd.mouse_exclusivity
 
-    def mouse_position_event(self, x, y, dx, dy):
+    def on_mouse_position_event(self, x, y, dx, dy):
         print("Mouse position pos={} {} delta={} {}".format(x, y, dx, dy))
 
-    def mouse_drag_event(self, x, y, dx, dy):
+    def on_mouse_drag_event(self, x, y, dx, dy):
         print("Mouse drag pos={} {} delta={} {}".format(x, y, dx, dy))
 
-    def mouse_scroll_event(self, x_offset, y_offet):
-        print("mouse_scroll_event", x_offset, y_offet)
+    def on_mouse_scroll_event(self, x_offset, y_offset):
+        print("mouse_scroll_event", x_offset, y_offset)
 
-    def mouse_press_event(self, x, y, button):
+    def on_mouse_press_event(self, x, y, button):
         print("Mouse button {} pressed at {}, {}".format(button, x, y))
         print("Mouse states:", self.wnd.mouse_states)
 
-    def mouse_release_event(self, x: int, y: int, button: int):
+    def on_mouse_release_event(self, x: int, y: int, button: int):
         print("Mouse button {} released at {}, {}".format(button, x, y))
         print("Mouse states:", self.wnd.mouse_states)
 
-    def unicode_char_entered(self, char):
+    def on_unicode_char_entered(self, char):
         print("unicode_char_entered:", char)
 
 

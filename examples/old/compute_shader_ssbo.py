@@ -231,7 +231,7 @@ class ComputeShaderSSBO(Example):
             yield 1.0
 
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         # Calculate the next position of the balls with compute shader
         self.compute_buffer_a.bind_to_storage_buffer(0)
         self.compute_buffer_b.bind_to_storage_buffer(1)

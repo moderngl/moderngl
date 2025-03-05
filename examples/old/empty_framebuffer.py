@@ -53,7 +53,7 @@ class HelloWorld(Example):
 
         self.fbo = self.ctx.framebuffer([self.texture])
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.fbo.clear(1.0, 1.0, 1.0, 1.0)
         self.vao.render()
         self.ctx.memory_barrier()

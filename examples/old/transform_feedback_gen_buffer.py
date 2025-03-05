@@ -39,7 +39,7 @@ class GenerateData(Example):
         for i in range(0, N * 6, 6):
             print(data[i:i + 3], data[i + 3:i + 6])
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         exit(0)
 
 

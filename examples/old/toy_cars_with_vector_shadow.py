@@ -91,7 +91,7 @@ class ToyCars(Example):
         vao_wrapper.buffer(self.vbo, '3f 3f 9f/i', ['in_color', 'in_origin', 'in_basis'])
         self.vao = vao_wrapper.instance(self.prog)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         angle = time
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST)

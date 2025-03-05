@@ -45,14 +45,14 @@ class WaterSimulation(mglw.WindowConfig):
     def heavy(self, value):
         self._heavy = min(10, max(0, value))
 
-    def key_event(self, key, action, modifiers):
+    def on_key_event(self, key, action, modifiers):
         if action == 1:
             if key == 265: # up arrow
                 self.heavy += 1
             elif key == 264: # down arrow
                 self.heavy -= 1
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         angle = time * 0.2
         self.matrix.projection = glm.perspective(
             45.0, self.aspect_ratio, 0.1, 1000.0)

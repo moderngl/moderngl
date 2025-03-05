@@ -128,7 +128,7 @@ class PymunkExample(Example):
         if action == self.wnd.keys.ACTION_PRESS:
             self.shoot()
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         width, height = self.wnd.size
 
         self.ctx.clear(1.0, 1.0, 1.0)

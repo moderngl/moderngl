@@ -14,7 +14,7 @@ class RenderToTexture(ColorsAndTexture):
         depth_attachment = self.ctx.depth_renderbuffer(self.wnd.size)
         self.fbo = self.ctx.framebuffer(self.texture2, depth_attachment)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         for mode in ['render_to_texture', 'render_to_window']:
             if mode == 'render_to_texture':
                 self.texture = self.texture1

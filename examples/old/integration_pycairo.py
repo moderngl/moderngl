@@ -64,7 +64,7 @@ class CairoExample(Example):
             ],
         )
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.texture.use(location=0)
         self.screen_rectangle.render(mode=moderngl.TRIANGLE_STRIP)
 

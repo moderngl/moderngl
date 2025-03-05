@@ -173,7 +173,7 @@ class Example(mglw.WindowConfig):
         self.camera = self.program["modelViewProjection"]
         self.u_time = self.program["time"]
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.ctx.clear(alpha=1)
 
         proj = glm.perspective((90.0) / 180.0 * math.pi, 1.0, 0.1, 1000.0)

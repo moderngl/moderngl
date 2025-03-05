@@ -71,7 +71,7 @@ class LoadingOBJ(Example):
         # Create a vao from the first root node (attribs are auto mapped)
         self.vao = self.obj.root_nodes[0].mesh.vao.instance(self.prog)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST)
 

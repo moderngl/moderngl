@@ -51,7 +51,7 @@ class Scissor(Example):
         vbo = self.ctx.buffer(np.array(quad, dtype='f4'))
         self.vao = self.ctx.simple_vertex_array(self.prog, vbo, 'in_vert')
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         """Swap between rendering geometry and using clear"""
         fb_width_half = self.wnd.buffer_width // 2
         fb_height_half = self.wnd.buffer_height // 2

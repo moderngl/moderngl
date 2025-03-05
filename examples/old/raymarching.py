@@ -45,7 +45,7 @@ class Raymarching(Example):
         self.vao = self.ctx.vertex_array(program, content, idx_buffer)
         self.u_time = program.get("T", 0.0)
 
-    def render(self, time: float, frame_time: float):
+    def on_render(self, time: float, frame_time: float):
         self.u_time.value = time
         self.vao.render()
 

@@ -62,7 +62,7 @@ class CrateExample(Example):
 
         self.prog['Texture'].handle = self.texture.get_handle()
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         angle = time
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST)

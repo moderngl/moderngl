@@ -77,7 +77,7 @@ class Example(mglw.WindowConfig):
         look = glm.lookAt((-85.0, -180.0, 140.0), (0.0, 0.0, 65.0), (0.0, 0.0, 1.0))
         return proj * look
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.enable(moderngl.DEPTH_TEST)
 

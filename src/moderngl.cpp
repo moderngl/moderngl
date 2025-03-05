@@ -819,12 +819,12 @@ static MGLDataType * from_dtype(const char * dtype) {
 
 static PyObject * MGLContext_buffer(MGLContext * self, PyObject * args) {
     PyObject * data;
-    int reserve;
+    Py_ssize_t reserve;
     int dynamic;
 
     int args_ok = PyArg_ParseTuple(
         args,
-        "OIp",
+        "Onp",
         &data,
         &reserve,
         &dynamic
@@ -869,7 +869,7 @@ static PyObject * MGLContext_buffer(MGLContext * self, PyObject * args) {
     buffer->released = false;
     buffer->external = false;
 
-    buffer->size = (int)buffer_view.len;
+    buffer->size = buffer_view.len;
     buffer->dynamic = dynamic ? true : false;
 
     const GLMethods & gl = self->gl;
@@ -975,7 +975,7 @@ static PyObject * MGLBuffer_read(MGLBuffer * self, PyObject * args) {
     }
 
     if (offset < 0 || offset + size > self->size) {
-        MGLError_Set("out of rangeoffset = %d or size = %d", offset, size);
+        MGLError_Set("out of range offset = %d or size = %d", offset, size);
         return 0;
     }
 

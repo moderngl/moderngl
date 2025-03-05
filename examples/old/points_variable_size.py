@@ -71,7 +71,7 @@ class Particles(Example):
         )
         self.resize(*self.wnd.buffer_size)
 
-    def render(self, time, frame_time):
+    def on_render(self, time, frame_time):
         self.ctx.enable_only(moderngl.PROGRAM_POINT_SIZE | moderngl.BLEND)
         self.ctx.blend_func = moderngl.ADDITIVE_BLENDING
 
