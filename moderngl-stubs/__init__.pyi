@@ -69,6 +69,9 @@ BLEND: int
 DEPTH_TEST: int
 """ctx.DEPTH_TEST"""
 
+STENCIL_TEST: int
+"""ctx.STENCIL_TEST"""
+
 CULL_FACE: int
 """ctx.CULL_FACE"""
 
@@ -1153,6 +1156,28 @@ class Context:
         ctx.depth_clamp_range = (near, far)
     """
 
+    stencil_func: Union[Tuple[str, int, int], Tuple[str, str, int, int]]
+    """
+    Set the default stencil func.
+
+    Example::
+
+        ctx.stencil_func = ('<=',   # GL_LEQUAL
+        ctx.stencil_func = '<'   # GL_LESS
+        ctx.stencil_func = '>='  # GL_GEQUAL
+        ctx.stencil_func = '>'   # GL_GREATER
+        ctx.stencil_func = '=='  # GL_EQUAL
+        ctx.stencil_func = '!='  # GL_NOTEQUAL
+        ctx.stencil_func = '0'   # GL_NEVER
+        ctx.stencil_func = '1'   # GL_ALWAYS
+    """
+
+    stencil_op: Union[Tuple[str, str, str], Tuple[str, str, str, str]]
+    # TODO: write (proper) documentation
+    """
+    tuple: Set the stencil op (write only).    
+    """
+
     blend_func: Tuple[int, int]
     """
     tuple: Set the blend func (write only).
@@ -1570,6 +1595,7 @@ class Context:
         blue: float = 0.0,
         alpha: float = 0.0,
         depth: float = 1.0,
+        stencil: int = 0,
         viewport: Optional[Union[Tuple[int, int], Tuple[int, int, int, int]]] = None,
         color: Optional[Tuple[float, float, float, float]] = None,
     ) -> None:
@@ -1596,6 +1622,7 @@ class Context:
             blue (float): color component.
             alpha (float): alpha component.
             depth (float): depth value.
+            stencil (int): stencil value.
 
         Keyword Args:
             viewport (tuple): The viewport.
@@ -2504,6 +2531,19 @@ class Framebuffer:
     """
 
     depth_mask: bool
+    """
+    The depth mask of the framebuffer.
+
+    Depth mask enables or disables write operations to the depth buffer.
+    This also applies when clearing the framebuffer.
+    If depth testing is enabled fragments will still be culled, but
+    the depth buffer will not be updated with new values. This is
+    a very useful tool in many rendering techniques.
+
+    Default value: ``True``
+    """
+
+    stencil_mask: int
     """
     The depth mask of the framebuffer.
 

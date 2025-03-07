@@ -1,3 +1,6 @@
+import pytest
+import moderngl
+
 
 def test_properties(ctx):
     fbo = ctx.simple_framebuffer((4, 4))
@@ -5,6 +8,7 @@ def test_properties(ctx):
     assert fbo.size == (4, 4)
     assert fbo == fbo
     assert fbo.depth_mask is True
+    assert 0xff & fbo.stencil_mask == 0xff
     assert fbo.width == 4
     assert fbo.height == 4
     assert fbo.size == (4, 4)
@@ -14,6 +18,12 @@ def test_properties(ctx):
 
     fbo.depth_mask = False
     assert fbo.depth_mask is False
+
+    fbo.stencil_mask = 0x0b
+    assert fbo.stencil_mask == 0x0b
+
+    with pytest.raises(moderngl.Error):
+        fbo.stencil_mask = "Test"
 
 
 def test_viewport(ctx):
