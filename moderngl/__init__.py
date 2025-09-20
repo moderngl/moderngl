@@ -1660,6 +1660,14 @@ class Context:
         self.mglo.blend_func = tuple(value)
 
     @property
+    def blend_func_i(self):
+        raise NotImplementedError()
+    
+    @blend_func_i.setter
+    def blend_func_i(self, value):
+        self.mglo.blend_func_i = tuple(value)
+
+    @property
     def blend_equation(self):
         raise NotImplementedError()
 
