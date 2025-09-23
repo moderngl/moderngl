@@ -8312,7 +8312,7 @@ static int MGLContext_set_blend_func_i(MGLContext * self, PyObject * value, void
     }
 
     uint buffer_index = (uint) func[0];
-    self->gl.BlendFuncSeparatei(buffer_index, func[1], func[2], func[3], func[4],);
+    self->gl.BlendFuncSeparatei(buffer_index, func[1], func[2], func[3], func[4]);
     return 0;
 }
 
