@@ -464,10 +464,17 @@ class Program:
             self.ctx.objects.append(self.mglo)
 
     def __getitem__(self, key):
-        return self._members[key]
+        class UniformDummy:
+            __dict__ = None
+            __bool__ = lambda *a, **kw: False
+            __getattr__ = lambda *a, **kw: None
+            __setattr__ = lambda *a, **kw: None
+        return self._members.get(key, UniformDummy())
 
     def __setitem__(self, key, value):
-        self._members[key].value = value
+        obj = self._members.get(key)
+        if obj:
+            obj.value = value
 
     def __iter__(self):
         yield from self._members
