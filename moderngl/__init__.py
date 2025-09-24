@@ -1659,8 +1659,8 @@ class Context:
     def blend_func(self, value):
         self.mglo.blend_func = tuple(value)
 
-    def blend_func_i(self, value: tuple):
-        self.mglo.blend_func_i = tuple(value)
+    def blend_func_i(self, buffer: int, value: tuple):
+        self.mglo.blend_func_i = (buffer, *value)
 
     @property
     def blend_equation(self):
