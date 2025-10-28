@@ -197,6 +197,8 @@ class DefaultLoader:
         import ctypes
         import sys
 
+        from ctypes.util import find_library
+
         def funcptr(lib, name):
             return ctypes.cast(getattr(lib, name, 0), ctypes.c_void_p).value or 0
 
@@ -211,7 +213,11 @@ class DefaultLoader:
 
         elif sys.platform.startswith("linux"):
             try:
-                lib = ctypes.CDLL("libEGL.so")
+                libegl = find_library("EGL")
+                if libegl is None:
+                    raise RuntimeError("Cannot find OpenGL support library libEGL")
+
+                lib = ctypes.CDLL(libegl)
                 proc = ctypes.cast(lib.eglGetProcAddress, ctypes.CFUNCTYPE(ctypes.c_ulonglong, ctypes.c_char_p))
                 if not lib.eglGetCurrentContext():
                     raise RuntimeError("Cannot detect window with OpenGL support")
@@ -220,7 +226,11 @@ class DefaultLoader:
                     return proc(name.encode())
 
             except:
-                lib = ctypes.CDLL("libGL.so")
+                libgl = find_library('GL')
+                if libgl is None:
+                    raise RuntimeError("Cannot find OpenGL support library libGL")
+
+                lib = ctypes.CDLL(libgl)
                 proc = ctypes.cast(lib.glXGetProcAddress, ctypes.CFUNCTYPE(ctypes.c_ulonglong, ctypes.c_char_p))
                 if not lib.glXGetCurrentContext():
                     raise RuntimeError("Cannot detect window with OpenGL support")
