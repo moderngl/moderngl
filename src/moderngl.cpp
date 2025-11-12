@@ -8271,6 +8271,40 @@ static int parse_blend_func(PyObject * arg, int * value) {
     return 1;
 }
 
+static int parse_blend_func_i(PyObject * arg, int * value) {
+    arg = PySequence_Tuple(arg);
+    if (!arg) {
+        PyErr_Clear();
+        return 0;
+    }
+    int size = (int)PyTuple_Size(arg);
+    if (size == 5) {
+        value[0] = PyLong_AsLong(PyTuple_GetItem(arg, 0));
+        value[1] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
+        value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
+        value[3] = PyLong_AsLong(PyTuple_GetItem(arg, 3));
+        value[4] = PyLong_AsLong(PyTuple_GetItem(arg, 4));
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            return 0;
+        }
+    } else if (size == 3) {
+        value[0] = PyLong_AsLong(PyTuple_GetItem(arg, 0));
+        value[1] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
+        value[2] = PyLong_AsLong(PyTuple_GetItem(arg, 2));
+        value[3] = value[1];
+        value[4] = value[2];
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            return 0;
+        }
+    } else {
+        return 0;
+    }
+    Py_DECREF(arg);
+    return 1;
+}
+
 // NOTE: currently never called from python
 static PyObject * MGLContext_get_blend_func(MGLContext * self, void * closure) {
     return Py_BuildValue("(ii)", self->blend_func_src, self->blend_func_dst);
@@ -8284,6 +8318,18 @@ static int MGLContext_set_blend_func(MGLContext * self, PyObject * value, void *
     }
 
     self->gl.BlendFuncSeparate(func[0], func[1], func[2], func[3]);
+    return 0;
+}
+
+static int MGLContext_set_blend_func_i(MGLContext * self, PyObject * value, void * closure) {
+    int func[5] = {};
+    if (!parse_blend_func_i(value, func)) {
+        MGLError_Set("invalid blend func");
+        return -1;
+    }
+
+    unsigned int buffer_index = (unsigned int) func[0];
+    self->gl.BlendFuncSeparatei(buffer_index, func[1], func[2], func[3], func[4]);
     return 0;
 }
 
@@ -9223,6 +9269,7 @@ static PyGetSetDef MGLContext_getset[] = {
     {(char *)"depth_func", (getter)MGLContext_get_depth_func, (setter)MGLContext_set_depth_func},
     {(char *)"depth_clamp_range", (getter)MGLContext_get_depth_clamp_range, (setter)MGLContext_set_depth_clamp_range},
     {(char *)"blend_func", (getter)MGLContext_get_blend_func, (setter)MGLContext_set_blend_func},
+    {(char *)"blend_func_i", (getter)MGLContext_get_blend_func, (setter)MGLContext_set_blend_func_i},
     {(char *)"blend_equation", (getter)MGLContext_get_blend_equation, (setter)MGLContext_set_blend_equation},
     {(char *)"multisample", (getter)MGLContext_get_multisample, (setter)MGLContext_set_multisample},
 
