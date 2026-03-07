@@ -1466,7 +1466,7 @@ static int attachment_parameters(PyObject * attachment, AttachmentParameters * p
 
     if (Py_TYPE(attachment) == MGLTextureCube_type) {
         MGLTextureCube * image = (MGLTextureCube *)attachment;
-        depth = 0;
+        depth = image->depth;
         width = image->width;
         height = image->height;
         samples = 0;
