@@ -80,11 +80,22 @@ class Uniform:
 
     @property
     def handle(self):
-        raise NotImplementedError
+        return self.ctx._get_uniform_handle(self.program_obj, self.location, self.array_length)
 
     @handle.setter
     def handle(self, value):
-        return self.ctx._set_uniform_handle(self.program_obj, self.location, value)
+        if isinstance(value, list):
+            if len(value) != self.array_length:
+                raise ValueError(
+                    f"Handle list has {len(value)} elements but uniform array "
+                    f"requires exactly {self.array_length} elements."
+                )
+        elif self.array_length > 1:
+            raise ValueError(
+                f"Handle for uniform array of length {self.array_length} must be "
+                f"a list, not a scalar."
+            )
+        self.ctx._set_uniform_handle(self.program_obj, self.location, value)
 
     def read(self):
         return self.ctx._read_uniform(

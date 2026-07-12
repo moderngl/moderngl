@@ -125,3 +125,34 @@ def ndc_quad(ctx_static):
         1.0, -1.0,
     ]
     return ctx_static.buffer(np.array(quad, dtype='f4'))
+
+
+@pytest.fixture(scope="function")
+def bindless_ctx(ctx):
+    """
+    Per function context that checks for bindless support.
+
+    Tests using this fixture will be skipped if bindless is not supported.
+    """
+    if not ctx.supports_bindless:
+        pytest.skip("Bindless textures not supported on this system")
+    return ctx
+
+
+@pytest.fixture(scope="session")
+def bindless_textures(ctx_static):
+    """Creates a set of small test textures for bindless testing."""
+    if not ctx_static.supports_bindless:
+        pytest.skip("Bindless textures not supported")
+
+    textures = []
+    for i in range(6):
+        tex = ctx_static.texture((4, 4), 4)
+        tex.write(bytes([i * 40, i * 40, i * 40, 255] * 16))
+        textures.append(tex)
+
+    yield textures
+
+    # Cleanup
+    for tex in textures:
+        tex.release()

@@ -77,6 +77,58 @@ struct MGLDataType {
     bool float_type;
 };
 
+// Encapsulates per-texture bindless handle state: the handle itself, whether
+// it has been obtained from the driver, and whether it is currently resident.
+//
+// IMPORTANT: this struct is embedded in MGLTexture, MGLTexture3D,
+// MGLTextureArray, and MGLTextureCube, all of which are allocated via
+// PyObject_New(). PyObject_New() returns raw uninitialized memory and does
+// NOT invoke C++ constructors -- which is why this struct has none. Every
+// site that constructs one of those texture objects MUST call
+// `texture->bindless_state.reset()` immediately after PyObject_New(), before
+// any code reads these fields. Otherwise `release()` (called from
+// MGL*_release) would read garbage and call MakeTextureHandleNonResidentARB
+// on a random handle.
+struct BindlessHandleState {
+    unsigned long long handle;
+    bool obtained;
+    bool resident;
+
+    // Get or create the handle
+    unsigned long long get_handle(const GLMethods & gl, const int texture_obj) {
+        if (!obtained) {
+            handle = gl.GetTextureHandleARB(texture_obj);
+            obtained = true;
+        }
+        return handle;
+    }
+
+    // Update residency state
+    void set_residency(const GLMethods & gl, const bool should_be_resident) {
+        if (should_be_resident && !resident) {
+            gl.MakeTextureHandleResidentARB(handle);
+            resident = true;
+        } else if (!should_be_resident && resident) {
+            gl.MakeTextureHandleNonResidentARB(handle);
+            resident = false;
+        }
+    }
+
+    // Release the handle (make non-resident if needed)
+    void release(const GLMethods & gl) {
+        if (obtained && resident) {
+            gl.MakeTextureHandleNonResidentARB(handle);
+        }
+        reset();
+    }
+
+    void reset() {
+        handle = 0;
+        obtained = false;
+        resident = false;
+    }
+};
+
 struct MGLBuffer {
     PyObject_HEAD
     MGLContext * context;
@@ -333,6 +385,7 @@ struct MGLTexture {
     bool repeat_y;
     bool external;
     bool released;
+    BindlessHandleState bindless_state;
 };
 
 struct MGLTexture3D {
@@ -351,6 +404,7 @@ struct MGLTexture3D {
     bool repeat_y;
     bool repeat_z;
     bool released;
+    BindlessHandleState bindless_state;
 };
 
 struct MGLTextureArray {
@@ -369,6 +423,7 @@ struct MGLTextureArray {
     bool repeat_y;
     float anisotropy;
     bool released;
+    BindlessHandleState bindless_state;
 };
 
 struct MGLTextureCube {
@@ -386,6 +441,7 @@ struct MGLTextureCube {
     int compare_func;
     float anisotropy;
     bool released;
+    BindlessHandleState bindless_state;
 };
 
 struct MGLVertexArray {
@@ -3766,6 +3822,7 @@ static PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
     gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
 
     MGLTexture * texture = PyObject_New(MGLTexture, MGLTexture_type);
+    texture->bindless_state.reset();
     texture->released = false;
     texture->external = false;
 
@@ -3931,6 +3988,7 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
     gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
 
     MGLTexture * texture = PyObject_New(MGLTexture, MGLTexture_type);
+    texture->bindless_state.reset();
     texture->released = false;
     texture->external = false;
 
@@ -4014,6 +4072,7 @@ static PyObject * MGLContext_external_texture(MGLContext * self, PyObject * args
     }
 
     MGLTexture * texture = PyObject_New(MGLTexture, MGLTexture_type);
+    texture->bindless_state.reset();
     texture->released = false;
     texture->external = true;
 
@@ -4422,12 +4481,8 @@ static PyObject * MGLTexture_get_handle(MGLTexture * self, PyObject * args) {
 
     const GLMethods & gl = self->context->gl;
 
-    unsigned long long handle = gl.GetTextureHandleARB(self->texture_obj);
-    if (resident) {
-        gl.MakeTextureHandleResidentARB(handle);
-    } else {
-        gl.MakeTextureHandleNonResidentARB(handle);
-    }
+    const unsigned long long handle = self->bindless_state.get_handle(gl, self->texture_obj);
+    self->bindless_state.set_residency(gl, resident);
 
     return PyLong_FromUnsignedLongLong(handle);
 }
@@ -4439,6 +4494,7 @@ static PyObject * MGLTexture_release(MGLTexture * self, PyObject * args) {
     self->released = true;
 
     const GLMethods & gl = self->context->gl;
+    self->bindless_state.release(gl);
     gl.DeleteTextures(1, (GLuint *)&self->texture_obj);
 
     Py_DECREF(self->context);
@@ -4738,6 +4794,7 @@ static PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
     const GLMethods & gl = self->gl;
 
     MGLTexture3D * texture = PyObject_New(MGLTexture3D, MGLTexture3D_type);
+    texture->bindless_state.reset();
     texture->released = false;
 
     texture->texture_obj = 0;
@@ -5094,12 +5151,8 @@ static PyObject * MGLTexture3D_get_handle(MGLTexture3D * self, PyObject * args) 
 
     const GLMethods & gl = self->context->gl;
 
-    unsigned long long handle = gl.GetTextureHandleARB(self->texture_obj);
-    if (resident) {
-        gl.MakeTextureHandleResidentARB(handle);
-    } else {
-        gl.MakeTextureHandleNonResidentARB(handle);
-    }
+    const unsigned long long handle = self->bindless_state.get_handle(gl, self->texture_obj);
+    self->bindless_state.set_residency(gl, resident);
 
     return PyLong_FromUnsignedLongLong(handle);
 }
@@ -5111,6 +5164,7 @@ static PyObject * MGLTexture3D_release(MGLTexture3D * self, PyObject * args) {
     self->released = true;
 
     const GLMethods & gl = self->context->gl;
+    self->bindless_state.release(gl);
     gl.DeleteTextures(1, (GLuint *)&self->texture_obj);
 
     Py_DECREF(self->context);
@@ -5365,6 +5419,7 @@ static PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
     gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
 
     MGLTextureArray * texture = PyObject_New(MGLTextureArray, MGLTextureArray_type);
+    texture->bindless_state.reset();
     texture->released = false;
 
     texture->texture_obj = 0;
@@ -5743,12 +5798,8 @@ static PyObject * MGLTextureArray_get_handle(MGLTextureArray * self, PyObject * 
 
     const GLMethods & gl = self->context->gl;
 
-    unsigned long long handle = gl.GetTextureHandleARB(self->texture_obj);
-    if (resident) {
-        gl.MakeTextureHandleResidentARB(handle);
-    } else {
-        gl.MakeTextureHandleNonResidentARB(handle);
-    }
+    const unsigned long long handle = self->bindless_state.get_handle(gl, self->texture_obj);
+    self->bindless_state.set_residency(gl, resident);
 
     return PyLong_FromUnsignedLongLong(handle);
 }
@@ -5760,6 +5811,7 @@ static PyObject * MGLTextureArray_release(MGLTextureArray * self, PyObject * arg
     self->released = true;
 
     const GLMethods & gl = self->context->gl;
+    self->bindless_state.release(gl);
     gl.DeleteTextures(1, (GLuint *)&self->texture_obj);
 
     Py_DECREF(self->context);
@@ -6004,6 +6056,7 @@ static PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
     const GLMethods & gl = self->gl;
 
     MGLTextureCube * texture = PyObject_New(MGLTextureCube, MGLTextureCube_type);
+    texture->bindless_state.reset();
     texture->released = false;
 
     texture->texture_obj = 0;
@@ -6127,6 +6180,7 @@ static PyObject * MGLContext_depth_texture_cube(MGLContext * self, PyObject * ar
     const GLMethods & gl = self->gl;
 
     MGLTextureCube * texture = PyObject_New(MGLTextureCube, MGLTextureCube_type);
+    texture->bindless_state.reset();
     texture->released = false;
 
     texture->texture_obj = 0;
@@ -6480,12 +6534,8 @@ static PyObject * MGLTextureCube_get_handle(MGLTextureCube * self, PyObject * ar
 
     const GLMethods & gl = self->context->gl;
 
-    unsigned long long handle = gl.GetTextureHandleARB(self->texture_obj);
-    if (resident) {
-        gl.MakeTextureHandleResidentARB(handle);
-    } else {
-        gl.MakeTextureHandleNonResidentARB(handle);
-    }
+    const unsigned long long handle = self->bindless_state.get_handle(gl, self->texture_obj);
+    self->bindless_state.set_residency(gl, resident);
 
     return PyLong_FromUnsignedLongLong(handle);
 }
@@ -6541,6 +6591,7 @@ static PyObject * MGLTextureCube_release(MGLTextureCube * self, PyObject * args)
     // TODO: decref
 
     const GLMethods & gl = self->context->gl;
+    self->bindless_state.release(gl);
     gl.DeleteTextures(1, (GLuint *)&self->texture_obj);
 
     Py_DECREF(self);
@@ -8187,16 +8238,193 @@ static PyObject * MGLContext_write_uniform(MGLContext * self, PyObject * args) {
 }
 
 static PyObject * MGLContext_set_uniform_handle(MGLContext * self, PyObject * args) {
-    int program_obj;
+    unsigned int program_obj;
     int location;
-    unsigned long long handle;
+    PyObject * handle_arg; // Generic object for the third argument
 
-    if (!PyArg_ParseTuple(args, "IIK", &program_obj, &location, &handle)) {
-        return NULL;
+    // Use 'O' to get the third argument as a PyObject*
+    if (!PyArg_ParseTuple(args, "IIO", &program_obj, &location, &handle_arg)) {
+        return nullptr;
     }
 
-    self->gl.ProgramUniformHandleui64ARB(program_obj, location, handle);
+    // Validate uniform location
+    if (location < 0) {
+        PyErr_SetString(PyExc_ValueError, "Invalid uniform location.");
+        return nullptr;
+    }
+
+    // Case 1: The argument is a single integer
+    if (PyLong_Check(handle_arg)) {
+        const unsigned long long handle = PyLong_AsUnsignedLongLong(handle_arg);
+        if (PyErr_Occurred()) {
+            // Error during conversion (e.g., overflow)
+            return nullptr;
+        }
+
+        // Validate handle is not 0 (invalid handle)
+        if (handle == 0) {
+            PyErr_SetString(PyExc_ValueError, "Invalid texture handle (handle is 0).");
+            return nullptr;
+        }
+
+        // Check if bindless textures are supported
+        if (!self->gl.ProgramUniformHandleui64ARB) {
+            PyErr_SetString(PyExc_RuntimeError,
+                "Bindless textures not supported on this system.");
+            return nullptr;
+        }
+
+        self->gl.ProgramUniformHandleui64ARB(program_obj, location, handle);
+
+    // Case 2: The argument is a list
+    } else if (PyList_Check(handle_arg)) {
+        // The size of the array has been validated by the python interface
+        const Py_ssize_t count = PyList_Size(handle_arg);
+
+        // Allocate memory for the C array of handles
+        GLuint64 * handles = (GLuint64 *)PyMem_Malloc(count * sizeof(GLuint64));
+        if (!handles) {
+            return PyErr_NoMemory();
+        }
+
+        // Iterate through the Python list and populate the C array
+        for (Py_ssize_t i = 0; i < count; ++i) {
+            PyObject * item = PyList_GetItem(handle_arg, i); // Borrows reference
+            if (!PyLong_Check(item)) {
+                PyMem_Free(handles); // Clean up allocated memory before returning
+                PyErr_SetString(PyExc_TypeError, "All items in handle list must be integers.");
+                return nullptr;
+            }
+            handles[i] = (GLuint64)PyLong_AsUnsignedLongLong(item);
+            if (PyErr_Occurred()) {
+                PyMem_Free(handles);
+                return nullptr; // Conversion error
+            }
+            // Validate handle is not 0 (invalid handle)
+            if (handles[i] == 0) {
+                PyMem_Free(handles);
+                PyErr_Format(PyExc_ValueError, "Invalid texture handle at index %zd (handle is 0).", i);
+                return nullptr;
+            }
+        }
+
+        if (!self->gl.ProgramUniformHandleui64vARB) {
+            PyErr_SetString(PyExc_RuntimeError,
+                "Bindless texture arrays not supported on this system.");
+            PyMem_Free(handles);
+            return nullptr;
+        }
+
+        self->gl.ProgramUniformHandleui64vARB(program_obj, location, (GLsizei)count, handles);
+
+        // Free the memory after use
+        PyMem_Free(handles);
+
+    // Case 3: The argument is an unsupported type
+    } else {
+        PyErr_SetString(PyExc_TypeError, "Handle must be an integer or a list of integers.");
+        return nullptr;
+    }
+
     Py_RETURN_NONE;
+}
+
+// Returns the array size of the active uniform whose base location matches
+// `location`, or -1 if no such uniform is found in the program. Used by
+// MGLContext_get_uniform_handle to bound the GL readback safely; without
+// this, a caller-supplied array_length that's smaller than the program's
+// actual array size would cause glGetUniformui64v to overflow our buffer.
+static int lookup_uniform_array_size(const GLMethods & gl, unsigned int program_obj,
+                                     int location) {
+    int num_uniforms = 0;
+    gl.GetProgramiv(program_obj, GL_ACTIVE_UNIFORMS, &num_uniforms);
+    for (int i = 0; i < num_uniforms; i++) {
+        char name[256];
+        int name_len = 0;
+        int size = 0;
+        unsigned int type = 0;
+        gl.GetActiveUniform(program_obj, i, sizeof(name), &name_len, &size,
+                            (GLenum *)&type, name);
+        if (gl.GetUniformLocation(program_obj, name) == location) {
+            return size;
+        }
+    }
+    return -1;
+}
+
+static PyObject * MGLContext_get_uniform_handle(const MGLContext * self, PyObject * args) {
+    unsigned int program_obj;
+    int location;
+    int array_length;
+
+    if (!PyArg_ParseTuple(args, "IIi", &program_obj, &location, &array_length)) {
+        return nullptr;
+    }
+
+    // Validate array_length
+    if (array_length < 1) {
+        PyErr_SetString(PyExc_ValueError, "array_length must be at least 1.");
+        return nullptr;
+    }
+
+    // Bound the read by the program's actual array size at this location.
+    // glGetUniformui64v doesn't take a count parameter -- it writes all
+    // elements of the uniform into the supplied buffer. If the caller's
+    // array_length is wrong, we either heap-overflow (too small) or return
+    // garbage in the trailing slots (too large). Reject both.
+    const int actual_size = lookup_uniform_array_size(self->gl, program_obj, location);
+    if (actual_size < 0) {
+        PyErr_Format(PyExc_ValueError,
+                     "no active uniform with base location %d in program %u",
+                     location, program_obj);
+        return nullptr;
+    }
+    if (actual_size != array_length) {
+        PyErr_Format(PyExc_ValueError,
+                     "array_length mismatch: caller passed %d, program has %d",
+                     array_length, actual_size);
+        return nullptr;
+    }
+
+    // Check if function pointer is available
+    if (!self->gl.GetUniformui64vARB) {
+        PyErr_SetString(PyExc_RuntimeError, "Bindless textures not supported on this system.");
+        return nullptr;
+    }
+
+    // Allocate array for handles
+    GLuint64 * handles = (GLuint64 *)PyMem_Malloc(array_length * sizeof(GLuint64));
+    if (!handles) {
+        return PyErr_NoMemory();
+    }
+
+    // Read handles from OpenGL in a single call
+    // OpenGL reads all array elements when given a properly sized buffer
+    self->gl.GetUniformui64vARB(program_obj, location, handles);
+
+    // Return single int or list based on array_length
+    if (array_length == 1) {
+        PyObject * result = PyLong_FromUnsignedLongLong(handles[0]);
+        PyMem_Free(handles);
+        return result;
+    } else {
+        PyObject * result = PyList_New(array_length);
+        if (!result) {
+            PyMem_Free(handles);
+            return nullptr;
+        }
+        for (int i = 0; i < array_length; i++) {
+            PyObject * handle = PyLong_FromUnsignedLongLong(handles[i]);
+            if (!handle) {
+                Py_DECREF(result);
+                PyMem_Free(handles);
+                return nullptr;
+            }
+            PyList_SetItem(result, i, handle);
+        }
+        PyMem_Free(handles);
+        return result;
+    }
 }
 
 static PyObject * MGLContext_get_line_width(MGLContext * self, void * closure) {
@@ -9213,6 +9441,7 @@ static PyMethodDef MGLContext_methods[] = {
     {(char *)"_write_uniform", (PyCFunction)MGLContext_write_uniform, METH_VARARGS},
     {(char *)"_read_uniform", (PyCFunction)MGLContext_read_uniform, METH_VARARGS},
     {(char *)"_set_uniform_handle", (PyCFunction)MGLContext_set_uniform_handle, METH_VARARGS},
+    {(char *)"_get_uniform_handle", (PyCFunction)MGLContext_get_uniform_handle, METH_VARARGS},
     {},
 };
 

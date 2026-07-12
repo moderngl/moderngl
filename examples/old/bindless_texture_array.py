@@ -38,7 +38,8 @@ class CrateExample(Example):
                 #extension GL_ARB_bindless_texture : enable
 
                 uniform vec3 Light;
-                layout (bindless_sampler) uniform sampler2D Texture;
+                uniform int texture_selector;
+                layout (bindless_sampler) uniform sampler2D Textures[6];
 
                 in vec3 v_vert;
                 in vec3 v_norm;
@@ -48,19 +49,27 @@ class CrateExample(Example):
 
                 void main() {
                     float lum = clamp(dot(normalize(Light - v_vert), normalize(v_norm)), 0.0, 1.0) * 0.8 + 0.2;
-                    f_color = vec4(texture(Texture, v_text).rgb * lum, 1.0);
+                    f_color = vec4(texture(Textures[texture_selector], v_text).rgb * lum, 1.0);
                 }
             ''',
         )
 
         self.mvp = self.prog['Mvp']
         self.light = self.prog['Light']
+        self.texture_selector = self.prog['texture_selector']
 
         self.scene = self.load_scene('../data/models/crate.obj')
         self.vao = self.scene.root_nodes[0].mesh.vao.instance(self.prog)
-        self.texture = self.load_texture_2d('../data/textures/crate.png')
 
-        self.prog['Texture'].handle = self.texture.get_handle()
+        # Load a set of textures to cycle through
+        textures = [self.load_texture_2d('../data/textures/crate.png'),
+                    self.load_texture_2d('../data/textures/rock.jpg'),
+                    self.load_texture_2d('../data/textures/arrows.png'),
+                    self.load_texture_2d('../data/textures/wood.jpg'),
+                    self.load_texture_2d('../data/textures/grass.jpg'),
+                    self.load_texture_2d('../data/textures/tiles.jpg')]
+        handles = [t.get_handle() for t in textures]
+        self.prog['Textures'].handle = handles
 
     def on_render(self, time, frame_time):
         angle = time
@@ -78,6 +87,7 @@ class CrateExample(Example):
 
         self.mvp.write((proj * lookat).astype('f4'))
         self.light.value = camera_pos
+        self.texture_selector.value = int(time) % 6
         # self.texture.use()
         self.vao.render()
 
