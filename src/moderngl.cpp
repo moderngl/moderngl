@@ -9949,6 +9949,15 @@ extern "C" PyObject * PyInit_mgl() {
         return NULL;
     }
 
+    #ifdef Py_GIL_DISABLED
+    // The module does not need the GIL: everything that is mutable belongs to a context and is
+    // protected by the lock of the context (see the guards above). The rest is set here, once.
+    if (PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0) {
+        Py_DECREF(module);
+        return NULL;
+    }
+    #endif
+
     helper = PyImport_ImportModule("_moderngl");
     if (!helper) {
         Py_DECREF(module);
