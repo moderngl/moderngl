@@ -1,3 +1,5 @@
+import moderngl
+import pytest
 
 
 def test_glo(ctx):
@@ -110,3 +112,11 @@ def test_buffer_clear_zero_fill_offset(ctx):
 
     buf.clear(offset=1)
     assert buf.read() == b'\xAA' + b'\x00' * 19
+
+
+def test_buffer_clear_empty_chunk(ctx):
+    """An empty chunk can't be repeated to fill anything"""
+    buf = ctx.buffer(data=b'\xAA' * 8)
+    with pytest.raises(moderngl.Error):
+        buf.clear(chunk=b'')
+    assert buf.read() == b'\xAA' * 8

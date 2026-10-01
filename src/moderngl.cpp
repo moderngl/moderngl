@@ -1276,6 +1276,12 @@ static PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
             return 0;
         }
 
+        if (buffer_view.len == 0) {
+            MGLError_Set("the chunk cannot be empty");
+            PyBuffer_Release(&buffer_view);
+            return 0;
+        }
+
         if (size % buffer_view.len != 0) {
             MGLError_Set("the chunk does not fit the size");
             PyBuffer_Release(&buffer_view);
