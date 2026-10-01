@@ -1304,7 +1304,7 @@ static PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
             map[i] = src[i % divisor];
         }
     } else {
-        memset(map + offset, 0, size);
+        memset(map, 0, size);
     }
 
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
