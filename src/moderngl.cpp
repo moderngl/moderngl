@@ -907,7 +907,7 @@ static PyObject * MGLContext_external_buffer(MGLContext * self, PyObject * args)
 
     MGLBuffer * buffer = PyObject_New(MGLBuffer, MGLBuffer_type);
     buffer->released = false;
-    buffer->external = false;
+    buffer->external = true;
 
     buffer->size = size;
     buffer->dynamic = false;
