@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [main](https://github.com/moderngl/moderngl/compare/5.10.0...main)
 
 - Add `Context.debug_scope`.
+- Fix memory leaks of objects created from a `Context` (programs, vertex arrays, renderbuffers, cube textures and queries kept their context alive forever).
+- Fix a use-after-free in `Sampler.release()` and a context reference dropped without being taken by `Framebuffer.release()` on framebuffers from `Context.detect_framebuffer()`.
+- A `Context` now stays allocated for as long as objects created from it exist, also after `Context.release()`.
 
 ## [5.10.0](https://github.com/moderngl/moderngl/compare/5.9.0...5.10.0)
 
