@@ -1084,6 +1084,12 @@ static PyObject * MGLBuffer_write_chunks(MGLBuffer * self, PyObject * args) {
         return 0;
     }
 
+    // count is used as a divisor below
+    if (count <= 0) {
+        MGLError_Set("invalid count %zd", count);
+        return 0;
+    }
+
     Py_ssize_t abs_step = step > 0 ? step : -step;
 
     Py_buffer buffer_view;
