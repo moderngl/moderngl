@@ -7023,6 +7023,15 @@ static PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * arg
         return 0;
     }
 
+    // The items are cast to MGLBuffer below. A released buffer's mglo is an InvalidObject.
+    Py_ssize_t num_output_items = PyList_GET_SIZE(outputs);
+    for (Py_ssize_t i = 0; i < num_output_items; ++i) {
+        if (!PyObject_TypeCheck(PyList_GET_ITEM(outputs, i), MGLBuffer_type)) {
+            MGLError_Set("invalid output buffer at index %d (released or not a buffer)", (int)i);
+            return 0;
+        }
+    }
+
     if (vertices < 0) {
         if (self->num_vertices < 0) {
             MGLError_Set("cannot detect the number of vertices");

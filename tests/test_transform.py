@@ -7,6 +7,7 @@ work with mesa/lvvmpipe. They are left here for future reference.
 from array import array
 import struct
 import numpy as np
+import pytest
 import moderngl
 
 
@@ -766,3 +767,39 @@ def test_geometry_triangles(ctx):
 
 #     expected = (1.0, 3.0, 5.0, 5.0, 3.0, 7.0)
 #     assert struct.unpack('6f', buffer.read()) == expected
+
+
+def test_transform_released_output_buffer(ctx):
+    """Passing a released buffer as output is an error, not a read of garbage"""
+    program = ctx.program(
+        vertex_shader="""
+        #version 330
+
+        in vec2 in_pos;
+        out vec2 out_pos;
+
+        void main() {
+            out_pos = in_pos;
+        }
+        """,
+        varyings=["out_pos"],
+    )
+    buffer = ctx.buffer(array('f', (0.0, 1.0, 2.0, 3.0)))
+    vao = ctx.vertex_array(program, [(buffer, "2f", "in_pos")])
+    output = ctx.buffer(reserve=buffer.size)
+    output.release()
+
+    with pytest.raises(moderngl.Error):
+        vao.transform(output, mode=ctx.POINTS)
+
+    with pytest.raises(moderngl.Error):
+        vao.transform([output], mode=ctx.POINTS)
+
+    # Anything that isn't a buffer at all is rejected too
+    with pytest.raises(moderngl.Error):
+        vao.mglo.transform([object()], ctx.POINTS, -1, 0, -1, 0)
+
+    # A valid buffer still works afterwards
+    output = ctx.buffer(reserve=buffer.size)
+    vao.transform(output, mode=ctx.POINTS)
+    assert struct.unpack("4f", output.read()) == (0.0, 1.0, 2.0, 3.0)
