@@ -2102,9 +2102,16 @@ static int MGLFramebuffer_set_color_mask(MGLFramebuffer * self, PyObject * value
             return -1;
         }
         int count = (int)PyTuple_Size(value);
+        int capacity = (int)(sizeof(self->color_mask) / sizeof(self->color_mask[0]));
+        if (count > capacity) {
+            Py_DECREF(value);
+            MGLError_Set("too many color masks (%d), the maximum is %d", count, capacity);
+            return -1;
+        }
         for (int i = 0; i < count; ++i) {
             PyObject * mask = PyTuple_GetItem(value, i);
             if (!parse_mask(mask, &self->color_mask[i])) {
+                Py_DECREF(value);
                 MGLError_Set("invalid color mask");
                 return -1;
             }
