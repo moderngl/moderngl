@@ -11,6 +11,17 @@
 
 static PyObject * helper;
 static PyObject * moderngl_error;
+
+// The strings the front_face and cull_face getters return, created in PyInit_mgl and never freed.
+// They are not function-local statics: the first call would create them from several threads at once,
+// and a thread waiting for the initialization of a static cannot take part in a stop-the-world pause
+// of the free-threaded garbage collector, which the thread doing the initialization may be waiting for.
+static PyObject * str_cw;
+static PyObject * str_ccw;
+static PyObject * str_front;
+static PyObject * str_back;
+static PyObject * str_front_and_back;
+
 static PyTypeObject * MGLBuffer_type;
 static PyTypeObject * MGLContext_type;
 static PyTypeObject * MGLFramebuffer_type;
@@ -8762,14 +8773,9 @@ static int MGLContext_set_wireframe(MGLContext * self, PyObject * value, void * 
 }
 
 static PyObject * MGLContext_get_front_face(MGLContext * self, void * closure) {
-    if (self->front_face == GL_CW) {
-        static PyObject * res_cw = PyUnicode_FromString("cw");
-        Py_INCREF(res_cw);
-        return res_cw;
-    }
-    static PyObject * res_ccw = PyUnicode_FromString("ccw");
-    Py_INCREF(res_ccw);
-    return res_ccw;
+    PyObject * result = (self->front_face == GL_CW) ? str_cw : str_ccw;
+    Py_INCREF(result);
+    return result;
 }
 
 static int MGLContext_set_front_face(MGLContext * self, PyObject * value, void * closure) {
@@ -8789,19 +8795,15 @@ static int MGLContext_set_front_face(MGLContext * self, PyObject * value, void *
 }
 
 static PyObject * MGLContext_get_cull_face(MGLContext * self, void * closure) {
+    PyObject * result = str_front_and_back;
     if (self->cull_face == GL_FRONT) {
-        static PyObject * res_cw = PyUnicode_FromString("front");
-        Py_INCREF(res_cw);
-        return res_cw;
+        result = str_front;
     }
     else if (self->cull_face == GL_BACK) {
-        static PyObject * res_cw = PyUnicode_FromString("back");
-        Py_INCREF(res_cw);
-        return res_cw;
+        result = str_back;
     }
-    static PyObject * res_ccw = PyUnicode_FromString("front_and_back");
-    Py_INCREF(res_ccw);
-    return res_ccw;
+    Py_INCREF(result);
+    return result;
 }
 
 static int MGLContext_set_cull_face(MGLContext * self, PyObject * value, void * closure) {
@@ -9936,6 +9938,16 @@ extern "C" PyObject * PyInit_mgl() {
     }
 
     if (!create_types()) {
+        Py_DECREF(module);
+        return NULL;
+    }
+
+    str_cw = PyUnicode_FromString("cw");
+    str_ccw = PyUnicode_FromString("ccw");
+    str_front = PyUnicode_FromString("front");
+    str_back = PyUnicode_FromString("back");
+    str_front_and_back = PyUnicode_FromString("front_and_back");
+    if (!str_cw || !str_ccw || !str_front || !str_back || !str_front_and_back) {
         Py_DECREF(module);
         return NULL;
     }
