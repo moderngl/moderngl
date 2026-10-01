@@ -50,6 +50,10 @@ def ctx_new():
     ctx = _create_context()
     yield ctx
     ctx.release()
+    # Creating the context made it the current one. Make the global context current
+    # again, session and module scoped fixtures use it without entering it first.
+    if _ctx is not None:
+        _ctx.__enter__()
 
 
 def _get_context():
