@@ -1019,8 +1019,9 @@ static PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args) {
         size = self->size - offset;
     }
 
-    if (offset < 0 || write_offset < 0 || offset + size > self->size) {
-        MGLError_Set("out of range");
+    // size is negative here if size=-1 was given with an offset past the end
+    if (offset < 0 || size < 0 || write_offset < 0 || offset + size > self->size) {
+        MGLError_Set("out of range offset = %zd or size = %zd", offset, size);
         return 0;
     }
 
@@ -1038,10 +1039,22 @@ static PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args) {
         return 0;
     }
 
+    if (size == 0) {
+        // Nothing to copy, and glMapBufferRange does not accept an empty range
+        PyBuffer_Release(&buffer_view);
+        Py_RETURN_NONE;
+    }
+
     const GLMethods & gl = self->context->gl;
 
     gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
     void * map = gl.MapBufferRange(GL_ARRAY_BUFFER, offset, size, GL_MAP_READ_BIT);
+
+    if (!map) {
+        MGLError_Set("cannot map the buffer");
+        PyBuffer_Release(&buffer_view);
+        return 0;
+    }
 
     char * ptr = (char *)buffer_view.buf + write_offset;
     memcpy(ptr, map, size);
