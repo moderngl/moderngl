@@ -44,6 +44,11 @@ The module object itself is responsible for creating a :py:class:`Context` objec
 
     Returns the previously created context object.
 
+    The context is stored in a global variable of the process, shared by all threads.
+    If contexts are created on several threads, this is the last one created
+    on any thread: keep the context objects instead of using this function.
+    See :ref:`threading`.
+
     Example::
 
         # my_app.py
