@@ -9885,32 +9885,72 @@ static PyModuleDef MGL_moduledef = {
     0,
 };
 
+// Creates the types of the module, PyType_FromSpec returns NULL if it fails.
+static bool create_types() {
+    struct TypeInfo {
+        PyTypeObject ** type;
+        PyType_Spec * spec;
+    };
+
+    const TypeInfo types[] = {
+        {&MGLBuffer_type, &MGLBuffer_spec},
+        {&MGLContext_type, &MGLContext_spec},
+        {&MGLFramebuffer_type, &MGLFramebuffer_spec},
+        {&MGLProgram_type, &MGLProgram_spec},
+        {&MGLQuery_type, &MGLQuery_spec},
+        {&MGLRenderbuffer_type, &MGLRenderbuffer_spec},
+        {&MGLScope_type, &MGLScope_spec},
+        {&MGLTexture_type, &MGLTexture_spec},
+        {&MGLTextureArray_type, &MGLTextureArray_spec},
+        {&MGLTextureCube_type, &MGLTextureCube_spec},
+        {&MGLTexture3D_type, &MGLTexture3D_spec},
+        {&MGLVertexArray_type, &MGLVertexArray_spec},
+        {&MGLSampler_type, &MGLSampler_spec},
+    };
+
+    for (const TypeInfo & info : types) {
+        *info.type = (PyTypeObject *)PyType_FromSpec(info.spec);
+        if (!*info.type) {
+            return false;
+        }
+    }
+    return true;
+}
+
 extern "C" PyObject * PyInit_mgl() {
     PyObject * module = PyModule_Create(&MGL_moduledef);
+    if (!module) {
+        return NULL;
+    }
 
     helper = PyImport_ImportModule("_moderngl");
     if (!helper) {
+        Py_DECREF(module);
         return NULL;
     }
 
     moderngl_error = PyObject_GetAttrString(helper, "Error");
+    if (!moderngl_error) {
+        Py_DECREF(module);
+        return NULL;
+    }
 
-    MGLBuffer_type = (PyTypeObject *)PyType_FromSpec(&MGLBuffer_spec);
-    MGLContext_type = (PyTypeObject *)PyType_FromSpec(&MGLContext_spec);
-    MGLFramebuffer_type = (PyTypeObject *)PyType_FromSpec(&MGLFramebuffer_spec);
-    MGLProgram_type = (PyTypeObject *)PyType_FromSpec(&MGLProgram_spec);
-    MGLQuery_type = (PyTypeObject *)PyType_FromSpec(&MGLQuery_spec);
-    MGLRenderbuffer_type = (PyTypeObject *)PyType_FromSpec(&MGLRenderbuffer_spec);
-    MGLScope_type = (PyTypeObject *)PyType_FromSpec(&MGLScope_spec);
-    MGLTexture_type = (PyTypeObject *)PyType_FromSpec(&MGLTexture_spec);
-    MGLTextureArray_type = (PyTypeObject *)PyType_FromSpec(&MGLTextureArray_spec);
-    MGLTextureCube_type = (PyTypeObject *)PyType_FromSpec(&MGLTextureCube_spec);
-    MGLTexture3D_type = (PyTypeObject *)PyType_FromSpec(&MGLTexture3D_spec);
-    MGLVertexArray_type = (PyTypeObject *)PyType_FromSpec(&MGLVertexArray_spec);
-    MGLSampler_type = (PyTypeObject *)PyType_FromSpec(&MGLSampler_spec);
+    if (!create_types()) {
+        Py_DECREF(module);
+        return NULL;
+    }
 
     PyObject * InvalidObject = PyObject_GetAttrString(helper, "InvalidObject");
-    PyModule_AddObject(module, "InvalidObject", InvalidObject);
+    if (!InvalidObject) {
+        Py_DECREF(module);
+        return NULL;
+    }
+
+    if (PyModule_AddObject(module, "InvalidObject", InvalidObject) < 0) {
+        Py_DECREF(InvalidObject);
+        Py_DECREF(module);
+        return NULL;
+    }
     Py_INCREF(InvalidObject);
 
     return module;
