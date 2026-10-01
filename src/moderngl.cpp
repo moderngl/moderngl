@@ -2474,14 +2474,23 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         gl.TransformFeedbackVaryings(program_obj, varyings_count, varyings_array, capture_mode);
     }
 
-    {
-        PyObject * key = NULL;
-        PyObject * value = NULL;
-        Py_ssize_t pos = 0;
+    // fragment_outputs belongs to the caller, other threads may change it while this runs.
+    // The items are a snapshot that holds a reference to every key and value, PyDict_Next would
+    // return borrowed references to items that may be gone when they are used.
+    if (PyDict_Check(fragment_outputs)) {
+        PyObject * items = PyDict_Items(fragment_outputs);
+        if (!items) {
+            return NULL;
+        }
 
-        while (PyDict_Next(fragment_outputs, &pos, &key, &value)) {
+        Py_ssize_t num_items = PyList_GET_SIZE(items);
+        for (Py_ssize_t i = 0; i < num_items; ++i) {
+            PyObject * item = PyList_GET_ITEM(items, i);
+            PyObject * key = PyTuple_GET_ITEM(item, 0);
+            PyObject * value = PyTuple_GET_ITEM(item, 1);
             gl.BindFragDataLocation(program_obj, PyLong_AsLong(value), PyUnicode_AsUTF8(key));
         }
+        Py_DECREF(items);
     }
 
     gl.LinkProgram(program_obj);
@@ -7294,11 +7303,19 @@ static PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * arg
     gl.UseProgram(self->program->program_obj);
     gl.BindVertexArray(self->vertex_array_obj);
 
-    int num_outputs = (int)PyList_Size(outputs);
+    // The list may be shared with other threads that change it, the tuple is a snapshot
+    // that also keeps the buffers alive.
+    PyObject * outputs_snapshot = PyList_AsTuple(outputs);
+    if (!outputs_snapshot) {
+        return NULL;
+    }
+
+    int num_outputs = (int)PyTuple_GET_SIZE(outputs_snapshot);
     for (int i = 0; i < num_outputs; ++i) {
-        MGLBuffer * output = (MGLBuffer *)PyList_GET_ITEM(outputs, i);
+        MGLBuffer * output = (MGLBuffer *)PyTuple_GET_ITEM(outputs_snapshot, i);
         gl.BindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, i, output->buffer_obj, buffer_offset, output->size - buffer_offset);
     }
+    Py_DECREF(outputs_snapshot);
 
     gl.Enable(GL_RASTERIZER_DISCARD);
     gl.BeginTransformFeedback(output_mode);
