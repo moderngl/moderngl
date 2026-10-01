@@ -150,6 +150,18 @@ static void mgl_dealloc(PyObject * self) {
     Py_DECREF(tp);
 }
 
+// Context.release() destroys the OpenGL context and drops what the context holds on to
+// (the default and the bound framebuffer, those pointers are NULL afterwards).
+// Anything that needs them must call this first and return an error if it is true.
+// The mgl.Context itself stays allocated as long as objects created from it exist.
+static bool context_released(MGLContext * context) {
+    if (context->released) {
+        MGLError_Set("the context was released");
+        return true;
+    }
+    return false;
+}
+
 struct Rect {
     int x, y, width, height;
 };
@@ -1530,6 +1542,10 @@ static int attachment_parameters(PyObject * attachment, AttachmentParameters * p
 }
 
 static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
+    if (context_released(self)) {
+        return 0;
+    }
+
     PyObject * color_attachments_arg;
     PyObject * depth_attachment_arg;
 
@@ -1673,6 +1689,10 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
 }
 
 static PyObject * MGLContext_empty_framebuffer(MGLContext * self, PyObject * args) {
+    if (context_released(self)) {
+        return 0;
+    }
+
     int width;
     int height;
     int layers = 0;
@@ -1794,6 +1814,10 @@ static PyObject * MGLFramebuffer_release(MGLFramebuffer * self, PyObject * args)
 }
 
 static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
+    if (context_released(self->context)) {
+        return 0;
+    }
+
     float r, g, b, a, depth;
     PyObject * viewport_arg;
 
@@ -1863,6 +1887,10 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
 }
 
 static PyObject * MGLFramebuffer_use(MGLFramebuffer * self, PyObject * args) {
+    if (context_released(self->context)) {
+        return 0;
+    }
+
     const GLMethods & gl = self->context->gl;
 
     gl.BindFramebuffer(GL_FRAMEBUFFER, self->framebuffer_obj);
@@ -1904,6 +1932,10 @@ static PyObject * MGLFramebuffer_use(MGLFramebuffer * self, PyObject * args) {
 }
 
 static PyObject * MGLFramebuffer_read_into(MGLFramebuffer * self, PyObject * args) {
+    if (context_released(self->context)) {
+        return 0;
+    }
+
     PyObject * data;
     PyObject * viewport_arg;
     int components;
@@ -2030,6 +2062,10 @@ static PyObject * MGLFramebuffer_get_viewport(MGLFramebuffer * self, void * clos
 }
 
 static int MGLFramebuffer_set_viewport(MGLFramebuffer * self, PyObject * value, void * closure) {
+    if (context_released(self->context)) {
+        return -1;
+    }
+
     Rect viewport_rect = {};
     if (!parse_rect(value, &viewport_rect)) {
         MGLError_Set("wrong values in the viewport");
@@ -2056,6 +2092,10 @@ static PyObject * MGLFramebuffer_get_scissor(MGLFramebuffer * self, void * closu
 }
 
 static int MGLFramebuffer_set_scissor(MGLFramebuffer * self, PyObject * value, void * closure) {
+    if (context_released(self->context)) {
+        return -1;
+    }
+
     if (value == Py_None) {
         self->scissor = rect(0, 0, self->width, self->height);
         self->scissor_enabled = false;
@@ -2131,6 +2171,10 @@ static int parse_mask(PyObject * arg, char * value) {
 }
 
 static int MGLFramebuffer_set_color_mask(MGLFramebuffer * self, PyObject * value, void * closure) {
+    if (context_released(self->context)) {
+        return -1;
+    }
+
     if (self->draw_buffers_len == 1) {
         if (!parse_mask(value, &self->color_mask[0])) {
             MGLError_Set("invalid color mask");
@@ -2170,6 +2214,10 @@ static PyObject * MGLFramebuffer_get_depth_mask(MGLFramebuffer * self, void * cl
 }
 
 static int MGLFramebuffer_set_depth_mask(MGLFramebuffer * self, PyObject * value, void * closure) {
+    if (context_released(self->context)) {
+        return -1;
+    }
+
     if (value == Py_True) {
         self->depth_mask = true;
     } else if (value == Py_False) {
@@ -2188,6 +2236,10 @@ static int MGLFramebuffer_set_depth_mask(MGLFramebuffer * self, PyObject * value
 }
 
 static PyObject * MGLFramebuffer_get_bits(MGLFramebuffer * self, void * closure) {
+    if (context_released(self->context)) {
+        return 0;
+    }
+
     if (self->framebuffer_obj) {
         MGLError_Set("only the default_framebuffer have bits");
         return 0;
@@ -3441,6 +3493,10 @@ static int parse_sampler_binding(PyObject * arg, SamplerBinding * value) {
 }
 
 static PyObject * MGLContext_scope(MGLContext * self, PyObject * args) {
+    if (context_released(self)) {
+        return 0;
+    }
+
     MGLFramebuffer * framebuffer;
     PyObject * enable_flags;
     PyObject * textures_arg;
@@ -3567,6 +3623,10 @@ static PyObject * MGLContext_scope(MGLContext * self, PyObject * args) {
 }
 
 static PyObject * MGLScope_begin(MGLScope * self, PyObject * args) {
+    if (context_released(self->context)) {
+        return 0;
+    }
+
     const GLMethods & gl = self->context->gl;
     const int & flags = self->enable_flags;
 
@@ -3630,6 +3690,10 @@ static PyObject * MGLScope_begin(MGLScope * self, PyObject * args) {
 }
 
 static PyObject * MGLScope_end(MGLScope * self, PyObject * args) {
+    if (context_released(self->context)) {
+        return 0;
+    }
+
     const GLMethods & gl = self->context->gl;
     const int & flags = self->old_enable_flags;
 
@@ -7765,6 +7829,10 @@ static PyObject * MGLContext_copy_buffer(MGLContext * self, PyObject * args) {
 }
 
 static PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args) {
+    if (context_released(self)) {
+        return 0;
+    }
+
     PyObject * dst;
     MGLFramebuffer * src;
 
@@ -7885,6 +7953,10 @@ static PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args
 }
 
 static PyObject * MGLContext_detect_framebuffer(MGLContext * self, PyObject * args) {
+    if (context_released(self)) {
+        return 0;
+    }
+
     PyObject * glo;
 
     int args_ok = PyArg_ParseTuple(
@@ -8629,11 +8701,19 @@ static PyObject * MGLContext_get_max_debug_group_stack_depth(MGLContext * self, 
 }
 
 static MGLFramebuffer * MGLContext_get_fbo(MGLContext * self, void * closure) {
+    if (context_released(self)) {
+        return 0;
+    }
+
     Py_INCREF(self->bound_framebuffer);
     return self->bound_framebuffer;
 }
 
 static int MGLContext_set_fbo(MGLContext * self, PyObject * value, void * closure) {
+    if (context_released(self)) {
+        return -1;
+    }
+
     if (Py_TYPE(value) != MGLFramebuffer_type) {
         return -1;
     }
