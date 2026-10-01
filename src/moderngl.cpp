@@ -1493,6 +1493,13 @@ static int MGLBuffer_tp_as_buffer_get_view(MGLBuffer * self, Py_buffer * view, i
 }
 
 static void MGLBuffer_tp_as_buffer_release_view(MGLBuffer * self, Py_buffer * view) {
+    // A view can outlive the buffer and the context, the memory view of a buffer may be released
+    // after Buffer.release() or Context.release(). Deleting a buffer unmaps it, and there is no
+    // OpenGL context left to call anything on after the context was released.
+    if (self->released || self->context->released) {
+        return;
+    }
+
     const GLMethods & gl = self->context->gl;
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
 }
