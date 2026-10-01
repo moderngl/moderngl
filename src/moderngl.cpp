@@ -130,6 +130,14 @@ struct MGLContext {
 //   reference is taken when the object is created and dropped in tp_dealloc, never in release().
 //   Consequently `obj->context` is a valid pointer for the whole lifetime of `obj`, also after
 //   `obj.release()`. release() frees the OpenGL object only.
+// * The same goes for every other object an object points at: the framebuffers of a scope, the
+//   program and index buffer of a vertex array, the samplers of a scope. The reference is taken
+//   when the pointer is set (a setter takes the new one before it drops the old one) and the
+//   object gives it back in tp_dealloc, never in release(). Methods may be called on a released
+//   object, they must not find a pointer to something that was freed.
+//   The one exception is the default and the bound framebuffer of a context: they would form a
+//   cycle with the reference the framebuffers hold to the context, so Context.release() drops them
+//   and everything that reads them checks context_released() first.
 // * Most objects keep themselves alive (the reference they are created with is only dropped by
 //   release()). This is independent of the above.
 // * The types are heap types: PyType_GenericAlloc takes a reference to the type for each instance
@@ -3492,6 +3500,21 @@ static int parse_sampler_binding(PyObject * arg, SamplerBinding * value) {
     return 1;
 }
 
+// Gives up on a scope that is only partly set up: frees it with everything it took, and the argument tuples
+static PyObject * scope_failed(MGLScope * scope, PyObject * textures_arg, PyObject * uniform_buffers_arg, PyObject * storage_buffers_arg, PyObject * samplers_arg, const char * message) {
+    if (message) {
+        MGLError_Set("%s", message);
+    } else {
+        PyErr_NoMemory();
+    }
+    Py_DECREF(scope);
+    Py_DECREF(textures_arg);
+    Py_DECREF(uniform_buffers_arg);
+    Py_DECREF(storage_buffers_arg);
+    Py_DECREF(samplers_arg);
+    return NULL;
+}
+
 static PyObject * MGLContext_scope(MGLContext * self, PyObject * args) {
     if (context_released(self)) {
         return 0;
@@ -3580,36 +3603,37 @@ static PyObject * MGLContext_scope(MGLContext * self, PyObject * args) {
     scope->num_storage_buffers = (int)PyTuple_Size(storage_buffers_arg);
     scope->num_samplers = (int)PyTuple_Size(samplers_arg);
 
-    scope->textures = (TextureBinding *)PyMem_Malloc(scope->num_textures * sizeof(TextureBinding));
-    scope->uniform_buffers = (BufferBinding *)PyMem_Malloc(scope->num_uniform_buffers * sizeof(BufferBinding));
-    scope->storage_buffers = (BufferBinding *)PyMem_Malloc(scope->num_storage_buffers * sizeof(BufferBinding));
-    scope->samplers = (SamplerBinding *)PyMem_Malloc(scope->num_samplers * sizeof(SamplerBinding));
+    // Zeroed, so a scope that fails half way can be freed (the sampler objects are released in tp_dealloc)
+    scope->textures = (TextureBinding *)PyMem_Calloc(scope->num_textures, sizeof(TextureBinding));
+    scope->uniform_buffers = (BufferBinding *)PyMem_Calloc(scope->num_uniform_buffers, sizeof(BufferBinding));
+    scope->storage_buffers = (BufferBinding *)PyMem_Calloc(scope->num_storage_buffers, sizeof(BufferBinding));
+    scope->samplers = (SamplerBinding *)PyMem_Calloc(scope->num_samplers, sizeof(SamplerBinding));
+
+    if (!scope->textures || !scope->uniform_buffers || !scope->storage_buffers || !scope->samplers) {
+        return scope_failed(scope, textures_arg, uniform_buffers_arg, storage_buffers_arg, samplers_arg, NULL);
+    }
 
     for (int i = 0; i < scope->num_textures; ++i) {
         if (!parse_texture_binding(PyTuple_GetItem(textures_arg, i), &scope->textures[i])) {
-            MGLError_Set("invalid textures");
-            return NULL;
+            return scope_failed(scope, textures_arg, uniform_buffers_arg, storage_buffers_arg, samplers_arg, "invalid textures");
         }
     }
 
     for (int i = 0; i < scope->num_uniform_buffers; ++i) {
         if (!parse_buffer_binding(PyTuple_GetItem(uniform_buffers_arg, i), &scope->uniform_buffers[i])) {
-            MGLError_Set("invalid uniform buffers");
-            return NULL;
+            return scope_failed(scope, textures_arg, uniform_buffers_arg, storage_buffers_arg, samplers_arg, "invalid uniform buffers");
         }
     }
 
     for (int i = 0; i < scope->num_storage_buffers; ++i) {
         if (!parse_buffer_binding(PyTuple_GetItem(storage_buffers_arg, i), &scope->storage_buffers[i])) {
-            MGLError_Set("invalid storage buffers");
-            return NULL;
+            return scope_failed(scope, textures_arg, uniform_buffers_arg, storage_buffers_arg, samplers_arg, "invalid storage buffers");
         }
     }
 
     for (int i = 0; i < scope->num_samplers; ++i) {
         if (!parse_sampler_binding(PyTuple_GetItem(samplers_arg, i), &scope->samplers[i])) {
-            MGLError_Set("invalid samplers");
-            return NULL;
+            return scope_failed(scope, textures_arg, uniform_buffers_arg, storage_buffers_arg, samplers_arg, "invalid samplers");
         }
     }
 
@@ -3739,9 +3763,6 @@ static PyObject * MGLScope_release(MGLScope * self, PyObject * args) {
         Py_RETURN_NONE;
     }
     self->released = true;
-
-    Py_DECREF(self->framebuffer);
-    Py_DECREF(self->old_framebuffer);
 
     Py_DECREF(self);
     Py_RETURN_NONE;
@@ -7372,8 +7393,6 @@ static PyObject * MGLVertexArray_release(MGLVertexArray * self, PyObject * args)
     const GLMethods & gl = self->context->gl;
     gl.DeleteVertexArrays(1, (GLuint *)&self->vertex_array_obj);
 
-    Py_DECREF(self->program);
-    Py_XDECREF(self->index_buffer);
     Py_DECREF(self);
     Py_RETURN_NONE;
 }
@@ -9336,6 +9355,37 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
     return Py_BuildValue("(Oi)", ctx, ctx->version_code);
 }
 
+static void MGLVertexArray_dealloc(PyObject * _self) {
+    MGLVertexArray * self = (MGLVertexArray *)_self;
+
+    // NULL if the vertex array was never fully created
+    Py_XDECREF(self->program);
+    Py_XDECREF(self->index_buffer);
+
+    mgl_dealloc<MGLVertexArray>(_self);
+}
+
+static void MGLScope_dealloc(PyObject * _self) {
+    MGLScope * self = (MGLScope *)_self;
+
+    // NULL if the scope was never fully created
+    Py_XDECREF(self->framebuffer);
+    Py_XDECREF(self->old_framebuffer);
+
+    if (self->samplers) {
+        for (int i = 0; i < self->num_samplers; ++i) {
+            Py_XDECREF(self->samplers[i].sampler);
+        }
+    }
+
+    PyMem_Free(self->textures);
+    PyMem_Free(self->uniform_buffers);
+    PyMem_Free(self->storage_buffers);
+    PyMem_Free(self->samplers);
+
+    mgl_dealloc<MGLScope>(_self);
+}
+
 static void MGLContext_dealloc(PyObject * _self) {
     MGLContext * self = (MGLContext *)_self;
     PyTypeObject * tp = Py_TYPE(self);
@@ -9700,7 +9750,7 @@ static PyType_Slot MGLRenderbuffer_slots[] = {
 
 static PyType_Slot MGLScope_slots[] = {
     {Py_tp_methods, MGLScope_methods},
-    {Py_tp_dealloc, (void *)mgl_dealloc<MGLScope>},
+    {Py_tp_dealloc, (void *)MGLScope_dealloc},
     {},
 };
 
@@ -9735,7 +9785,7 @@ static PyType_Slot MGLTexture3D_slots[] = {
 static PyType_Slot MGLVertexArray_slots[] = {
     {Py_tp_methods, MGLVertexArray_methods},
     {Py_tp_getset, MGLVertexArray_getset},
-    {Py_tp_dealloc, (void *)mgl_dealloc<MGLVertexArray>},
+    {Py_tp_dealloc, (void *)MGLVertexArray_dealloc},
     {},
 };
 
