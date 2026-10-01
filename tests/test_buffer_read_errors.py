@@ -77,3 +77,34 @@ def test_read_into_out_of_range(ctx):
     buf.read_into(data, size=0, offset=3)
     buf.read_into(data, offset=1)
     assert bytes(data[:2]) == b'bc'
+
+
+def test_read_chunks_into_errors(ctx):
+    """read_chunks_into must validate the buffer range and the destination size"""
+    buf = ctx.buffer(b'123456789')
+    data = bytearray(b'.' * 6)
+
+    # Source range outside of the buffer
+    with pytest.raises(moderngl.Error):
+        buf.read_chunks_into(data, 2, 0, 3, 4)
+
+    with pytest.raises(moderngl.Error):
+        buf.read_chunks_into(data, 2, -20, 3, 3)
+
+    with pytest.raises(moderngl.Error):
+        buf.read_chunks_into(data, 4, 0, 3, 3)
+
+    with pytest.raises(moderngl.Error):
+        buf.read_chunks_into(data, 2, 0, 3, -1)
+
+    # Destination too small
+    with pytest.raises(moderngl.Error):
+        buf.read_chunks_into(data, 2, 0, 3, 3, write_offset=1)
+
+    with pytest.raises(moderngl.Error):
+        buf.read_chunks_into(data, 2, 0, 3, 3, write_offset=-1)
+
+    with pytest.raises(moderngl.Error):
+        buf.read_chunks_into(bytearray(5), 2, 0, 3, 3)
+
+    assert data == bytearray(b'.' * 6)

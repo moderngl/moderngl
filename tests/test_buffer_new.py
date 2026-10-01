@@ -58,3 +58,12 @@ def test_8(ctx):
     buf2 = ctx.buffer(b'abc', dynamic=False)
     assert buf1.dynamic is True
     assert buf2.dynamic is False
+
+
+def test_read_chunks_into(ctx):
+    buf = ctx.buffer(b'123456789')
+    data = bytearray(b'.' * 8)
+    buf.read_chunks_into(data, 2, 0, 3, 3)
+    assert bytes(data) == b'124578..'
+    buf.read_chunks_into(data, 1, -1, -3, 3, write_offset=5)
+    assert bytes(data) == b'12457' + b'963'

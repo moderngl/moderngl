@@ -1220,11 +1220,28 @@ static PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) 
         return 0;
     }
 
+    Py_ssize_t abs_step = step > 0 ? step : -step;
+
+    if (start < 0) {
+        start = self->size + start;
+    }
+
+    if (start < 0 || chunk_size < 0 || count < 0 || chunk_size > abs_step || start + chunk_size > self->size || start + count * step - step < 0 || start + count * step - step + chunk_size > self->size) {
+        MGLError_Set("size error");
+        return 0;
+    }
+
     Py_buffer buffer_view;
 
     int get_buffer = PyObject_GetBuffer(data, &buffer_view, PyBUF_WRITABLE);
     if (get_buffer < 0) {
         // Propagate the default error
+        return 0;
+    }
+
+    if (write_offset < 0 || buffer_view.len < write_offset + chunk_size * count) {
+        MGLError_Set("the buffer is too small");
+        PyBuffer_Release(&buffer_view);
         return 0;
     }
 
@@ -1237,6 +1254,7 @@ static PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) 
 
     if (!read_ptr) {
         MGLError_Set("cannot map the buffer");
+        PyBuffer_Release(&buffer_view);
         return 0;
     }
 
