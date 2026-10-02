@@ -3569,17 +3569,18 @@ static int parse_sampler_binding(PyObject * arg, SamplerBinding * value) {
 }
 
 // Gives up on a scope that is only partly set up: frees it with everything it took, and the argument tuples
+// (the ones that were not created yet, and the scope itself if it was not allocated yet, are NULL)
 static PyObject * scope_failed(MGLScope * scope, PyObject * textures_arg, PyObject * uniform_buffers_arg, PyObject * storage_buffers_arg, PyObject * samplers_arg, const char * message) {
     if (message) {
         MGLError_Set("%s", message);
     } else {
         PyErr_NoMemory();
     }
-    Py_DECREF(scope);
-    Py_DECREF(textures_arg);
-    Py_DECREF(uniform_buffers_arg);
-    Py_DECREF(storage_buffers_arg);
-    Py_DECREF(samplers_arg);
+    Py_XDECREF(scope);
+    Py_XDECREF(textures_arg);
+    Py_XDECREF(uniform_buffers_arg);
+    Py_XDECREF(storage_buffers_arg);
+    Py_XDECREF(samplers_arg);
     return NULL;
 }
 
@@ -3614,42 +3615,41 @@ static PyObject * MGLContext_scope(MGLContext * self, PyObject * args) {
     textures_arg = PySequence_Tuple(textures_arg);
     if (!textures_arg) {
         PyErr_Clear();
-        MGLError_Set("invalid textures");
-        return NULL;
+        return scope_failed(NULL, NULL, NULL, NULL, NULL, "invalid textures");
     }
 
     uniform_buffers_arg = PySequence_Tuple(uniform_buffers_arg);
     if (!uniform_buffers_arg) {
         PyErr_Clear();
-        MGLError_Set("invalid uniform buffers");
-        return NULL;
+        return scope_failed(NULL, textures_arg, NULL, NULL, NULL, "invalid uniform buffers");
     }
 
     storage_buffers_arg = PySequence_Tuple(storage_buffers_arg);
     if (!storage_buffers_arg) {
         PyErr_Clear();
-        MGLError_Set("invalid storage buffers");
-        return NULL;
+        return scope_failed(NULL, textures_arg, uniform_buffers_arg, NULL, NULL, "invalid storage buffers");
     }
 
     samplers_arg = PySequence_Tuple(samplers_arg);
     if (!samplers_arg) {
         PyErr_Clear();
-        MGLError_Set("invalid samplers");
-        return NULL;
+        return scope_failed(NULL, textures_arg, uniform_buffers_arg, storage_buffers_arg, NULL, "invalid samplers");
     }
 
     int flags = MGL_INVALID;
     if (enable_flags != Py_None) {
         flags = PyLong_AsLong(enable_flags);
         if (PyErr_Occurred()) {
-            MGLError_Set("invalid enable_flags");
-            return 0;
+            return scope_failed(NULL, textures_arg, uniform_buffers_arg, storage_buffers_arg, samplers_arg, "invalid enable_flags");
         }
     }
 
     MGLScope * scope = mgl_new<MGLScope>(MGLScope_type);
     if (!scope) {
+        Py_DECREF(textures_arg);
+        Py_DECREF(uniform_buffers_arg);
+        Py_DECREF(storage_buffers_arg);
+        Py_DECREF(samplers_arg);
         return 0;
     }
 

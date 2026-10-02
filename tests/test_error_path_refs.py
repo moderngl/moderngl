@@ -40,12 +40,13 @@ def fails(call, box, exc=moderngl.Error, loops=LOOPS):
     return [a - b for a, b in zip(after, before)]
 
 
-# Cases are functions of the context that return (call, box)
-PARSE_CASES = {}
+# Cases are functions of the context that return (call, box): the call that fails
+# and the objects whose reference counts are watched
+CASES = {}
 
 
 def case(fn):
-    PARSE_CASES[fn.__name__.replace("case_", "")] = fn
+    CASES[fn.__name__.replace("case_", "")] = fn
     return fn
 
 
@@ -346,7 +347,48 @@ def case_scope_sampler_location(ctx):
     return _scope_call(ctx, samplers=samplers), [entry, samplers, sampler]
 
 
-@pytest.mark.parametrize("name", sorted(PARSE_CASES))
-def test_parse_errors(ctx_new, name):
-    call, box = PARSE_CASES[name](ctx_new)
+def _valid_scope_args(ctx):
+    """Valid arguments for the four binding tuples of scope(), each one an exact tuple"""
+    tex = ctx.texture((4, 4), 4)
+    buf = ctx.buffer(reserve=16)
+    buf2 = ctx.buffer(reserve=16)
+    sampler = ctx.sampler()
+    keep = [tex, buf, buf2, sampler]
+    return keep, ((tex.mglo, 0),), ((buf.mglo, 0),), ((buf2.mglo, 1),), ((sampler, 0),)
+
+
+@case
+def case_scope_uniform_buffers_not_a_sequence(ctx):
+    fbo, _ = _fbo(ctx)
+    keep, textures, _, _, _ = _valid_scope_args(ctx)
+    return lambda: ctx.mglo.scope(fbo.mglo, None, textures, 5, (), ()), [textures]
+
+
+@case
+def case_scope_storage_buffers_not_a_sequence(ctx):
+    fbo, _ = _fbo(ctx)
+    keep, textures, uniform_buffers, _, _ = _valid_scope_args(ctx)
+    call = lambda: ctx.mglo.scope(fbo.mglo, None, textures, uniform_buffers, 5, ())
+    return call, [textures, uniform_buffers]
+
+
+@case
+def case_scope_samplers_not_a_sequence(ctx):
+    fbo, _ = _fbo(ctx)
+    keep, textures, uniform_buffers, storage_buffers, _ = _valid_scope_args(ctx)
+    call = lambda: ctx.mglo.scope(fbo.mglo, None, textures, uniform_buffers, storage_buffers, 5)
+    return call, [textures, uniform_buffers, storage_buffers]
+
+
+@case
+def case_scope_enable_flags(ctx):
+    fbo, _ = _fbo(ctx)
+    keep, textures, uniform_buffers, storage_buffers, samplers = _valid_scope_args(ctx)
+    call = lambda: ctx.mglo.scope(fbo.mglo, "x", textures, uniform_buffers, storage_buffers, samplers)
+    return call, [textures, uniform_buffers, storage_buffers, samplers]
+
+
+@pytest.mark.parametrize("name", sorted(CASES))
+def test_failing_calls(ctx_new, name):
+    call, box = CASES[name](ctx_new)
     assert fails(call, box) == [0] * len(box)
