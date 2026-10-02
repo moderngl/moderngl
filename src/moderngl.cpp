@@ -3,6 +3,8 @@
 
 #include "gl_methods.hpp"
 
+#include <vector>
+
 #define MGLError_Set(...) PyErr_Format(moderngl_error, __VA_ARGS__)
 
 // A getset setter is called with value == NULL for `del obj.attr`.
@@ -2487,7 +2489,8 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
     }
 
     if (varyings_count) {
-        const char * varyings_array[64];
+        // The number of varyings is only limited by the implementation (the link fails when it is exceeded)
+        std::vector<const char *> varyings_array(varyings_count);
         for (int i = 0; i < varyings_count; ++i) {
             PyObject * item = PyTuple_GetItem(varyings_arg, i);
             if (!PyUnicode_Check(item)) {
@@ -2495,10 +2498,13 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
                 return NULL;
             }
             varyings_array[i] = PyUnicode_AsUTF8(item);
+            if (!varyings_array[i]) {
+                return NULL;
+            }
         }
 
         int capture_mode = interleaved ? GL_INTERLEAVED_ATTRIBS : GL_SEPARATE_ATTRIBS;
-        gl.TransformFeedbackVaryings(program_obj, varyings_count, varyings_array, capture_mode);
+        gl.TransformFeedbackVaryings(program_obj, varyings_count, varyings_array.data(), capture_mode);
     }
 
     {

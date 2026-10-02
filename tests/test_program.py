@@ -131,3 +131,28 @@ def test_fragment_outputs_invalid(ctx, fragment_outputs, message):
             fragment_shader=FRAGMENT_OUTPUT_FRAGMENT_SHADER,
             fragment_outputs=fragment_outputs,
         )
+
+
+def test_many_varyings(ctx):
+    """More varyings than any fixed size buffer in the C++ code can hold"""
+    names = [f"v{i}" for i in range(200)]
+    source = (
+        "#version 330\n"
+        "in float x;\n"
+        + "".join(f"out float {name};\n" for name in names)
+        + "void main() {\n"
+        + "".join(f"{name} = x + {i}.0;\n" for i, name in enumerate(names))
+        + "}\n"
+    )
+
+    # The implementation limits are far lower, so the link is expected to fail,
+    # but with an error rather than a crash
+    try:
+        program = ctx.program(
+            vertex_shader=source,
+            varyings=names,
+        )
+    except moderngl.Error:
+        return
+
+    assert set(names) <= set(program)
