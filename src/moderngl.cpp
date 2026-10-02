@@ -1009,7 +1009,7 @@ static PyObject * MGLBuffer_write(MGLBuffer * self, PyObject * args) {
     }
 
     if (offset < 0 || buffer_view.len + offset > self->size) {
-        MGLError_Set("out of range offset = %d or size = %d", offset, buffer_view.len);
+        MGLError_Set("out of range offset = %zd or size = %zd", offset, buffer_view.len);
         PyBuffer_Release(&buffer_view);
         return 0;
     }
@@ -1041,7 +1041,7 @@ static PyObject * MGLBuffer_read(MGLBuffer * self, PyObject * args) {
     }
 
     if (offset < 0 || offset + size > self->size) {
-        MGLError_Set("out of range offset = %d or size = %d", offset, size);
+        MGLError_Set("out of range offset = %zd or size = %zd", offset, size);
         return 0;
     }
 
@@ -1153,7 +1153,7 @@ static PyObject * MGLBuffer_write_chunks(MGLBuffer * self, PyObject * args) {
     Py_ssize_t chunk_size = buffer_view.len / count;
 
     if (buffer_view.len != chunk_size * count) {
-        MGLError_Set("data (%d bytes) cannot be divided to %d equal chunks", buffer_view.len, count);
+        MGLError_Set("data (%zd bytes) cannot be divided to %zd equal chunks", buffer_view.len, count);
         PyBuffer_Release(&buffer_view);
         return 0;
     }
@@ -3941,7 +3941,7 @@ static PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
     }
 
     if (buffer_view.len != expected_size) {
-        MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+        MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
         }
@@ -4116,7 +4116,7 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
     }
 
     if (buffer_view.len != expected_size) {
-        MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+        MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
         }
@@ -4499,7 +4499,7 @@ static PyObject * MGLTexture_write(MGLTexture * self, PyObject * args) {
         }
 
         if (buffer_view.len != expected_size) {
-            MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+            MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
             if (data != Py_None) {
                 PyBuffer_Release(&buffer_view);
             }
@@ -4937,7 +4937,7 @@ static PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
     }
 
     if (buffer_view.len != expected_size) {
-        MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+        MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
         }
@@ -5181,7 +5181,7 @@ static PyObject * MGLTexture3D_write(MGLTexture3D * self, PyObject * args) {
         }
 
         if (buffer_view.len != expected_size) {
-            MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+            MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
             if (data != Py_None) {
                 PyBuffer_Release(&buffer_view);
             }
@@ -5570,7 +5570,7 @@ static PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
     }
 
     if (buffer_view.len != expected_size) {
-        MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+        MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
         }
@@ -5837,7 +5837,7 @@ static PyObject * MGLTextureArray_write(MGLTextureArray * self, PyObject * args)
         }
 
         if (buffer_view.len != expected_size) {
-            MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+            MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
             if (data != Py_None) {
                 PyBuffer_Release(&buffer_view);
             }
@@ -6219,7 +6219,7 @@ static PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
     }
 
     if (buffer_view.len != expected_size) {
-        MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+        MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
         }
@@ -6346,7 +6346,7 @@ static PyObject * MGLContext_depth_texture_cube(MGLContext * self, PyObject * ar
     }
 
     if (buffer_view.len != expected_size) {
-        MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+        MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
         if (data != Py_None) {
             PyBuffer_Release(&buffer_view);
         }
@@ -6631,7 +6631,7 @@ static PyObject * MGLTextureCube_write(MGLTextureCube * self, PyObject * args) {
         }
 
         if (buffer_view.len != expected_size) {
-            MGLError_Set("data size mismatch %d != %d", buffer_view.len, expected_size);
+            MGLError_Set("data size mismatch %zd != %llu", buffer_view.len, expected_size);
             PyBuffer_Release(&buffer_view);
             return 0;
         }
@@ -7533,7 +7533,7 @@ static PyObject * MGLContext_set_label(MGLContext * self, PyObject * args) {
         // OpenGL core 4.3
 
         if (label_length > self->max_label_length) {
-            MGLError_Set("Context's max label length is %d, got one of length %d", self->max_label_length, label_length);
+            MGLError_Set("Context's max label length is %d, got one of length %zd", self->max_label_length, label_length);
             return NULL;
         }
 
@@ -7650,7 +7650,7 @@ static PyObject * MGLContext_push_debug_scope(MGLContext * self, PyObject * args
         // OpenGL core 4.3
 
         if (message_length >= self->max_debug_message_length) {
-            MGLError_Set("Context's max debug message length is %d, got one of length %d", self->max_debug_message_length, message_length);
+            MGLError_Set("Context's max debug message length is %d, got one of length %zd", self->max_debug_message_length, message_length);
             return NULL;
         }
 
