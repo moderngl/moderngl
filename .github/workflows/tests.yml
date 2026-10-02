@@ -21,3 +21,49 @@ jobs:
 
       - name: test
         run: docker run --rm -t tests
+
+  tests-free-threaded:
+    name: tests (free-threaded ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.13t', '3.14t']
+
+    env:
+      LIBGL_ALWAYS_SOFTWARE: 1
+      # Neither moderngl.mgl nor glcontext declare free-threading support on main yet, so importing
+      # them would re-enable the GIL. Keep it disabled to run the tests without it.
+      PYTHON_GIL: 0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # the headers to build glcontext (there is no free-threaded wheel of it yet) and moderngl, the
+      # Mesa drivers for software rendering
+      - name: system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libx11-dev libgl1-mesa-dri libegl-mesa0
+
+      # numpy and scipy must come as wheels, the latest release can lack one for 3.13t (pip then
+      # takes an older release that has it) and building them from source would take too long
+      - name: deps
+        run: python -m pip install --only-binary numpy,scipy setuptools glcontext numpy pyopengl pytest scipy
+
+      - name: interpreter
+        run: |
+          python -VV
+          python -c "import sys, sysconfig; assert sysconfig.get_config_var('Py_GIL_DISABLED'), 'not a free-threaded build'; assert not sys._is_gil_enabled(), 'the GIL is enabled'"
+
+      - name: build
+        run: python setup.py build_ext --inplace
+
+      - name: test
+        run: python -X dev -m pytest -s -vvv tests
