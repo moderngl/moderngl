@@ -9320,6 +9320,21 @@ static PyObject * writable_bytes(PyObject * self, PyObject * arg) {
     return Py_BuildValue("(NN)", bytes, mem);
 }
 
+// Gives up on a context that is only partly set up. The reference to the OpenGL context (ctx->ctx)
+// and the rest is given back by tp_dealloc, but the context holds its default and its bound
+// framebuffer which hold the context: break that cycle like Context.release() does.
+static PyObject * create_context_failed(MGLContext * ctx) {
+    if (ctx->default_framebuffer && !ctx->default_framebuffer->released) {
+        ctx->default_framebuffer->released = true;
+        Py_DECREF(ctx->default_framebuffer);
+    }
+
+    Py_CLEAR(ctx->bound_framebuffer);
+    Py_CLEAR(ctx->default_framebuffer);
+    Py_DECREF(ctx);
+    return NULL;
+}
+
 static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kwargs) {
     PyObject * context = PyDict_GetItemString(kwargs, "context");
 
@@ -9336,13 +9351,17 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
         // Use the specified backend
         if (backend_name) {
             backend = PyObject_CallMethod(glcontext, "get_backend_by_name", "O", backend_name);
+            Py_DECREF(glcontext);
             if (backend == Py_None || backend == NULL) {
+                Py_XDECREF(backend);
                 return NULL;
             }
         // Use default backend
         } else {
             backend = PyObject_CallMethod(glcontext, "default_backend", NULL);
+            Py_DECREF(glcontext);
             if (backend == Py_None || backend == NULL) {
+                Py_XDECREF(backend);
                 MGLError_Set("glcontext: Could not get a default backend");
                 return NULL;
             }
@@ -9350,11 +9369,13 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
 
         // Ensure we have a callable
         if (!PyCallable_Check(backend)) {
+            Py_DECREF(backend);
             MGLError_Set("The returned glcontext is not a callable");
             return NULL;
         }
         // Create context by simply forwarding all arguments
         context = PyObject_Call(backend, args, kwargs);
+        Py_DECREF(backend);
         if (!context) {
             return NULL;
         }
@@ -9364,6 +9385,7 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
 
     MGLContext * ctx = mgl_new<MGLContext>(MGLContext_type);
     if (!ctx) {
+        Py_DECREF(context);
         return 0;
     }
 
@@ -9373,7 +9395,7 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
 
     ctx->gl = load_gl_methods(context);
     if (PyErr_Occurred()) {
-        return NULL;
+        return create_context_failed(ctx);
     }
 
     const GLMethods & gl = ctx->gl;
@@ -9395,6 +9417,7 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
         const char * ext = (const char *)gl.GetStringi(GL_EXTENSIONS, i);
         PyObject * ext_name = PyUnicode_FromString(ext);
         PySet_Add(ctx->extensions, ext_name);
+        Py_XDECREF(ext_name);
     }
 
     gl.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -9437,7 +9460,10 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
     gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &bound_framebuffer);
 
     #ifdef __APPLE__
-    if (PyObject_HasAttrString(ctx->ctx, "standalone") && PyObject_IsTrue(PyObject_GetAttrString(ctx->ctx, "standalone"))) {
+    PyObject * standalone_attr = PyObject_HasAttrString(ctx->ctx, "standalone") ? PyObject_GetAttrString(ctx->ctx, "standalone") : NULL;
+    int standalone = standalone_attr ? PyObject_IsTrue(standalone_attr) : 0;
+    Py_XDECREF(standalone_attr);
+    if (standalone) {
         int renderbuffer = 0;
         gl.GenRenderbuffers(1, (GLuint *)&renderbuffer);
         gl.BindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
@@ -9453,7 +9479,7 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
     {
         MGLFramebuffer * framebuffer = mgl_new<MGLFramebuffer>(MGLFramebuffer_type);
         if (!framebuffer) {
-            return 0;
+            return create_context_failed(ctx);
         }
 
         framebuffer->released = false;
@@ -9525,7 +9551,7 @@ static PyObject * create_context(PyObject * self, PyObject * args, PyObject * kw
     gl.GetError(); // clear errors
 
     if (PyErr_Occurred()) {
-        return 0;
+        return create_context_failed(ctx);
     }
 
     return Py_BuildValue("(Oi)", ctx, ctx->version_code);

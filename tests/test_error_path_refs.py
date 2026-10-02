@@ -9,10 +9,13 @@ count of the tuple passed in. The objects handed to the call as the data are
 kept in a list, the counts are read through that list so they do not depend on
 how the interpreter counts local variables.
 """
+import gc
 import sys
 
+import glcontext
 import pytest
 import OpenGL
+from glcontext import egl
 
 OpenGL.ERROR_CHECKING = False  # Don't want PyOpenGL to raise any exceptions
 from OpenGL import GL
@@ -773,3 +776,47 @@ def test_create_context_gives_back_the_function_addresses(ctx_new):
         create()
 
     assert counts(box) == before
+
+
+def test_create_context_with_a_broken_loader(ctx_new):
+    """The half built context and the loader it holds are freed"""
+
+    class BrokenLoader:
+        pass
+
+    loader = BrokenLoader()
+    assert fails(lambda: mgl.create_context(context=loader), [loader], AttributeError) == [0]
+
+
+def test_create_context_with_unknown_backend(ctx_new):
+    assert fails(lambda: mgl.create_context(backend="no such backend"), [glcontext], ValueError) == [0]
+
+
+def test_create_context_gives_back_the_module(ctx_new):
+    before = counts([glcontext])
+
+    for _ in range(5):
+        ctx, _ = mgl.create_context(glversion=330, mode="standalone", backend="egl")
+        ctx.release()
+        del ctx
+
+    assert counts([glcontext]) == before
+
+
+def test_create_context_gives_back_the_extensions(ctx_new):
+    """The names of the extensions (a few hundred strings) were never freed"""
+
+    def create():
+        ctx, _ = mgl.create_context(context=egl.create_context(glversion=330, mode="standalone"))
+        assert ctx.extensions
+        ctx.release()
+
+    create()
+    gc.collect()
+    blocks = sys.getallocatedblocks()
+
+    for _ in range(10):
+        create()
+    gc.collect()
+
+    assert sys.getallocatedblocks() - blocks < 200
