@@ -1436,13 +1436,17 @@ static PyObject * MGLBuffer_bind_to_storage_buffer(MGLBuffer * self, PyObject * 
 }
 
 static PyObject * MGLBuffer_release(MGLBuffer * self, PyObject * args) {
-    if (self->released || self->external) {
+    if (self->released) {
         Py_RETURN_NONE;
     }
     self->released = true;
 
-    const GLMethods & gl = self->context->gl;
-    gl.DeleteBuffers(1, (GLuint *)&self->buffer_obj);
+    // An external buffer wraps an OpenGL object that belongs to someone else, never delete it.
+    // It still gives up the reference it keeps to itself, otherwise it could never be freed.
+    if (!self->external) {
+        const GLMethods & gl = self->context->gl;
+        gl.DeleteBuffers(1, (GLuint *)&self->buffer_obj);
+    }
 
     Py_DECREF(self);
     Py_RETURN_NONE;
@@ -4593,13 +4597,17 @@ static PyObject * MGLTexture_get_handle(MGLTexture * self, PyObject * args) {
 }
 
 static PyObject * MGLTexture_release(MGLTexture * self, PyObject * args) {
-    if (self->released || self->external) {
+    if (self->released) {
         Py_RETURN_NONE;
     }
     self->released = true;
 
-    const GLMethods & gl = self->context->gl;
-    gl.DeleteTextures(1, (GLuint *)&self->texture_obj);
+    // An external texture wraps an OpenGL object that belongs to someone else, never delete it.
+    // It still gives up the reference it keeps to itself, otherwise it could never be freed.
+    if (!self->external) {
+        const GLMethods & gl = self->context->gl;
+        gl.DeleteTextures(1, (GLuint *)&self->texture_obj);
+    }
 
     Py_DECREF(self);
     Py_RETURN_NONE;
