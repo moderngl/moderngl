@@ -7,6 +7,16 @@ Query
 
     This class represents a Query object.
 
+Methods
+-------
+
+.. py:method:: Query.release() -> None
+
+    Release the ModernGL object.
+
+    The OpenGL query objects are deleted. Like for the other objects this is only
+    done automatically when :py:attr:`Context.gc_mode` is set, see there.
+
 Attributes
 ----------
 

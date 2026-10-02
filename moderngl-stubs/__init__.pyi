@@ -2911,6 +2911,8 @@ class Query:
 
     def __enter__(self): ...
     def __exit__(self, *args: Tuple[Any]): ...
+    def release(self) -> None:
+        """Release the ModernGL object."""
 
 class Renderbuffer:
     """

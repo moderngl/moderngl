@@ -3007,6 +3007,34 @@ static PyObject * MGLQuery_end_render(MGLQuery * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
+// Unlike the other objects a query keeps no reference to itself, the reference it is created
+// with belongs to the Python object. It is freed when that goes away, whether it was released or not.
+static PyObject * MGLQuery_release(MGLQuery * self, PyObject * args) {
+    if (self->released) {
+        Py_RETURN_NONE;
+    }
+    self->released = true;
+
+    // The OpenGL objects went away with the context if it was released
+    if (!self->context->released) {
+        const GLMethods & gl = self->context->gl;
+        for (int i = 0; i < 4; ++i) {
+            if (self->query_obj[i]) {
+                gl.DeleteQueries(1, (GLuint *)&self->query_obj[i]);
+            }
+        }
+    }
+
+    // Nothing to begin, end or read anymore
+    for (int i = 0; i < 4; ++i) {
+        self->query_obj[i] = 0;
+    }
+    self->state = QUERY_INACTIVE;
+    self->ended = false;
+
+    Py_RETURN_NONE;
+}
+
 static PyObject * MGLQuery_get_samples(MGLQuery * self, void * closure) {
     if (!self->query_obj[SAMPLES_PASSED]) {
         MGLError_Set("query created without the samples_passed flag");
@@ -9570,7 +9598,7 @@ static PyMethodDef MGLQuery_methods[] = {
     {(char *)"end", (PyCFunction)MGLQuery_end, METH_NOARGS},
     {(char *)"begin_render", (PyCFunction)MGLQuery_begin_render, METH_NOARGS},
     {(char *)"end_render", (PyCFunction)MGLQuery_end_render, METH_NOARGS},
-    // {(char *)"release", (PyCFunction)MGLQuery_release, METH_NOARGS},
+    {(char *)"release", (PyCFunction)MGLQuery_release, METH_NOARGS},
     {},
 };
 

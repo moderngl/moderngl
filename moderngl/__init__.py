@@ -161,6 +161,18 @@ class Query:
         self._label = None
         raise TypeError()
 
+    def __del__(self):
+        if not hasattr(self, "ctx"):
+            return
+
+        if isinstance(self.mglo, InvalidObject):
+            return
+
+        if self.ctx.gc_mode == "auto":
+            self.release()
+        elif self.ctx.gc_mode == "context_gc":
+            self.ctx.objects.append(self.mglo)
+
     def __enter__(self):
         self.mglo.begin()
         return self
@@ -179,6 +191,11 @@ class Query:
     @property
     def elapsed(self):
         return self.mglo.elapsed
+
+    def release(self):
+        if not isinstance(self.mglo, InvalidObject):
+            self.mglo.release()
+            self.mglo = InvalidObject()
 
 
 class ComputeShader:
