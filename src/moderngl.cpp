@@ -1491,6 +1491,8 @@ static int MGLBuffer_tp_as_buffer_get_view(MGLBuffer * self, Py_buffer * view, i
 
 static void MGLBuffer_tp_as_buffer_release_view(MGLBuffer * self, Py_buffer * view) {
     const GLMethods & gl = self->context->gl;
+    // Another buffer may have been bound since the view was created
+    gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
 }
 

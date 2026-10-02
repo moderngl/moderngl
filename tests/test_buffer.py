@@ -96,3 +96,21 @@ def test_buffer_labels(ctx):
     buf = ctx.buffer(reserve=1024)
     buf.label = "test buffer"
     assert buf.label == "test buffer"
+
+
+def test_buffer_view_release_with_other_buffer_bound(ctx):
+    """Releasing a memoryview must unmap its own buffer, not the bound one"""
+    buf1 = ctx.buffer(b"\x01" * 16)
+    # The wrapper Buffer is not a buffer provider, the low level object is
+    view = memoryview(buf1.mglo)
+
+    # Binds another buffer to GL_ARRAY_BUFFER while buf1 is still mapped
+    buf2 = ctx.buffer(b"\x02" * 16)
+    buf2.write(b"\x03" * 4)
+
+    view.release()
+
+    assert ctx.error == "GL_NO_ERROR"
+    assert buf1.read() == b"\x01" * 16
+    assert buf2.read() == b"\x03" * 4 + b"\x02" * 12
+    assert ctx.error == "GL_NO_ERROR"
