@@ -2336,6 +2336,30 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         return 0;
     }
 
+    {
+        PyObject * key = NULL;
+        PyObject * value = NULL;
+        Py_ssize_t pos = 0;
+
+        while (PyDict_Next(fragment_outputs, &pos, &key, &value)) {
+            if (!PyUnicode_Check(key)) {
+                MGLError_Set("the fragment_outputs keys must be str not %s", Py_TYPE(key)->tp_name);
+                return NULL;
+            }
+
+            if (!PyUnicode_AsUTF8(key)) {
+                return NULL;
+            }
+
+            PyLong_AsLong(value);
+            if (PyErr_Occurred()) {
+                PyErr_Clear();
+                MGLError_Set("the fragment_outputs values must be int not %s", Py_TYPE(value)->tp_name);
+                return NULL;
+            }
+        }
+    }
+
     varyings_arg = PySequence_Tuple(varyings_arg);
     if (!varyings_arg) {
         PyErr_Clear();

@@ -1,4 +1,5 @@
 import moderngl
+import pytest
 
 
 def test_program(ctx):
@@ -80,3 +81,53 @@ def test_geo_input_output_primitive(ctx):
             )
             assert p.geometry_input == in_type
             assert p.geometry_output == out_type, f"input: {in_name}, output: {out_name}"
+
+
+FRAGMENT_OUTPUT_VERTEX_SHADER = '''
+    #version 330
+
+    in vec2 vert;
+
+    void main() {
+        gl_Position = vec4(vert, 0.0, 1.0);
+    }
+'''
+
+FRAGMENT_OUTPUT_FRAGMENT_SHADER = '''
+    #version 330
+
+    out vec4 color;
+
+    void main() {
+        color = vec4(1.0);
+    }
+'''
+
+
+def test_fragment_outputs(ctx):
+    program = ctx.program(
+        vertex_shader=FRAGMENT_OUTPUT_VERTEX_SHADER,
+        fragment_shader=FRAGMENT_OUTPUT_FRAGMENT_SHADER,
+        fragment_outputs={"color": 0},
+    )
+    assert "vert" in program
+
+
+@pytest.mark.parametrize(
+    "fragment_outputs, message",
+    [
+        ({1: 0}, "keys must be str"),
+        ({b"color": 0}, "keys must be str"),
+        ({"color": "0"}, "values must be int"),
+        ({"color": 0.5}, "values must be int"),
+    ],
+)
+def test_fragment_outputs_invalid(ctx, fragment_outputs, message):
+    # Used to pass a NULL name (or location -1) to glBindFragDataLocation
+    # and leave a stale Python exception behind
+    with pytest.raises(moderngl.Error, match=message):
+        ctx.program(
+            vertex_shader=FRAGMENT_OUTPUT_VERTEX_SHADER,
+            fragment_shader=FRAGMENT_OUTPUT_FRAGMENT_SHADER,
+            fragment_outputs=fragment_outputs,
+        )
