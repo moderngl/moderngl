@@ -507,7 +507,143 @@ def test_failing_framebuffers(ctx_new, name):
     names = framebuffer_names()
     assert bound_framebuffer() == other.glo
 
-    assert fails(call, box) == [0] * len(box)
+    growth = fails(call, box)
 
     assert framebuffer_names() == names
     assert bound_framebuffer() == other.glo
+    assert growth == [0] * len(box)
+
+
+# Program creation fails at many places after the OpenGL program was created (and
+# some of the shaders): everything has to be deleted and given back
+
+VS = """
+    #version 330
+    in vec2 in_vert;
+    out float v;
+    void main() {
+        v = in_vert.x;
+        gl_Position = vec4(in_vert, 0.0, 1.0);
+    }
+"""
+
+FS = """
+    #version 330
+    in float v;
+    out vec4 color;
+    void main() {
+        color = vec4(v);
+    }
+"""
+
+
+class BadSource:
+    """Not a string, not bytes, nothing"""
+
+
+class RaisingSource:
+    def to_shader_source(self):
+        raise ValueError("no source")
+
+
+def program_names():
+    programs = {name for name in range(1, 512) if GL.glIsProgram(name)}
+    shaders = {name for name in range(1, 512) if GL.glIsShader(name)}
+    return programs, shaders
+
+
+PROGRAM_CASES = {}
+
+
+def program_case(exc=moderngl.Error):
+    def decorator(fn):
+        PROGRAM_CASES[fn.__name__.replace("prog_", "")] = (fn, exc)
+        return fn
+
+    return decorator
+
+
+@program_case()
+def prog_vertex_compile_error(ctx):
+    varyings = ("v",)
+    bad = "#version 330\nvoid main() { oops }"
+    return lambda: ctx.program(vertex_shader=bad, fragment_shader=FS, varyings=varyings), [varyings]
+
+
+@program_case()
+def prog_fragment_compile_error(ctx):
+    # The vertex shader is compiled and attached when the fragment shader fails
+    varyings = ("v",)
+    bad = "#version 330\nvoid main() { oops }"
+    return lambda: ctx.program(vertex_shader=VS, fragment_shader=bad, varyings=varyings), [varyings]
+
+
+@program_case()
+def prog_link_error(ctx):
+    varyings = ("v",)
+    # The vertex shader outputs a float
+    fs = "#version 330\nin vec4 v;\nout vec4 color;\nvoid main() { color = v; }"
+    return lambda: ctx.program(vertex_shader=VS, fragment_shader=fs, varyings=varyings), [varyings]
+
+
+@program_case()
+def prog_wrong_source_type(ctx):
+    varyings = ("v",)
+    source = BadSource()
+    return lambda: ctx.program(vertex_shader=VS, fragment_shader=source, varyings=varyings), [varyings, source]
+
+
+@program_case(ValueError)
+def prog_to_shader_source_raises(ctx):
+    varyings = ("v",)
+    source = RaisingSource()
+    return lambda: ctx.program(vertex_shader=VS, fragment_shader=source, varyings=varyings), [varyings, source]
+
+
+@program_case(KeyError)
+def prog_include_missing(ctx):
+    varyings = ("v",)
+    fs = FS.replace("void main", '#include "missing"\nvoid main')
+    return lambda: ctx.program(vertex_shader=VS, fragment_shader=fs, varyings=varyings), [varyings]
+
+
+@program_case()
+def prog_invalid_varyings(ctx):
+    varyings = ("v", 5)
+    return lambda: ctx.program(vertex_shader=VS, fragment_shader=FS, varyings=varyings), [varyings]
+
+
+@program_case(TypeError)
+def prog_invalid_fragment_outputs(ctx):
+    varyings = ("v",)
+    return lambda: ctx.program(
+        vertex_shader=VS, fragment_shader=FS, varyings=varyings, fragment_outputs={"color": "zero"}
+    ), [varyings]
+
+
+@pytest.mark.parametrize("name", sorted(PROGRAM_CASES))
+def test_failing_programs(ctx_new, name):
+    ctx = ctx_new
+    fn, exc = PROGRAM_CASES[name]
+    call, box = fn(ctx)
+    box = box + [ctx.mglo]
+    names = program_names()
+
+    growth = fails(call, box, exc)
+
+    assert program_names() == names
+    assert growth == [0] * len(box)
+
+
+def test_programs_give_back_the_varyings(ctx_new):
+    ctx = ctx_new
+    varyings = ("v",)
+    box = [varyings, ctx.mglo]
+    before = counts(box)
+
+    for _ in range(LOOPS):
+        prog = ctx.program(vertex_shader=VS, fragment_shader=FS, varyings=varyings)
+        prog.release()
+        del prog
+
+    assert counts(box) == before

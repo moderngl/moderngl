@@ -2320,6 +2320,34 @@ static PyObject * MGLFramebuffer_get_bits(MGLFramebuffer * self, void * closure)
     return result;
 }
 
+// Gives up on a program that is only partly set up. Deletes the OpenGL objects that were created
+// (program_obj, shader_objs and shader_obj are 0 / NULL for what does not exist or was deleted already),
+// frees the program and the tuple of the varyings (NULL if that was given back already).
+// The caller sets the error.
+static PyObject * program_failed(MGLContext * self, MGLProgram * program, PyObject * varyings_arg, int program_obj, const int * shader_objs, int shader_obj) {
+    const GLMethods & gl = self->gl;
+
+    if (shader_objs) {
+        for (int i = 0; i < NUM_SHADER_SLOTS; ++i) {
+            if (shader_objs[i]) {
+                gl.DeleteShader(shader_objs[i]);
+            }
+        }
+    }
+
+    if (shader_obj) {
+        gl.DeleteShader(shader_obj);
+    }
+
+    if (program_obj) {
+        gl.DeleteProgram(program_obj);
+    }
+
+    Py_DECREF(program);
+    Py_XDECREF(varyings_arg);
+    return NULL;
+}
+
 static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
     PyObject * shaders[8];
     PyObject * varyings_arg;
@@ -2357,6 +2385,7 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
 
     MGLProgram * program = mgl_new<MGLProgram>(MGLProgram_type);
     if (!program) {
+        Py_DECREF(varyings_arg);
         return 0;
     }
 
@@ -2371,7 +2400,7 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
 
     if (!program_obj) {
         MGLError_Set("cannot create program");
-        return 0;
+        return program_failed(self, program, varyings_arg, 0, NULL, 0);
     }
 
     int shader_objs[] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -2384,13 +2413,13 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         int shader_obj = gl.CreateShader(SHADER_TYPE[i]);
         if (!shader_obj) {
             MGLError_Set("cannot create shader");
-            return 0;
+            return program_failed(self, program, varyings_arg, program_obj, shader_objs, 0);
         }
 
         if (PyObject_HasAttrString(shaders[i], "to_shader_source")) {
             shaders[i] = PyObject_CallMethod(shaders[i], "to_shader_source", NULL);
             if (!shaders[i]) {
-                return NULL;
+                return program_failed(self, program, varyings_arg, program_obj, shader_objs, shader_obj);
             }
         } else {
             Py_INCREF(shaders[i]);
@@ -2399,7 +2428,7 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         if (PyUnicode_Check(shaders[i])) {
             shaders[i] = PyObject_CallMethod(helper, "resolve_includes", "(ON)", self, shaders[i]);
             if (!shaders[i]) {
-                return NULL;
+                return program_failed(self, program, varyings_arg, program_obj, shader_objs, shader_obj);
             }
             const char * source_str = PyUnicode_AsUTF8(shaders[i]);
             gl.ShaderSource(shader_obj, 1, &source_str, NULL);
@@ -2417,7 +2446,8 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             }
         } else {
             MGLError_Set("wrong shader source type");
-            return NULL;
+            Py_DECREF(shaders[i]);
+            return program_failed(self, program, varyings_arg, program_obj, shader_objs, shader_obj);
         }
 
         Py_DECREF(shaders[i]);
@@ -2463,7 +2493,7 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             MGLError_Set("%s\n\n%s\n%s\n%s\n", message, title, underline, log);
 
             delete[] log;
-            return 0;
+            return program_failed(self, program, varyings_arg, program_obj, shader_objs, 0);
         }
 
         shader_objs[i] = shader_obj;
@@ -2476,7 +2506,7 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             PyObject * item = PyTuple_GetItem(varyings_arg, i);
             if (!PyUnicode_Check(item)) {
                 MGLError_Set("invalid varyings");
-                return NULL;
+                return program_failed(self, program, varyings_arg, program_obj, shader_objs, 0);
             }
             varyings_array[i] = PyUnicode_AsUTF8(item);
         }
@@ -2484,6 +2514,9 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         int capture_mode = interleaved ? GL_INTERLEAVED_ATTRIBS : GL_SEPARATE_ATTRIBS;
         gl.TransformFeedbackVaryings(program_obj, varyings_count, varyings_array, capture_mode);
     }
+
+    Py_DECREF(varyings_arg);
+    varyings_arg = NULL;
 
     {
         PyObject * key = NULL;
@@ -2523,7 +2556,7 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         MGLError_Set("%s\n\n%s\n%s\n%s\n", message, title, underline, log);
 
         delete[] log;
-        return 0;
+        return program_failed(self, program, varyings_arg, 0, NULL, 0);
     }
 
     program->program_obj = program_obj;
@@ -2645,8 +2678,7 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
     }
 
     if (PyErr_Occurred()) {
-        Py_DECREF(program);
-        return 0;
+        return program_failed(self, program, varyings_arg, program_obj, NULL, 0);
     }
 
     int num_attributes = 0;
