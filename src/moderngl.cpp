@@ -7022,6 +7022,15 @@ static int MGLTextureCube_set_anisotropy(MGLTextureCube * self, PyObject * value
     return 0;
 }
 
+// Gives up on a vertex array that is only partly set up: deletes the OpenGL vertex array and frees the object.
+// The caller sets the error.
+static PyObject * vertex_array_failed(MGLContext * self, MGLVertexArray * array) {
+    // glDeleteVertexArrays ignores 0
+    self->gl.DeleteVertexArrays(1, (GLuint *)&array->vertex_array_obj);
+    Py_DECREF(array);
+    return NULL;
+}
+
 static PyObject * MGLContext_vertex_array(MGLContext * self, PyObject * args) {
     MGLProgram * program;
     PyObject * content;
@@ -7191,12 +7200,23 @@ static PyObject * MGLContext_vertex_array(MGLContext * self, PyObject * args) {
             PyObject * attribute_rows_length_py = PyObject_GetAttrString(attribute, "rows_length");
             PyObject * attribute_scalar_type_py = PyObject_GetAttrString(attribute, "scalar_type");
             if (!attribute_location_py || !attribute_rows_length_py || !attribute_scalar_type_py) {
-                return NULL;
+                Py_XDECREF(attribute_location_py);
+                Py_XDECREF(attribute_rows_length_py);
+                Py_XDECREF(attribute_scalar_type_py);
+                return vertex_array_failed(self, array);
             }
 
             int attribute_location = PyLong_AsLong(attribute_location_py);
             int attribute_rows_length = PyLong_AsLong(attribute_rows_length_py);
             int attribute_scalar_type = PyLong_AsLong(attribute_scalar_type_py);
+
+            Py_DECREF(attribute_location_py);
+            Py_DECREF(attribute_rows_length_py);
+            Py_DECREF(attribute_scalar_type_py);
+
+            if (PyErr_Occurred()) {
+                return vertex_array_failed(self, array);
+            }
 
             for (int r = 0; r < attribute_rows_length; ++r) {
                 int location = attribute_location + r;

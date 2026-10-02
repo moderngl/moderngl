@@ -647,3 +647,90 @@ def test_programs_give_back_the_varyings(ctx_new):
         del prog
 
     assert counts(box) == before
+
+
+# Vertex arrays read three attributes of every attribute object they are given
+
+class FakeAttribute:
+    """Has what a vertex array reads from an attribute, or not"""
+
+    def __init__(self, **attributes):
+        self.__dict__.update(attributes)
+
+
+def vertex_array_names():
+    return {name for name in range(1, 512) if GL.glIsVertexArray(name)}
+
+
+VERTEX_ARRAY_CASES = {}
+
+
+def vao_case(exc):
+    def decorator(fn):
+        VERTEX_ARRAY_CASES[fn.__name__.replace("vao_", "")] = (fn, exc)
+        return fn
+
+    return decorator
+
+
+def _vao_call(ctx, attribute):
+    prog = ctx.program(vertex_shader=VS)
+    vbo, ibo = ctx.buffer(reserve=64), ctx.buffer(reserve=64)
+    content = ((vbo.mglo, "2f", attribute),)
+    call = lambda: ctx.mglo.vertex_array(prog.mglo, content, ibo.mglo, 4)
+    return call, [content, prog.mglo, vbo.mglo, ibo.mglo, ctx.mglo]
+
+
+@vao_case(AttributeError)
+def vao_no_scalar_type(ctx):
+    # Two of the three attributes are there when the third one is missing
+    location, rows_length = 1000 + len("a"), 2000 + len("b")
+    attribute = FakeAttribute(location=location, rows_length=rows_length)
+    call, box = _vao_call(ctx, attribute)
+    return call, box + [location, rows_length, attribute]
+
+
+@vao_case(AttributeError)
+def vao_no_attributes(ctx):
+    attribute = FakeAttribute()
+    call, box = _vao_call(ctx, attribute)
+    return call, box + [attribute]
+
+
+@vao_case(TypeError)
+def vao_not_numbers(ctx):
+    location, rows_length, scalar_type = 1000 + len("a"), 2000 + len("b"), "x"
+    attribute = FakeAttribute(location=location, rows_length=rows_length, scalar_type=scalar_type)
+    call, box = _vao_call(ctx, attribute)
+    return call, box + [location, rows_length, scalar_type, attribute]
+
+
+@pytest.mark.parametrize("name", sorted(VERTEX_ARRAY_CASES))
+def test_failing_vertex_arrays(ctx_new, name):
+    ctx = ctx_new
+    fn, exc = VERTEX_ARRAY_CASES[name]
+    call, box = fn(ctx)
+    names = vertex_array_names()
+
+    growth = fails(call, box, exc)
+
+    assert vertex_array_names() == names
+    assert growth == [0] * len(box)
+
+
+def test_vertex_arrays_give_back_the_attributes(ctx_new):
+    ctx = ctx_new
+    prog = ctx.program(vertex_shader=VS)
+    vbo = ctx.buffer(reserve=64)
+    attribute = prog["in_vert"]
+    # The attribute objects hold ints that are not cached
+    box = [attribute.scalar_type, attribute.location, attribute.rows_length, attribute]
+    box += [prog.mglo, vbo.mglo, ctx.mglo]
+    before = counts(box)
+
+    for _ in range(LOOPS):
+        vao = ctx.vertex_array(prog, [(vbo, "2f", "in_vert")])
+        vao.release()
+        del vao
+
+    assert counts(box) == before
