@@ -1,3 +1,4 @@
+import moderngl
 import pytest
 import OpenGL
 OpenGL.ERROR_CHECKING = False # Don't want PyOpenGL to raise any exceptions
@@ -328,3 +329,13 @@ def test_context_gc(ctx_new):
 
 # #     ctx1.release()
 # #     ctx2.release()
+
+
+def test_set_fbo_wrong_type(ctx):
+    """Assigning something that is not a framebuffer must raise a proper error"""
+    fbo = ctx.mglo.fbo
+    with pytest.raises(moderngl.Error, match="must be a Framebuffer"):
+        ctx.mglo.fbo = 1
+    with pytest.raises(moderngl.Error, match="must be a Framebuffer"):
+        ctx.mglo.fbo = None
+    assert ctx.mglo.fbo is fbo

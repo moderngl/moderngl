@@ -8814,6 +8814,7 @@ static int MGLContext_set_fbo(MGLContext * self, PyObject * value, void * closur
     }
 
     if (Py_TYPE(value) != MGLFramebuffer_type) {
+        MGLError_Set("the fbo must be a Framebuffer not %s", Py_TYPE(value)->tp_name);
         return -1;
     }
     Py_INCREF(value);
