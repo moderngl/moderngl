@@ -922,6 +922,9 @@ static PyObject * MGLContext_buffer(MGLContext * self, PyObject * args) {
 
     MGLBuffer * buffer = mgl_new<MGLBuffer>(MGLBuffer_type);
     if (!buffer) {
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         return 0;
     }
 
@@ -938,6 +941,9 @@ static PyObject * MGLContext_buffer(MGLContext * self, PyObject * args) {
 
     if (!buffer->buffer_obj) {
         MGLError_Set("cannot create buffer");
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         Py_DECREF(buffer);
         return 0;
     }
@@ -1281,6 +1287,7 @@ static PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) 
 
     if (!read_ptr) {
         MGLError_Set("cannot map the buffer");
+        PyBuffer_Release(&buffer_view);
         return 0;
     }
 
@@ -1343,6 +1350,9 @@ static PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
 
     if (!map) {
         MGLError_Set("cannot map the buffer");
+        if (chunk != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         return 0;
     }
 
@@ -3979,6 +3989,9 @@ static PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
 
     MGLTexture * texture = mgl_new<MGLTexture>(MGLTexture_type);
     if (!texture) {
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         return 0;
     }
 
@@ -3990,6 +4003,9 @@ static PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
 
     if (!texture->texture_obj) {
         MGLError_Set("cannot create texture");
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         Py_DECREF(texture);
         return 0;
     }
@@ -4152,6 +4168,9 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
 
     MGLTexture * texture = mgl_new<MGLTexture>(MGLTexture_type);
     if (!texture) {
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         return 0;
     }
 
@@ -4163,6 +4182,9 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
 
     if (!texture->texture_obj) {
         MGLError_Set("cannot create texture");
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         Py_DECREF(texture);
         return 0;
     }
@@ -4970,6 +4992,9 @@ static PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
 
     MGLTexture3D * texture = mgl_new<MGLTexture3D>(MGLTexture3D_type);
     if (!texture) {
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         return 0;
     }
 
@@ -4980,6 +5005,9 @@ static PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
 
     if (!texture->texture_obj) {
         MGLError_Set("cannot create texture");
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         Py_DECREF(texture);
         return 0;
     }
@@ -5600,6 +5628,9 @@ static PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
 
     MGLTextureArray * texture = mgl_new<MGLTextureArray>(MGLTextureArray_type);
     if (!texture) {
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         return 0;
     }
 
@@ -5610,6 +5641,9 @@ static PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
 
     if (!texture->texture_obj) {
         MGLError_Set("cannot create texture");
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         Py_DECREF(texture);
         return 0;
     }
@@ -6242,6 +6276,9 @@ static PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
 
     MGLTextureCube * texture = mgl_new<MGLTextureCube>(MGLTextureCube_type);
     if (!texture) {
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         return 0;
     }
 
@@ -6252,6 +6289,9 @@ static PyObject * MGLContext_texture_cube(MGLContext * self, PyObject * args) {
 
     if (!texture->texture_obj) {
         MGLError_Set("cannot create texture");
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         Py_DECREF(texture);
         return 0;
     }
@@ -6369,6 +6409,9 @@ static PyObject * MGLContext_depth_texture_cube(MGLContext * self, PyObject * ar
 
     MGLTextureCube * texture = mgl_new<MGLTextureCube>(MGLTextureCube_type);
     if (!texture) {
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         return 0;
     }
 
@@ -6379,6 +6422,9 @@ static PyObject * MGLContext_depth_texture_cube(MGLContext * self, PyObject * ar
 
     if (!texture->texture_obj) {
         MGLError_Set("cannot create texture");
+        if (data != Py_None) {
+            PyBuffer_Release(&buffer_view);
+        }
         Py_DECREF(texture);
         return 0;
     }

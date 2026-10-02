@@ -392,3 +392,46 @@ def case_scope_enable_flags(ctx):
 def test_failing_calls(ctx_new, name):
     call, box = CASES[name](ctx_new)
     assert fails(call, box) == [0] * len(box)
+
+
+# The buffers a failing call was given must be released: an object with an
+# export cannot be resized (bytearray) and keeps the exporter locked
+
+def _mapped_buffer(ctx):
+    """A buffer that is mapped, which makes the next attempt to map it fail"""
+    buf = ctx.buffer(b"\x00" * 16)
+    view = memoryview(buf.mglo)
+    return buf, view
+
+
+def test_buffer_read_chunks_into_cannot_map(ctx_new):
+    ctx = ctx_new
+    buf, view = _mapped_buffer(ctx)
+    data = bytearray(16)
+
+    for _ in range(LOOPS):
+        with pytest.raises(moderngl.Error, match="cannot map the buffer"):
+            buf.mglo.read_chunks_into(data, 4, 0, 4, 4, 0)
+        data.append(0)  # BufferError if the export was not released
+        del data[-1]
+
+    view.release()
+    ctx.clear_errors()
+    buf.mglo.read_chunks_into(data, 4, 0, 4, 4, 0)
+
+
+def test_buffer_clear_cannot_map(ctx_new):
+    ctx = ctx_new
+    buf, view = _mapped_buffer(ctx)
+    chunk = bytearray(4)
+
+    for _ in range(LOOPS):
+        with pytest.raises(moderngl.Error, match="cannot map the buffer"):
+            buf.clear(chunk=chunk)
+        chunk.append(0)
+        del chunk[-1]
+
+    view.release()
+    ctx.clear_errors()
+    buf.clear(chunk=chunk)
+    assert buf.read() == b"\x00" * 16
