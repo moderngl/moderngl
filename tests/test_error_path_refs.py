@@ -18,6 +18,7 @@ OpenGL.ERROR_CHECKING = False  # Don't want PyOpenGL to raise any exceptions
 from OpenGL import GL
 
 import moderngl
+from moderngl import mgl
 
 LOOPS = 100
 
@@ -732,5 +733,43 @@ def test_vertex_arrays_give_back_the_attributes(ctx_new):
         vao = ctx.vertex_array(prog, [(vbo, "2f", "in_vert")])
         vao.release()
         del vao
+
+    assert counts(box) == before
+
+
+# Creating a context
+
+class Loader:
+    """Hands the addresses of the functions of a context out as the same objects every time"""
+
+    def __init__(self, ctx):
+        self.ctx = ctx
+        self.addresses = {}
+
+    def load(self, name):
+        if name not in self.addresses:
+            # Not an int that is cached by the interpreter
+            self.addresses[name] = int(self.ctx.load(name)) + (1 << 70) - (1 << 70)
+        return self.addresses[name]
+
+    def release(self):
+        pass
+
+
+def test_create_context_gives_back_the_function_addresses(ctx_new):
+    """Loading the OpenGL functions leaked the int that was returned for each of them"""
+    loader = Loader(ctx_new.mglo._context)
+
+    def create():
+        ctx, _ = mgl.create_context(context=loader)
+        ctx.release()
+
+    create()
+    box = list(loader.addresses.values())
+    assert len(box) > 100
+    before = counts(box)
+
+    for _ in range(5):
+        create()
 
     assert counts(box) == before
