@@ -197,6 +197,7 @@ static int parse_rect(PyObject * arg, Rect * rect) {
         rect->height = PyLong_AsLong(PyTuple_GetItem(arg, 3));
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_DECREF(arg);
             return 0;
         }
     } else if (size == 2) {
@@ -204,9 +205,11 @@ static int parse_rect(PyObject * arg, Rect * rect) {
         rect->height = PyLong_AsLong(PyTuple_GetItem(arg, 1));
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_DECREF(arg);
             return 0;
         }
     } else {
+        Py_DECREF(arg);
         return 0;
     }
     Py_DECREF(arg);
@@ -244,6 +247,7 @@ static int parse_cube(PyObject * arg, Cube * cube) {
         cube->depth = PyLong_AsLong(PyTuple_GetItem(arg, 5));
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_DECREF(arg);
             return 0;
         }
     } else if (size == 3) {
@@ -252,9 +256,11 @@ static int parse_cube(PyObject * arg, Cube * cube) {
         cube->depth = PyLong_AsLong(PyTuple_GetItem(arg, 2));
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_DECREF(arg);
             return 0;
         }
     } else {
+        Py_DECREF(arg);
         return 0;
     }
     Py_DECREF(arg);
@@ -2166,6 +2172,7 @@ static int parse_mask(PyObject * arg, char * value) {
         return 0;
     }
     if (PyTuple_Size(arg) != 4) {
+        Py_DECREF(arg);
         return 0;
     }
     char mask = 0;
@@ -2175,6 +2182,7 @@ static int parse_mask(PyObject * arg, char * value) {
     mask |= PyObject_IsTrue(PyTuple_GetItem(arg, 3)) ? 8 : 0;
     if (PyErr_Occurred()) {
         PyErr_Clear();
+        Py_DECREF(arg);
         return 0;
     }
     *value = mask;
@@ -2204,6 +2212,7 @@ static int MGLFramebuffer_set_color_mask(MGLFramebuffer * self, PyObject * value
         for (int i = 0; i < count; ++i) {
             PyObject * mask = PyTuple_GetItem(value, i);
             if (!parse_mask(mask, &self->color_mask[i])) {
+                Py_DECREF(value);
                 MGLError_Set("invalid color mask");
                 return -1;
             }
@@ -3288,14 +3297,19 @@ static PyObject * MGLSampler_get_filter(MGLSampler * self, void * closure) {
 
 static int parse_filter(PyObject * arg, int * min_filter_value, int * mag_filter_value) {
     arg = PySequence_Tuple(arg);
-    if (!arg || PyTuple_Size(arg) != 2) {
+    if (!arg) {
         PyErr_Clear();
+        return 0;
+    }
+    if (PyTuple_Size(arg) != 2) {
+        Py_DECREF(arg);
         return 0;
     }
     int min_filter = PyLong_AsLong(PyTuple_GetItem(arg, 0));
     int mag_filter = PyLong_AsLong(PyTuple_GetItem(arg, 1));
     if (PyErr_Occurred()) {
         PyErr_Clear();
+        Py_DECREF(arg);
         return 0;
     }
 
@@ -3361,8 +3375,12 @@ static PyObject * MGLSampler_get_border_color(MGLSampler * self, void * closure)
 
 static int parse_color(PyObject * arg, float * value) {
     arg = PySequence_Tuple(arg);
-    if (!arg || PyTuple_Size(arg) != 4) {
+    if (!arg) {
         PyErr_Clear();
+        return 0;
+    }
+    if (PyTuple_Size(arg) != 4) {
+        Py_DECREF(arg);
         return 0;
     }
     float r = (float)PyFloat_AsDouble(PyTuple_GetItem(arg, 0));
@@ -3371,6 +3389,7 @@ static int parse_color(PyObject * arg, float * value) {
     float a = (float)PyFloat_AsDouble(PyTuple_GetItem(arg, 3));
     if (PyErr_Occurred()) {
         PyErr_Clear();
+        Py_DECREF(arg);
         return 0;
     }
 
@@ -3425,8 +3444,12 @@ static int MGLSampler_set_max_lod(MGLSampler * self, PyObject * value, void * cl
 
 static int parse_texture_binding(PyObject * arg, TextureBinding * value) {
     arg = PySequence_Tuple(arg);
-    if (!arg || PyTuple_Size(arg) != 2) {
+    if (!arg) {
         PyErr_Clear();
+        return 0;
+    }
+    if (PyTuple_Size(arg) != 2) {
+        Py_DECREF(arg);
         return 0;
     }
 
@@ -3453,12 +3476,14 @@ static int parse_texture_binding(PyObject * arg, TextureBinding * value) {
     }
 
     if (!texture_obj || !texture_obj) {
+        Py_DECREF(arg);
         return 0;
     }
 
     int location = PyLong_AsLong(PyTuple_GetItem(arg, 1));
     if (PyErr_Occurred()) {
         PyErr_Clear();
+        Py_DECREF(arg);
         return 0;
     }
 
@@ -3471,8 +3496,12 @@ static int parse_texture_binding(PyObject * arg, TextureBinding * value) {
 
 static int parse_buffer_binding(PyObject * arg, BufferBinding * value) {
     arg = PySequence_Tuple(arg);
-    if (!arg || PyTuple_Size(arg) != 2) {
+    if (!arg) {
         PyErr_Clear();
+        return 0;
+    }
+    if (PyTuple_Size(arg) != 2) {
+        Py_DECREF(arg);
         return 0;
     }
 
@@ -3485,12 +3514,14 @@ static int parse_buffer_binding(PyObject * arg, BufferBinding * value) {
     }
 
     if (!buffer_obj) {
+        Py_DECREF(arg);
         return 0;
     }
 
     int location = PyLong_AsLong(PyTuple_GetItem(arg, 1));
     if (PyErr_Occurred()) {
         PyErr_Clear();
+        Py_DECREF(arg);
         return 0;
     }
 
@@ -3502,8 +3533,12 @@ static int parse_buffer_binding(PyObject * arg, BufferBinding * value) {
 
 static int parse_sampler_binding(PyObject * arg, SamplerBinding * value) {
     arg = PySequence_Tuple(arg);
-    if (!arg || PyTuple_Size(arg) != 2) {
+    if (!arg) {
         PyErr_Clear();
+        return 0;
+    }
+    if (PyTuple_Size(arg) != 2) {
+        Py_DECREF(arg);
         return 0;
     }
 
@@ -3521,6 +3556,7 @@ static int parse_sampler_binding(PyObject * arg, SamplerBinding * value) {
     int location = PyLong_AsLong(PyTuple_GetItem(arg, 1));
     if (PyErr_Occurred()) {
         PyErr_Clear();
+        Py_DECREF(arg);
         return 0;
     }
 
@@ -8492,6 +8528,7 @@ static int parse_blend_func(PyObject * arg, int * value) {
         value[3] = PyLong_AsLong(PyTuple_GetItem(arg, 3));
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_DECREF(arg);
             return 0;
         }
     } else if (size == 2) {
@@ -8501,9 +8538,11 @@ static int parse_blend_func(PyObject * arg, int * value) {
         value[3] = value[1];
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_DECREF(arg);
             return 0;
         }
     } else {
+        Py_DECREF(arg);
         return 0;
     }
     Py_DECREF(arg);
@@ -8547,6 +8586,7 @@ static int parse_blend_equation(PyObject * arg, int * value) {
         value[1] = PyLong_AsLong(PyTuple_GetItem(arg, 1));
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_DECREF(arg);
             return 0;
         }
     } else if (size == 1) {
@@ -8554,9 +8594,11 @@ static int parse_blend_equation(PyObject * arg, int * value) {
         value[1] = value[0];
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_DECREF(arg);
             return 0;
         }
     } else {
+        Py_DECREF(arg);
         return 0;
     }
     Py_DECREF(arg);
