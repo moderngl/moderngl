@@ -12,6 +12,10 @@ how the interpreter counts local variables.
 import sys
 
 import pytest
+import OpenGL
+
+OpenGL.ERROR_CHECKING = False  # Don't want PyOpenGL to raise any exceptions
+from OpenGL import GL
 
 import moderngl
 
@@ -435,3 +439,75 @@ def test_buffer_clear_cannot_map(ctx_new):
     ctx.clear_errors()
     buf.clear(chunk=chunk)
     assert buf.read() == b"\x00" * 16
+
+
+# Constructors that fail after the OpenGL object was created: the object must be
+# deleted again and the framebuffer that was bound before must be bound again
+
+def framebuffer_names():
+    return {name for name in range(1, 512) if GL.glIsFramebuffer(name)}
+
+
+def bound_framebuffer():
+    return GL.glGetIntegerv(GL.GL_FRAMEBUFFER_BINDING)
+
+
+FRAMEBUFFER_CASES = {}
+
+
+def fb_case(fn):
+    FRAMEBUFFER_CASES[fn.__name__.replace("fb_", "")] = fn
+    return fn
+
+
+@fb_case
+def fb_invalid_color_attachment(ctx):
+    attachments = (object(),)
+    return lambda: ctx.mglo.framebuffer(attachments, None), [attachments]
+
+
+@fb_case
+def fb_color_attachment_sizes(ctx):
+    rbo1, rbo2 = ctx.renderbuffer((4, 4)), ctx.renderbuffer((8, 8))
+    attachments = (rbo1.mglo, rbo2.mglo)
+    return lambda: ctx.mglo.framebuffer(attachments, None), [attachments, rbo1.mglo, rbo2.mglo]
+
+
+@fb_case
+def fb_invalid_depth_attachment(ctx):
+    rbo1, rbo2 = ctx.renderbuffer((4, 4)), ctx.renderbuffer((4, 4))
+    attachments = (rbo1.mglo,)
+    return lambda: ctx.mglo.framebuffer(attachments, rbo2.mglo), [attachments, rbo2.mglo]
+
+
+@fb_case
+def fb_missing_attachments(ctx):
+    return lambda: ctx.mglo.framebuffer((), None), []
+
+
+@fb_case
+def fb_incomplete(ctx):
+    # A layered attachment next to one that is not
+    rbo, array = ctx.renderbuffer((4, 4)), ctx.texture_array((4, 4, 2), 4)
+    attachments = (rbo.mglo, array.mglo)
+    return lambda: ctx.mglo.framebuffer(attachments, None), [attachments, rbo.mglo, array.mglo]
+
+
+@fb_case
+def fb_empty_incomplete(ctx):
+    return lambda: ctx.mglo.empty_framebuffer((0, 0), 0, 0), []
+
+
+@pytest.mark.parametrize("name", sorted(FRAMEBUFFER_CASES))
+def test_failing_framebuffers(ctx_new, name):
+    ctx = ctx_new
+    call, box = FRAMEBUFFER_CASES[name](ctx)
+    other = ctx.simple_framebuffer((4, 4))
+    other.use()
+    names = framebuffer_names()
+    assert bound_framebuffer() == other.glo
+
+    assert fails(call, box) == [0] * len(box)
+
+    assert framebuffer_names() == names
+    assert bound_framebuffer() == other.glo

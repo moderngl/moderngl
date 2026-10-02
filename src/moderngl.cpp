@@ -1569,6 +1569,18 @@ static int attachment_parameters(PyObject * attachment, AttachmentParameters * p
     return 1;
 }
 
+// Gives up on a framebuffer that is only partly set up: deletes the OpenGL framebuffer, binds the one
+// that was bound before again and frees the object and the tuple of the color attachments (if any).
+static PyObject * framebuffer_failed(MGLContext * self, MGLFramebuffer * framebuffer, PyObject * color_attachments_arg, const char * message) {
+    const GLMethods & gl = self->gl;
+    gl.BindFramebuffer(GL_FRAMEBUFFER, self->bound_framebuffer->framebuffer_obj);
+    gl.DeleteFramebuffers(1, (GLuint *)&framebuffer->framebuffer_obj);
+    MGLError_Set("%s", message);
+    Py_DECREF(framebuffer);
+    Py_XDECREF(color_attachments_arg);
+    return NULL;
+}
+
 static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     if (context_released(self)) {
         return 0;
@@ -1596,6 +1608,7 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
 
     MGLFramebuffer * framebuffer = mgl_new<MGLFramebuffer>(MGLFramebuffer_type);
     if (!framebuffer) {
+        Py_DECREF(color_attachments_arg);
         return 0;
     }
 
@@ -1605,8 +1618,7 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     gl.GenFramebuffers(1, (GLuint *)&framebuffer->framebuffer_obj);
 
     if (!framebuffer->framebuffer_obj) {
-        MGLError_Set("cannot create framebuffer");
-        return NULL;
+        return framebuffer_failed(self, framebuffer, color_attachments_arg, "cannot create framebuffer");
     }
 
     gl.BindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer_obj);
@@ -1617,8 +1629,7 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     for (int i = 0; i < color_attachments_count; ++i) {
         PyObject * attachment = PyTuple_GetItem(color_attachments_arg, i);
         if (!attachment_parameters(attachment, &params, false)) {
-            MGLError_Set("invalid color attachment");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "invalid color attachment");
         }
         if (params.renderbuffer) {
             gl.FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, params.glo);
@@ -1632,8 +1643,7 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
 
     if (depth_attachment_arg != Py_None) {
         if (!attachment_parameters(depth_attachment_arg, &params, true)) {
-            MGLError_Set("invalid depth attachment");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "invalid depth attachment");
         }
         if (params.renderbuffer) {
             gl.FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, params.glo);
@@ -1644,8 +1654,7 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
     }
 
     if (!params.valid) {
-        MGLError_Set("missing attachments");
-        return NULL;
+        return framebuffer_failed(self, framebuffer, color_attachments_arg, "missing attachments");
     }
 
     if (!color_attachments_count) {
@@ -1658,36 +1667,28 @@ static PyObject * MGLContext_framebuffer(MGLContext * self, PyObject * args) {
 
     switch (status) {
         case GL_FRAMEBUFFER_UNDEFINED:
-            MGLError_Set("the framebuffer is not complete (UNDEFINED)");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "the framebuffer is not complete (UNDEFINED)");
 
         case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-            MGLError_Set("the framebuffer is not complete (INCOMPLETE_ATTACHMENT)");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "the framebuffer is not complete (INCOMPLETE_ATTACHMENT)");
 
         case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-            MGLError_Set("the framebuffer is not complete (INCOMPLETE_MISSING_ATTACHMENT)");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "the framebuffer is not complete (INCOMPLETE_MISSING_ATTACHMENT)");
 
         case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-            MGLError_Set("the framebuffer is not complete (INCOMPLETE_DRAW_BUFFER)");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "the framebuffer is not complete (INCOMPLETE_DRAW_BUFFER)");
 
         case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-            MGLError_Set("the framebuffer is not complete (INCOMPLETE_READ_BUFFER)");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "the framebuffer is not complete (INCOMPLETE_READ_BUFFER)");
 
         case GL_FRAMEBUFFER_UNSUPPORTED:
-            MGLError_Set("the framebuffer is not complete (UNSUPPORTED)");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "the framebuffer is not complete (UNSUPPORTED)");
 
         case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-            MGLError_Set("the framebuffer is not complete (INCOMPLETE_MULTISAMPLE)");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "the framebuffer is not complete (INCOMPLETE_MULTISAMPLE)");
 
         case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-            MGLError_Set("the framebuffer is not complete (INCOMPLETE_LAYER_TARGETS)");
-            return NULL;
+            return framebuffer_failed(self, framebuffer, color_attachments_arg, "the framebuffer is not complete (INCOMPLETE_LAYER_TARGETS)");
     }
 
     framebuffer->draw_buffers_len = color_attachments_count;
@@ -1804,8 +1805,7 @@ static PyObject * MGLContext_empty_framebuffer(MGLContext * self, PyObject * arg
                 break;
         }
 
-        MGLError_Set(message);
-        return 0;
+        return framebuffer_failed(self, framebuffer, NULL, message);
     }
 
     framebuffer->draw_buffers_len = 0;
