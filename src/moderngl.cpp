@@ -488,6 +488,15 @@ static void clean_glsl_name(char * name, int & name_len) {
     name[name_len] = 0;
 }
 
+// Called when a Python helper that builds a member of the program returned NULL (an exception is set)
+static PyObject * program_member_failed(MGLProgram * program, PyObject * members_dict, PyObject * attribute_locations, PyObject * attribute_types) {
+    Py_DECREF(members_dict);
+    Py_DECREF(attribute_locations);
+    Py_DECREF(attribute_types);
+    Py_DECREF(program);
+    return NULL;
+}
+
 static int swizzle_from_char(char c) {
     switch (c) {
         case 'R': return GL_RED;
@@ -2708,6 +2717,11 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             name, type, program->program_obj, location, array_length
         );
 
+        if (!item) {
+            Py_XDECREF(location);
+            return program_member_failed(program, members_dict, attribute_locations, attribute_types);
+        }
+
         PyDict_SetItemString(members_dict, name, item);
         PyDict_SetItemString(attribute_locations, name, location);
         PyDict_SetItem(attribute_types, location, item);
@@ -2725,6 +2739,10 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         gl.GetTransformFeedbackVarying(program->program_obj, i, 256, &name_len, &array_length, (GLenum *)&type, name);
 
         PyObject * item = PyObject_CallMethod(helper, "make_varying", "(siii)", name, i, array_length, dimension);
+        if (!item) {
+            return program_member_failed(program, members_dict, attribute_locations, attribute_types);
+        }
+
         PyDict_SetItemString(members_dict, name, item);
         Py_DECREF(item);
     }
@@ -2749,6 +2767,10 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             name, type, program->program_obj, location, array_length, self
         );
 
+        if (!item) {
+            return program_member_failed(program, members_dict, attribute_locations, attribute_types);
+        }
+
         PyDict_SetItemString(members_dict, name, item);
         Py_DECREF(item);
     }
@@ -2769,6 +2791,10 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             name, program->program_obj, index, size, self
         );
 
+        if (!item) {
+            return program_member_failed(program, members_dict, attribute_locations, attribute_types);
+        }
+
         PyDict_SetItemString(members_dict, name, item);
         Py_DECREF(item);
     }
@@ -2784,6 +2810,10 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
             helper, "make_storage_block", "(siiO)",
             name, program_obj, i, self
         );
+
+        if (!item) {
+            return program_member_failed(program, members_dict, attribute_locations, attribute_types);
+        }
 
         PyDict_SetItemString(members_dict, name, item);
         Py_DECREF(item);

@@ -1,5 +1,6 @@
 import moderngl
 import pytest
+import _moderngl
 
 
 def test_program(ctx):
@@ -156,3 +157,55 @@ def test_many_varyings(ctx):
         return
 
     assert set(names) <= set(program)
+
+
+HELPER_VERTEX_SHADER = '''
+    #version 430
+
+    in vec2 in_vert;
+    uniform vec2 offset;
+    uniform Block {
+        vec4 color;
+    };
+    buffer Storage {
+        float data[];
+    };
+    out float v_out;
+
+    void main() {
+        v_out = color.x + data[0];
+        gl_Position = vec4(in_vert + offset, 0.0, 1.0);
+    }
+'''
+
+
+@pytest.mark.parametrize("helper_name", [
+    "make_attribute",
+    "make_varying",
+    "make_uniform",
+    "make_uniform_block",
+    "make_storage_block",
+])
+def test_program_helper_error(ctx, monkeypatch, helper_name):
+    """An exception raised by the Python helper that builds a program member is propagated"""
+    if ctx.version_code < 430:
+        pytest.skip("storage blocks need OpenGL 4.3")
+
+    def create():
+        return ctx.program(vertex_shader=HELPER_VERTEX_SHADER, varyings=["v_out"])
+
+    program = create()
+    for name in ["in_vert", "offset", "Block", "Storage", "v_out"]:
+        assert name in program
+    program.release()
+
+    def helper(*args):
+        raise RuntimeError(f"{helper_name} failed")
+
+    monkeypatch.setattr(_moderngl, helper_name, helper)
+
+    with pytest.raises(RuntimeError, match=f"{helper_name} failed"):
+        create()
+
+    monkeypatch.undo()
+    create().release()
