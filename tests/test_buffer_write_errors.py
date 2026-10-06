@@ -51,3 +51,15 @@ def test_4(ctx):
 
     with pytest.raises(Exception):
         buf.write_chunks(b'yyynyy', 0, 2, 2)
+
+
+def test_error_message_large_values(ctx):
+    # The message must not truncate Py_ssize_t values to int
+    buf = ctx.buffer(b'abc')
+    big = 2 ** 32 + 1
+
+    with pytest.raises(Exception, match="offset = %d" % big):
+        buf.write(b'a', offset=big)
+
+    with pytest.raises(Exception, match="%d equal chunks" % big):
+        buf.write_chunks(b'abc', 0, 1, big)

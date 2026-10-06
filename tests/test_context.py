@@ -1,3 +1,4 @@
+import moderngl
 import pytest
 import OpenGL
 OpenGL.ERROR_CHECKING = False # Don't want PyOpenGL to raise any exceptions
@@ -328,3 +329,66 @@ def test_context_gc(ctx_new):
 
 # #     ctx1.release()
 # #     ctx2.release()
+
+
+def test_set_fbo_wrong_type(ctx):
+    """Assigning something that is not a framebuffer must raise a proper error"""
+    fbo = ctx.mglo.fbo
+    with pytest.raises(moderngl.Error, match="must be a Framebuffer"):
+        ctx.mglo.fbo = 1
+    with pytest.raises(moderngl.Error, match="must be a Framebuffer"):
+        ctx.mglo.fbo = None
+    assert ctx.mglo.fbo is fbo
+
+
+def test_context_gc_released_objects(ctx_new):
+    """Objects released by the user must not break Context.gc()"""
+    ctx = ctx_new
+    ctx.gc_mode = "context_gc"
+
+    def make_all():
+        prog = ctx.program(
+            vertex_shader="""
+            #version 330
+            in vec2 in_vert;
+            void main() {
+                gl_Position = vec4(in_vert, 0.0, 1.0);
+            }
+            """,
+            fragment_shader="""
+            #version 330
+            out vec4 color;
+            void main() {
+                color = vec4(1.0);
+            }
+            """,
+        )
+        buf = ctx.buffer(reserve=64)
+        rbo = ctx.renderbuffer((4, 4))
+        fbo = ctx.framebuffer(rbo)
+        return [
+            buf,
+            ctx.texture((4, 4), 4),
+            ctx.texture_array((4, 4, 4), 4),
+            ctx.texture_cube((4, 4), 4),
+            ctx.texture3d((4, 4, 4), 4),
+            ctx.sampler(),
+            rbo,
+            fbo,
+            prog,
+            ctx.vertex_array(prog, [(buf, "2f", "in_vert")]),
+            ctx.scope(fbo),
+        ]
+
+    def make_and_release(indices):
+        objects = make_all()
+        for i in indices:
+            objects[i].release()
+
+    # The objects that are released by the user are not queued
+    make_and_release(range(11))
+    assert ctx.gc() == 0
+
+    # A mix of released and unreleased objects, only the latter are queued
+    make_and_release(range(0, 11, 2))
+    assert ctx.gc() == 5

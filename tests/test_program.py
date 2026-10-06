@@ -1,4 +1,6 @@
 import moderngl
+import pytest
+import _moderngl
 
 
 def test_program(ctx):
@@ -80,3 +82,130 @@ def test_geo_input_output_primitive(ctx):
             )
             assert p.geometry_input == in_type
             assert p.geometry_output == out_type, f"input: {in_name}, output: {out_name}"
+
+
+FRAGMENT_OUTPUT_VERTEX_SHADER = '''
+    #version 330
+
+    in vec2 vert;
+
+    void main() {
+        gl_Position = vec4(vert, 0.0, 1.0);
+    }
+'''
+
+FRAGMENT_OUTPUT_FRAGMENT_SHADER = '''
+    #version 330
+
+    out vec4 color;
+
+    void main() {
+        color = vec4(1.0);
+    }
+'''
+
+
+def test_fragment_outputs(ctx):
+    program = ctx.program(
+        vertex_shader=FRAGMENT_OUTPUT_VERTEX_SHADER,
+        fragment_shader=FRAGMENT_OUTPUT_FRAGMENT_SHADER,
+        fragment_outputs={"color": 0},
+    )
+    assert "vert" in program
+
+
+@pytest.mark.parametrize(
+    "fragment_outputs, message",
+    [
+        ({1: 0}, "keys must be str"),
+        ({b"color": 0}, "keys must be str"),
+        ({"color": "0"}, "values must be int"),
+        ({"color": 0.5}, "values must be int"),
+    ],
+)
+def test_fragment_outputs_invalid(ctx, fragment_outputs, message):
+    # Used to pass a NULL name (or location -1) to glBindFragDataLocation
+    # and leave a stale Python exception behind
+    with pytest.raises(moderngl.Error, match=message):
+        ctx.program(
+            vertex_shader=FRAGMENT_OUTPUT_VERTEX_SHADER,
+            fragment_shader=FRAGMENT_OUTPUT_FRAGMENT_SHADER,
+            fragment_outputs=fragment_outputs,
+        )
+
+
+def test_many_varyings(ctx):
+    """More varyings than any fixed size buffer in the C++ code can hold"""
+    names = [f"v{i}" for i in range(200)]
+    source = (
+        "#version 330\n"
+        "in float x;\n"
+        + "".join(f"out float {name};\n" for name in names)
+        + "void main() {\n"
+        + "".join(f"{name} = x + {i}.0;\n" for i, name in enumerate(names))
+        + "}\n"
+    )
+
+    # The implementation limits are far lower, so the link is expected to fail,
+    # but with an error rather than a crash
+    try:
+        program = ctx.program(
+            vertex_shader=source,
+            varyings=names,
+        )
+    except moderngl.Error:
+        return
+
+    assert set(names) <= set(program)
+
+
+HELPER_VERTEX_SHADER = '''
+    #version 430
+
+    in vec2 in_vert;
+    uniform vec2 offset;
+    uniform Block {
+        vec4 color;
+    };
+    buffer Storage {
+        float data[];
+    };
+    out float v_out;
+
+    void main() {
+        v_out = color.x + data[0];
+        gl_Position = vec4(in_vert + offset, 0.0, 1.0);
+    }
+'''
+
+
+@pytest.mark.parametrize("helper_name", [
+    "make_attribute",
+    "make_varying",
+    "make_uniform",
+    "make_uniform_block",
+    "make_storage_block",
+])
+def test_program_helper_error(ctx, monkeypatch, helper_name):
+    """An exception raised by the Python helper that builds a program member is propagated"""
+    if ctx.version_code < 430:
+        pytest.skip("storage blocks need OpenGL 4.3")
+
+    def create():
+        return ctx.program(vertex_shader=HELPER_VERTEX_SHADER, varyings=["v_out"])
+
+    program = create()
+    for name in ["in_vert", "offset", "Block", "Storage", "v_out"]:
+        assert name in program
+    program.release()
+
+    def helper(*args):
+        raise RuntimeError(f"{helper_name} failed")
+
+    monkeypatch.setattr(_moderngl, helper_name, helper)
+
+    with pytest.raises(RuntimeError, match=f"{helper_name} failed"):
+        create()
+
+    monkeypatch.undo()
+    create().release()
