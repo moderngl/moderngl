@@ -31,6 +31,17 @@ jobs:
           CIBW_PROJECT_REQUIRES_PYTHON: ">=3.8"
           CIBW_SKIP: pp*
 
+      # cibuildwheel builds the free-threaded wheels of 3.14 (cp314t) by default, the step above
+      # includes them. It dropped the experimental free-threaded 3.13 (cp313t) in 4.0, 3.4.1 is the
+      # last release with it, and it needs the cpython-freethreading enable group. Drop this step
+      # when cp313t is not wanted any more.
+      - name: wheels (free-threaded 3.13)
+        run: pipx run cibuildwheel==3.4.1 --output-dir package
+        env:
+          CIBW_PROJECT_REQUIRES_PYTHON: ">=3.8"
+          CIBW_BUILD: "cp313t-*"
+          CIBW_ENABLE: cpython-freethreading
+
       - uses: actions/upload-artifact@v4
         with:
           name: package-${{ matrix.os }}
