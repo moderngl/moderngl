@@ -1296,7 +1296,9 @@ void * load_opengl_function(PyObject * loader, const char * method, const char *
     if (!res) {
         return NULL;
     }
-    return PyLong_AsVoidPtr(res);
+    void * address = PyLong_AsVoidPtr(res);
+    Py_DECREF(res);
+    return address;
 }
 
 GLMethods load_gl_methods(PyObject * loader) {
