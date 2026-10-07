@@ -211,7 +211,7 @@ class DefaultLoader:
             def loader(name):
                 return proc(name.encode()) or funcptr(lib, name)
 
-        elif sys.platform.startswith("linux"):
+        elif sys.platform.startswith(("linux", "freebsd", "openbsd", "netbsd", "dragonfly")):
             try:
                 libegl = find_library("EGL")
                 if libegl is None:
