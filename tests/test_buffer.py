@@ -1,3 +1,5 @@
+import moderngl
+import pytest
 
 
 def test_glo(ctx):
@@ -96,3 +98,25 @@ def test_buffer_labels(ctx):
     buf = ctx.buffer(reserve=1024)
     buf.label = "test buffer"
     assert buf.label == "test buffer"
+
+
+def test_buffer_clear_zero_fill_offset(ctx):
+    """Zero filling a range must write at the given offset, not past it"""
+    buf = ctx.buffer(data=b'\xAA' * 20)
+    buf.clear(offset=8, size=4)
+    assert buf.read() == b'\xAA' * 8 + b'\x00' * 4 + b'\xAA' * 8
+
+    # Used to write beyond the end of the mapped range
+    buf.clear(offset=16, size=4)
+    assert buf.read() == b'\xAA' * 8 + b'\x00' * 4 + b'\xAA' * 4 + b'\x00' * 4
+
+    buf.clear(offset=1)
+    assert buf.read() == b'\xAA' + b'\x00' * 19
+
+
+def test_buffer_clear_empty_chunk(ctx):
+    """An empty chunk can't be repeated to fill anything"""
+    buf = ctx.buffer(data=b'\xAA' * 8)
+    with pytest.raises(moderngl.Error):
+        buf.clear(chunk=b'')
+    assert buf.read() == b'\xAA' * 8

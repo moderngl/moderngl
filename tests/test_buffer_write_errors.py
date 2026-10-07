@@ -1,3 +1,4 @@
+import moderngl
 import pytest
 
 
@@ -51,3 +52,18 @@ def test_4(ctx):
 
     with pytest.raises(Exception):
         buf.write_chunks(b'yyynyy', 0, 2, 2)
+
+
+def test_write_chunks_invalid_count(ctx):
+    """A zero count used to divide by zero and crash the interpreter"""
+    buf = ctx.buffer(b'123456789')
+
+    with pytest.raises(moderngl.Error):
+        buf.write_chunks(b'ab', 0, 3, 0)
+
+    with pytest.raises(moderngl.Error):
+        buf.write_chunks(b'ab', 0, 3, -1)
+
+    assert buf.read() == b'123456789'
+    buf.write_chunks(b'ab', 0, 3, 1)
+    assert buf.read() == b'ab3456789'

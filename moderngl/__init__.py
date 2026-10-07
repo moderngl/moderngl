@@ -113,7 +113,7 @@ class Buffer:
         return self.mglo.read_chunks(chunk_size, start, step, count)
 
     def read_chunks_into(self, buffer, chunk_size, start, step, count, write_offset=0):
-        return self.mglo.read(buffer, chunk_size, start, step, count, write_offset)
+        return self.mglo.read_chunks_into(buffer, chunk_size, start, step, count, write_offset)
 
     def clear(self, size=-1, offset=0, chunk=None):
         self.mglo.clear(size, offset, chunk)

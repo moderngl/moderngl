@@ -964,7 +964,7 @@ static PyObject * MGLContext_external_buffer(MGLContext * self, PyObject * args)
     }
 
     buffer->released = false;
-    buffer->external = false;
+    buffer->external = true;
 
     buffer->size = size;
     buffer->dynamic = false;
@@ -1076,8 +1076,9 @@ static PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args) {
         size = self->size - offset;
     }
 
-    if (offset < 0 || write_offset < 0 || offset + size > self->size) {
-        MGLError_Set("out of range");
+    // size is negative here if size=-1 was given with an offset past the end
+    if (offset < 0 || size < 0 || write_offset < 0 || offset + size > self->size) {
+        MGLError_Set("out of range offset = %zd or size = %zd", offset, size);
         return 0;
     }
 
@@ -1095,10 +1096,22 @@ static PyObject * MGLBuffer_read_into(MGLBuffer * self, PyObject * args) {
         return 0;
     }
 
+    if (size == 0) {
+        // Nothing to copy, and glMapBufferRange does not accept an empty range
+        PyBuffer_Release(&buffer_view);
+        Py_RETURN_NONE;
+    }
+
     const GLMethods & gl = self->context->gl;
 
     gl.BindBuffer(GL_ARRAY_BUFFER, self->buffer_obj);
     void * map = gl.MapBufferRange(GL_ARRAY_BUFFER, offset, size, GL_MAP_READ_BIT);
+
+    if (!map) {
+        MGLError_Set("cannot map the buffer");
+        PyBuffer_Release(&buffer_view);
+        return 0;
+    }
 
     char * ptr = (char *)buffer_view.buf + write_offset;
     memcpy(ptr, map, size);
@@ -1125,6 +1138,12 @@ static PyObject * MGLBuffer_write_chunks(MGLBuffer * self, PyObject * args) {
     );
 
     if (!args_ok) {
+        return 0;
+    }
+
+    // count is used as a divisor below
+    if (count <= 0) {
+        MGLError_Set("invalid count %zd", count);
         return 0;
     }
 
@@ -1258,11 +1277,28 @@ static PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) 
         return 0;
     }
 
+    Py_ssize_t abs_step = step > 0 ? step : -step;
+
+    if (start < 0) {
+        start = self->size + start;
+    }
+
+    if (start < 0 || chunk_size < 0 || count < 0 || chunk_size > abs_step || start + chunk_size > self->size || start + count * step - step < 0 || start + count * step - step + chunk_size > self->size) {
+        MGLError_Set("size error");
+        return 0;
+    }
+
     Py_buffer buffer_view;
 
     int get_buffer = PyObject_GetBuffer(data, &buffer_view, PyBUF_WRITABLE);
     if (get_buffer < 0) {
         // Propagate the default error
+        return 0;
+    }
+
+    if (write_offset < 0 || buffer_view.len < write_offset + chunk_size * count) {
+        MGLError_Set("the buffer is too small");
+        PyBuffer_Release(&buffer_view);
         return 0;
     }
 
@@ -1275,6 +1311,7 @@ static PyObject * MGLBuffer_read_chunks_into(MGLBuffer * self, PyObject * args) 
 
     if (!read_ptr) {
         MGLError_Set("cannot map the buffer");
+        PyBuffer_Release(&buffer_view);
         return 0;
     }
 
@@ -1320,6 +1357,12 @@ static PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
             return 0;
         }
 
+        if (buffer_view.len == 0) {
+            MGLError_Set("the chunk cannot be empty");
+            PyBuffer_Release(&buffer_view);
+            return 0;
+        }
+
         if (size % buffer_view.len != 0) {
             MGLError_Set("the chunk does not fit the size");
             PyBuffer_Release(&buffer_view);
@@ -1348,7 +1391,7 @@ static PyObject * MGLBuffer_clear(MGLBuffer * self, PyObject * args) {
             map[i] = src[i % divisor];
         }
     } else {
-        memset(map + offset, 0, size);
+        memset(map, 0, size);
     }
 
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
@@ -2197,9 +2240,16 @@ static int MGLFramebuffer_set_color_mask(MGLFramebuffer * self, PyObject * value
             return -1;
         }
         int count = (int)PyTuple_Size(value);
+        int capacity = (int)(sizeof(self->color_mask) / sizeof(self->color_mask[0]));
+        if (count > capacity) {
+            Py_DECREF(value);
+            MGLError_Set("too many color masks (%d), the maximum is %d", count, capacity);
+            return -1;
+        }
         for (int i = 0; i < count; ++i) {
             PyObject * mask = PyTuple_GetItem(value, i);
             if (!parse_mask(mask, &self->color_mask[i])) {
+                Py_DECREF(value);
                 MGLError_Set("invalid color mask");
                 return -1;
             }
@@ -7189,6 +7239,15 @@ static PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * arg
     if (!self->program->num_varyings) {
         MGLError_Set("the program has no varyings");
         return 0;
+    }
+
+    // The items are cast to MGLBuffer below. A released buffer's mglo is an InvalidObject.
+    Py_ssize_t num_output_items = PyList_GET_SIZE(outputs);
+    for (Py_ssize_t i = 0; i < num_output_items; ++i) {
+        if (!PyObject_TypeCheck(PyList_GET_ITEM(outputs, i), MGLBuffer_type)) {
+            MGLError_Set("invalid output buffer at index %d (released or not a buffer)", (int)i);
+            return 0;
+        }
     }
 
     if (vertices < 0) {
