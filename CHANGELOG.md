@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fix use-after-free when calling methods of a released `VertexArray` or `Scope` after its program, index buffer or framebuffers were released and freed.
 - Fix memory leaks in `Context.scope` (the samplers and the arrays of bindings were never freed).
 
+## [5.13.0](https://github.com/moderngl/moderngl/compare/5.10.0...5.13.0)
+
+- to be added later
+
 ## [5.10.0](https://github.com/moderngl/moderngl/compare/5.9.0...5.10.0)
 
 - Adding pre-built wheels for MacOS ARM

@@ -94,7 +94,7 @@ project_urls = {
 
 setup(
     name="moderngl",
-    version="5.12.0",
+    version="5.13.0",
     description=short_description,
     long_description=long_description,
     long_description_content_type="text/markdown",
