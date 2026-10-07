@@ -1,3 +1,5 @@
+.. _gc:
+
 .. py:currentmodule:: moderngl
 
 
@@ -52,6 +54,7 @@ This is a problem for OpenGL because only the main thread is allowed
 to interact with the context. When using threads in your application
 you should be using ``"context_gc"`` mode and periodically call ``Context.gc``
 for example during every frame swap.
+See also :ref:`threading`.
 
 Manually Releasing Objects
 --------------------------

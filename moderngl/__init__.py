@@ -1619,9 +1619,14 @@ class Context:
         count = 0
         # Keep iterating until there are no more objects.
         # An object deletion can trigger new objects to be added
-        while self._objects:
-            # Remove the oldest objects first
-            obj = self._objects.popleft()
+        while True:
+            # Remove the oldest objects first.
+            # Another thread can empty the deque between a check and the popleft,
+            # so popleft is the check (it is atomic, every object is released once).
+            try:
+                obj = self._objects.popleft()
+            except IndexError:
+                break
             obj.release()
             count += 1
 

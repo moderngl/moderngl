@@ -1,6 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#include "freethreading.hpp"
 #include "gl_methods.hpp"
 
 #define MGLError_Set(...) PyErr_Format(moderngl_error, __VA_ARGS__)
@@ -10,6 +11,17 @@
 
 static PyObject * helper;
 static PyObject * moderngl_error;
+
+// The strings the front_face and cull_face getters return, created in PyInit_mgl and never freed.
+// They are not function-local statics: the first call would create them from several threads at once,
+// and a thread waiting for the initialization of a static cannot take part in a stop-the-world pause
+// of the free-threaded garbage collector, which the thread doing the initialization may be waiting for.
+static PyObject * str_cw;
+static PyObject * str_ccw;
+static PyObject * str_front;
+static PyObject * str_back;
+static PyObject * str_front_and_back;
+
 static PyTypeObject * MGLBuffer_type;
 static PyTypeObject * MGLContext_type;
 static PyTypeObject * MGLFramebuffer_type;
@@ -1524,6 +1536,13 @@ static int MGLBuffer_tp_as_buffer_get_view(MGLBuffer * self, Py_buffer * view, i
 }
 
 static void MGLBuffer_tp_as_buffer_release_view(MGLBuffer * self, Py_buffer * view) {
+    // A view can outlive the buffer and the context, the memory view of a buffer may be released
+    // after Buffer.release() or Context.release(). Deleting a buffer unmaps it, and there is no
+    // OpenGL context left to call anything on after the context was released.
+    if (self->released || self->context->released) {
+        return;
+    }
+
     const GLMethods & gl = self->context->gl;
     gl.UnmapBuffer(GL_ARRAY_BUFFER);
 }
@@ -2512,14 +2531,23 @@ static PyObject * MGLContext_program(MGLContext * self, PyObject * args) {
         gl.TransformFeedbackVaryings(program_obj, varyings_count, varyings_array, capture_mode);
     }
 
-    {
-        PyObject * key = NULL;
-        PyObject * value = NULL;
-        Py_ssize_t pos = 0;
+    // fragment_outputs belongs to the caller, other threads may change it while this runs.
+    // The items are a snapshot that holds a reference to every key and value, PyDict_Next would
+    // return borrowed references to items that may be gone when they are used.
+    if (PyDict_Check(fragment_outputs)) {
+        PyObject * items = PyDict_Items(fragment_outputs);
+        if (!items) {
+            return NULL;
+        }
 
-        while (PyDict_Next(fragment_outputs, &pos, &key, &value)) {
+        Py_ssize_t num_items = PyList_GET_SIZE(items);
+        for (Py_ssize_t i = 0; i < num_items; ++i) {
+            PyObject * item = PyList_GET_ITEM(items, i);
+            PyObject * key = PyTuple_GET_ITEM(item, 0);
+            PyObject * value = PyTuple_GET_ITEM(item, 1);
             gl.BindFragDataLocation(program_obj, PyLong_AsLong(value), PyUnicode_AsUTF8(key));
         }
+        Py_DECREF(items);
     }
 
     gl.LinkProgram(program_obj);
@@ -7341,11 +7369,19 @@ static PyObject * MGLVertexArray_transform(MGLVertexArray * self, PyObject * arg
     gl.UseProgram(self->program->program_obj);
     gl.BindVertexArray(self->vertex_array_obj);
 
-    int num_outputs = (int)PyList_Size(outputs);
+    // The list may be shared with other threads that change it, the tuple is a snapshot
+    // that also keeps the buffers alive.
+    PyObject * outputs_snapshot = PyList_AsTuple(outputs);
+    if (!outputs_snapshot) {
+        return NULL;
+    }
+
+    int num_outputs = (int)PyTuple_GET_SIZE(outputs_snapshot);
     for (int i = 0; i < num_outputs; ++i) {
-        MGLBuffer * output = (MGLBuffer *)PyList_GET_ITEM(outputs, i);
+        MGLBuffer * output = (MGLBuffer *)PyTuple_GET_ITEM(outputs_snapshot, i);
         gl.BindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, i, output->buffer_obj, buffer_offset, output->size - buffer_offset);
     }
+    Py_DECREF(outputs_snapshot);
 
     gl.Enable(GL_RASTERIZER_DISCARD);
     gl.BeginTransformFeedback(output_mode);
@@ -8778,13 +8814,13 @@ static PyObject * MGLContext_get_max_debug_group_stack_depth(MGLContext * self, 
     }
 }
 
-static MGLFramebuffer * MGLContext_get_fbo(MGLContext * self, void * closure) {
+static PyObject * MGLContext_get_fbo(MGLContext * self, void * closure) {
     if (context_released(self)) {
         return 0;
     }
 
     Py_INCREF(self->bound_framebuffer);
-    return self->bound_framebuffer;
+    return (PyObject *)self->bound_framebuffer;
 }
 
 static int MGLContext_set_fbo(MGLContext * self, PyObject * value, void * closure) {
@@ -8820,14 +8856,9 @@ static int MGLContext_set_wireframe(MGLContext * self, PyObject * value, void * 
 }
 
 static PyObject * MGLContext_get_front_face(MGLContext * self, void * closure) {
-    if (self->front_face == GL_CW) {
-        static PyObject * res_cw = PyUnicode_FromString("cw");
-        Py_INCREF(res_cw);
-        return res_cw;
-    }
-    static PyObject * res_ccw = PyUnicode_FromString("ccw");
-    Py_INCREF(res_ccw);
-    return res_ccw;
+    PyObject * result = (self->front_face == GL_CW) ? str_cw : str_ccw;
+    Py_INCREF(result);
+    return result;
 }
 
 static int MGLContext_set_front_face(MGLContext * self, PyObject * value, void * closure) {
@@ -8847,19 +8878,15 @@ static int MGLContext_set_front_face(MGLContext * self, PyObject * value, void *
 }
 
 static PyObject * MGLContext_get_cull_face(MGLContext * self, void * closure) {
+    PyObject * result = str_front_and_back;
     if (self->cull_face == GL_FRONT) {
-        static PyObject * res_cw = PyUnicode_FromString("front");
-        Py_INCREF(res_cw);
-        return res_cw;
+        result = str_front;
     }
     else if (self->cull_face == GL_BACK) {
-        static PyObject * res_cw = PyUnicode_FromString("back");
-        Py_INCREF(res_cw);
-        return res_cw;
+        result = str_back;
     }
-    static PyObject * res_ccw = PyUnicode_FromString("front_and_back");
-    Py_INCREF(res_ccw);
-    return res_ccw;
+    Py_INCREF(result);
+    return result;
 }
 
 static int MGLContext_set_cull_face(MGLContext * self, PyObject * value, void * closure) {
@@ -9461,6 +9488,68 @@ static void MGLContext_dealloc(PyObject * _self) {
     Py_DECREF(tp);
 }
 
+// Thread safety
+//
+// Everything an object does happens in a critical section of the context it belongs to (the
+// context itself for the methods of mgl.Context). A context is not safe to use from two threads at
+// the same time: the methods keep state in the context (the bound framebuffer, the enable flags, the
+// default texture unit), they modify the OpenGL state, they replace objects the context points at.
+// With the GIL every method call was atomic. Without it, calls on one context are serialized by
+// the lock of that context, calls on different contexts run in parallel. Calls that block (while
+// waiting for the lock) do not hold anything else: critical sections are suspended whenever the
+// thread blocks, so these guards cannot deadlock and the lock can be re-entered by the same thread.
+//
+// The guards are applied in the tables of methods, getters and setters below, so the functions
+// themselves do not lock. Functions calling each other directly (Scope.begin calls
+// MGLFramebuffer_use) are already inside the lock of the same context. The module level functions
+// have no context and need none. Nothing checks `released` here, that is up to the functions.
+//
+// OpenGL also requires the context to be current on the calling thread, see the docs.
+// The guards compile to nothing if there is no free-threading.
+
+static PyObject * owner(MGLContext * self) {
+    return (PyObject *)self;
+}
+
+template <typename T>
+static PyObject * owner(T * self) {
+    return (PyObject *)self->context;
+}
+
+template <typename T, PyObject * (*F)(T *, PyObject *)>
+static PyObject * method_guard(PyObject * self, PyObject * args) {
+    ContextLock lock(owner((T *)self));
+    return F((T *)self, args);
+}
+
+template <typename T, PyObject * (*F)(T *, void *)>
+static PyObject * getter_guard(PyObject * self, void * closure) {
+    ContextLock lock(owner((T *)self));
+    return F((T *)self, closure);
+}
+
+template <typename T, int (*F)(T *, PyObject *, void *)>
+static int setter_guard(PyObject * self, PyObject * value, void * closure) {
+    ContextLock lock(owner((T *)self));
+    return F((T *)self, value, closure);
+}
+
+template <typename T, int (*F)(T *, Py_buffer *, int)>
+static int get_buffer_guard(PyObject * self, Py_buffer * view, int flags) {
+    ContextLock lock(owner((T *)self));
+    return F((T *)self, view, flags);
+}
+
+template <typename T, void (*F)(T *, Py_buffer *)>
+static void release_buffer_guard(PyObject * self, Py_buffer * view) {
+    ContextLock lock(owner((T *)self));
+    F((T *)self, view);
+}
+
+#define MGL_METHOD(T, function) method_guard<T, function>
+#define MGL_GETTER(T, function) getter_guard<T, function>
+#define MGL_SETTER(T, function) setter_guard<T, function>
+
 static PyMethodDef MGL_module_methods[] = {
     {(char *)"strsize", (PyCFunction)strsize, METH_VARARGS},
     {(char *)"create_context", (PyCFunction)create_context, METH_VARARGS | METH_KEYWORDS},
@@ -9474,124 +9563,124 @@ static PyGetSetDef MGLBuffer_getset[] = {
 };
 
 static PyMethodDef MGLBuffer_methods[] = {
-    {(char *)"write", (PyCFunction)MGLBuffer_write, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLBuffer_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLBuffer_read_into, METH_VARARGS},
-    {(char *)"write_chunks", (PyCFunction)MGLBuffer_write_chunks, METH_VARARGS},
-    {(char *)"read_chunks", (PyCFunction)MGLBuffer_read_chunks, METH_VARARGS},
-    {(char *)"read_chunks_into", (PyCFunction)MGLBuffer_read_chunks_into, METH_VARARGS},
-    {(char *)"clear", (PyCFunction)MGLBuffer_clear, METH_VARARGS},
-    {(char *)"orphan", (PyCFunction)MGLBuffer_orphan, METH_VARARGS},
-    {(char *)"bind_to_uniform_block", (PyCFunction)MGLBuffer_bind_to_uniform_block, METH_VARARGS},
-    {(char *)"bind_to_storage_buffer", (PyCFunction)MGLBuffer_bind_to_storage_buffer, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLBuffer_release, METH_NOARGS},
-    {(char *)"size", (PyCFunction)MGLBuffer_size, METH_NOARGS},
+    {(char *)"write", MGL_METHOD(MGLBuffer, MGLBuffer_write), METH_VARARGS},
+    {(char *)"read", MGL_METHOD(MGLBuffer, MGLBuffer_read), METH_VARARGS},
+    {(char *)"read_into", MGL_METHOD(MGLBuffer, MGLBuffer_read_into), METH_VARARGS},
+    {(char *)"write_chunks", MGL_METHOD(MGLBuffer, MGLBuffer_write_chunks), METH_VARARGS},
+    {(char *)"read_chunks", MGL_METHOD(MGLBuffer, MGLBuffer_read_chunks), METH_VARARGS},
+    {(char *)"read_chunks_into", MGL_METHOD(MGLBuffer, MGLBuffer_read_chunks_into), METH_VARARGS},
+    {(char *)"clear", MGL_METHOD(MGLBuffer, MGLBuffer_clear), METH_VARARGS},
+    {(char *)"orphan", MGL_METHOD(MGLBuffer, MGLBuffer_orphan), METH_VARARGS},
+    {(char *)"bind_to_uniform_block", MGL_METHOD(MGLBuffer, MGLBuffer_bind_to_uniform_block), METH_VARARGS},
+    {(char *)"bind_to_storage_buffer", MGL_METHOD(MGLBuffer, MGLBuffer_bind_to_storage_buffer), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLBuffer, MGLBuffer_release), METH_NOARGS},
+    {(char *)"size", MGL_METHOD(MGLBuffer, MGLBuffer_size), METH_NOARGS},
     {},
 };
 
 static PyMethodDef MGLContext_methods[] = {
-    {(char *)"enable_only", (PyCFunction)MGLContext_enable_only, METH_VARARGS},
-    {(char *)"enable", (PyCFunction)MGLContext_enable, METH_VARARGS},
-    {(char *)"disable", (PyCFunction)MGLContext_disable, METH_VARARGS},
-    {(char *)"enable_direct", (PyCFunction)MGLContext_enable_direct, METH_VARARGS},
-    {(char *)"disable_direct", (PyCFunction)MGLContext_disable_direct, METH_VARARGS},
-    {(char *)"finish", (PyCFunction)MGLContext_finish, METH_NOARGS},
-    {(char *)"copy_buffer", (PyCFunction)MGLContext_copy_buffer, METH_VARARGS},
-    {(char *)"copy_framebuffer", (PyCFunction)MGLContext_copy_framebuffer, METH_VARARGS},
-    {(char *)"detect_framebuffer", (PyCFunction)MGLContext_detect_framebuffer, METH_VARARGS},
-    {(char *)"clear_samplers", (PyCFunction)MGLContext_clear_samplers, METH_VARARGS},
+    {(char *)"enable_only", MGL_METHOD(MGLContext, MGLContext_enable_only), METH_VARARGS},
+    {(char *)"enable", MGL_METHOD(MGLContext, MGLContext_enable), METH_VARARGS},
+    {(char *)"disable", MGL_METHOD(MGLContext, MGLContext_disable), METH_VARARGS},
+    {(char *)"enable_direct", MGL_METHOD(MGLContext, MGLContext_enable_direct), METH_VARARGS},
+    {(char *)"disable_direct", MGL_METHOD(MGLContext, MGLContext_disable_direct), METH_VARARGS},
+    {(char *)"finish", MGL_METHOD(MGLContext, MGLContext_finish), METH_NOARGS},
+    {(char *)"copy_buffer", MGL_METHOD(MGLContext, MGLContext_copy_buffer), METH_VARARGS},
+    {(char *)"copy_framebuffer", MGL_METHOD(MGLContext, MGLContext_copy_framebuffer), METH_VARARGS},
+    {(char *)"detect_framebuffer", MGL_METHOD(MGLContext, MGLContext_detect_framebuffer), METH_VARARGS},
+    {(char *)"clear_samplers", MGL_METHOD(MGLContext, MGLContext_clear_samplers), METH_VARARGS},
 
-    {(char *)"buffer", (PyCFunction)MGLContext_buffer, METH_VARARGS},
-    {(char *)"external_buffer", (PyCFunction)MGLContext_external_buffer, METH_VARARGS},
-    {(char *)"texture", (PyCFunction)MGLContext_texture, METH_VARARGS},
-    {(char *)"texture3d", (PyCFunction)MGLContext_texture3d, METH_VARARGS},
-    {(char *)"texture_array", (PyCFunction)MGLContext_texture_array, METH_VARARGS},
-    {(char *)"texture_cube", (PyCFunction)MGLContext_texture_cube, METH_VARARGS},
-    {(char *)"depth_texture", (PyCFunction)MGLContext_depth_texture, METH_VARARGS},
-    {(char *)"depth_texture_cube", (PyCFunction)MGLContext_depth_texture_cube, METH_VARARGS},
-    {(char *)"external_texture", (PyCFunction)MGLContext_external_texture, METH_VARARGS},
-    {(char *)"vertex_array", (PyCFunction)MGLContext_vertex_array, METH_VARARGS},
-    {(char *)"program", (PyCFunction)MGLContext_program, METH_VARARGS},
-    {(char *)"framebuffer", (PyCFunction)MGLContext_framebuffer, METH_VARARGS},
-    {(char *)"empty_framebuffer", (PyCFunction)MGLContext_empty_framebuffer, METH_VARARGS},
-    {(char *)"query", (PyCFunction)MGLContext_query, METH_VARARGS},
-    {(char *)"scope", (PyCFunction)MGLContext_scope, METH_VARARGS},
-    {(char *)"sampler", (PyCFunction)MGLContext_sampler, METH_VARARGS},
-    {(char *)"memory_barrier", (PyCFunction)MGLContext_memory_barrier, METH_VARARGS},
-    {(char *)"get_label", (PyCFunction)MGLContext_get_label, METH_VARARGS},
-    {(char *)"set_label", (PyCFunction)MGLContext_set_label, METH_VARARGS},
-    {(char *)"push_debug_scope", (PyCFunction)MGLContext_push_debug_scope, METH_VARARGS},
-    {(char *)"pop_debug_scope", (PyCFunction)MGLContext_pop_debug_scope, METH_NOARGS},
+    {(char *)"buffer", MGL_METHOD(MGLContext, MGLContext_buffer), METH_VARARGS},
+    {(char *)"external_buffer", MGL_METHOD(MGLContext, MGLContext_external_buffer), METH_VARARGS},
+    {(char *)"texture", MGL_METHOD(MGLContext, MGLContext_texture), METH_VARARGS},
+    {(char *)"texture3d", MGL_METHOD(MGLContext, MGLContext_texture3d), METH_VARARGS},
+    {(char *)"texture_array", MGL_METHOD(MGLContext, MGLContext_texture_array), METH_VARARGS},
+    {(char *)"texture_cube", MGL_METHOD(MGLContext, MGLContext_texture_cube), METH_VARARGS},
+    {(char *)"depth_texture", MGL_METHOD(MGLContext, MGLContext_depth_texture), METH_VARARGS},
+    {(char *)"depth_texture_cube", MGL_METHOD(MGLContext, MGLContext_depth_texture_cube), METH_VARARGS},
+    {(char *)"external_texture", MGL_METHOD(MGLContext, MGLContext_external_texture), METH_VARARGS},
+    {(char *)"vertex_array", MGL_METHOD(MGLContext, MGLContext_vertex_array), METH_VARARGS},
+    {(char *)"program", MGL_METHOD(MGLContext, MGLContext_program), METH_VARARGS},
+    {(char *)"framebuffer", MGL_METHOD(MGLContext, MGLContext_framebuffer), METH_VARARGS},
+    {(char *)"empty_framebuffer", MGL_METHOD(MGLContext, MGLContext_empty_framebuffer), METH_VARARGS},
+    {(char *)"query", MGL_METHOD(MGLContext, MGLContext_query), METH_VARARGS},
+    {(char *)"scope", MGL_METHOD(MGLContext, MGLContext_scope), METH_VARARGS},
+    {(char *)"sampler", MGL_METHOD(MGLContext, MGLContext_sampler), METH_VARARGS},
+    {(char *)"memory_barrier", MGL_METHOD(MGLContext, MGLContext_memory_barrier), METH_VARARGS},
+    {(char *)"get_label", MGL_METHOD(MGLContext, MGLContext_get_label), METH_VARARGS},
+    {(char *)"set_label", MGL_METHOD(MGLContext, MGLContext_set_label), METH_VARARGS},
+    {(char *)"push_debug_scope", MGL_METHOD(MGLContext, MGLContext_push_debug_scope), METH_VARARGS},
+    {(char *)"pop_debug_scope", MGL_METHOD(MGLContext, MGLContext_pop_debug_scope), METH_NOARGS},
 
-    {(char *)"__enter__", (PyCFunction)MGLContext_enter, METH_NOARGS},
-    {(char *)"__exit__", (PyCFunction)MGLContext_exit, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLContext_release, METH_NOARGS},
-    {(char *)"clear_errors", (PyCFunction)MGLContext_clear_errors, METH_NOARGS},
+    {(char *)"__enter__", MGL_METHOD(MGLContext, MGLContext_enter), METH_NOARGS},
+    {(char *)"__exit__", MGL_METHOD(MGLContext, MGLContext_exit), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLContext, MGLContext_release), METH_NOARGS},
+    {(char *)"clear_errors", MGL_METHOD(MGLContext, MGLContext_clear_errors), METH_NOARGS},
 
-    {(char *)"_get_ubo_binding", (PyCFunction)MGLContext_get_ubo_binding, METH_VARARGS},
-    {(char *)"_set_ubo_binding", (PyCFunction)MGLContext_set_ubo_binding, METH_VARARGS},
-    {(char *)"_get_storage_block_binding", (PyCFunction)MGLContext_get_storage_block_binding, METH_VARARGS},
-    {(char *)"_set_storage_block_binding", (PyCFunction)MGLContext_set_storage_block_binding, METH_VARARGS},
-    {(char *)"_write_uniform", (PyCFunction)MGLContext_write_uniform, METH_VARARGS},
-    {(char *)"_read_uniform", (PyCFunction)MGLContext_read_uniform, METH_VARARGS},
-    {(char *)"_set_uniform_handle", (PyCFunction)MGLContext_set_uniform_handle, METH_VARARGS},
+    {(char *)"_get_ubo_binding", MGL_METHOD(MGLContext, MGLContext_get_ubo_binding), METH_VARARGS},
+    {(char *)"_set_ubo_binding", MGL_METHOD(MGLContext, MGLContext_set_ubo_binding), METH_VARARGS},
+    {(char *)"_get_storage_block_binding", MGL_METHOD(MGLContext, MGLContext_get_storage_block_binding), METH_VARARGS},
+    {(char *)"_set_storage_block_binding", MGL_METHOD(MGLContext, MGLContext_set_storage_block_binding), METH_VARARGS},
+    {(char *)"_write_uniform", MGL_METHOD(MGLContext, MGLContext_write_uniform), METH_VARARGS},
+    {(char *)"_read_uniform", MGL_METHOD(MGLContext, MGLContext_read_uniform), METH_VARARGS},
+    {(char *)"_set_uniform_handle", MGL_METHOD(MGLContext, MGLContext_set_uniform_handle), METH_VARARGS},
     {},
 };
 
 static PyGetSetDef MGLContext_getset[] = {
-    {(char *)"line_width", (getter)MGLContext_get_line_width, (setter)MGLContext_set_line_width},
-    {(char *)"point_size", (getter)MGLContext_get_point_size, (setter)MGLContext_set_point_size},
+    {(char *)"line_width", MGL_GETTER(MGLContext, MGLContext_get_line_width), MGL_SETTER(MGLContext, MGLContext_set_line_width)},
+    {(char *)"point_size", MGL_GETTER(MGLContext, MGLContext_get_point_size), MGL_SETTER(MGLContext, MGLContext_set_point_size)},
 
-    {(char *)"depth_func", (getter)MGLContext_get_depth_func, (setter)MGLContext_set_depth_func},
-    {(char *)"depth_clamp_range", (getter)MGLContext_get_depth_clamp_range, (setter)MGLContext_set_depth_clamp_range},
-    {(char *)"blend_func", (getter)MGLContext_get_blend_func, (setter)MGLContext_set_blend_func},
-    {(char *)"blend_equation", (getter)MGLContext_get_blend_equation, (setter)MGLContext_set_blend_equation},
-    {(char *)"multisample", (getter)MGLContext_get_multisample, (setter)MGLContext_set_multisample},
+    {(char *)"depth_func", MGL_GETTER(MGLContext, MGLContext_get_depth_func), MGL_SETTER(MGLContext, MGLContext_set_depth_func)},
+    {(char *)"depth_clamp_range", MGL_GETTER(MGLContext, MGLContext_get_depth_clamp_range), MGL_SETTER(MGLContext, MGLContext_set_depth_clamp_range)},
+    {(char *)"blend_func", MGL_GETTER(MGLContext, MGLContext_get_blend_func), MGL_SETTER(MGLContext, MGLContext_set_blend_func)},
+    {(char *)"blend_equation", MGL_GETTER(MGLContext, MGLContext_get_blend_equation), MGL_SETTER(MGLContext, MGLContext_set_blend_equation)},
+    {(char *)"multisample", MGL_GETTER(MGLContext, MGLContext_get_multisample), MGL_SETTER(MGLContext, MGLContext_set_multisample)},
 
-    {(char *)"provoking_vertex", (getter)MGLContext_get_provoking_vertex, (setter)MGLContext_set_provoking_vertex},
-    {(char *)"polygon_offset", (getter)MGLContext_get_polygon_offset, (setter)MGLContext_set_polygon_offset},
+    {(char *)"provoking_vertex", MGL_GETTER(MGLContext, MGLContext_get_provoking_vertex), MGL_SETTER(MGLContext, MGLContext_set_provoking_vertex)},
+    {(char *)"polygon_offset", MGL_GETTER(MGLContext, MGLContext_get_polygon_offset), MGL_SETTER(MGLContext, MGLContext_set_polygon_offset)},
 
-    {(char *)"default_texture_unit", (getter)MGLContext_get_default_texture_unit, (setter)MGLContext_set_default_texture_unit},
-    {(char *)"max_samples", (getter)MGLContext_get_max_samples, NULL},
-    {(char *)"max_integer_samples", (getter)MGLContext_get_max_integer_samples, NULL},
-    {(char *)"max_texture_units", (getter)MGLContext_get_max_texture_units, NULL},
-    {(char *)"max_anisotropy", (getter)MGLContext_get_max_anisotropy, NULL},
-    {(char *)"max_label_length", (getter)MGLContext_get_max_label_length, NULL},
-    {(char *)"max_debug_message_length", (getter)MGLContext_get_max_debug_message_length, NULL},
-    {(char *)"max_debug_group_stack_depth", (getter)MGLContext_get_max_debug_group_stack_depth, NULL},
+    {(char *)"default_texture_unit", MGL_GETTER(MGLContext, MGLContext_get_default_texture_unit), MGL_SETTER(MGLContext, MGLContext_set_default_texture_unit)},
+    {(char *)"max_samples", MGL_GETTER(MGLContext, MGLContext_get_max_samples), NULL},
+    {(char *)"max_integer_samples", MGL_GETTER(MGLContext, MGLContext_get_max_integer_samples), NULL},
+    {(char *)"max_texture_units", MGL_GETTER(MGLContext, MGLContext_get_max_texture_units), NULL},
+    {(char *)"max_anisotropy", MGL_GETTER(MGLContext, MGLContext_get_max_anisotropy), NULL},
+    {(char *)"max_label_length", MGL_GETTER(MGLContext, MGLContext_get_max_label_length), NULL},
+    {(char *)"max_debug_message_length", MGL_GETTER(MGLContext, MGLContext_get_max_debug_message_length), NULL},
+    {(char *)"max_debug_group_stack_depth", MGL_GETTER(MGLContext, MGLContext_get_max_debug_group_stack_depth), NULL},
 
-    {(char *)"fbo", (getter)MGLContext_get_fbo, (setter)MGLContext_set_fbo},
+    {(char *)"fbo", MGL_GETTER(MGLContext, MGLContext_get_fbo), MGL_SETTER(MGLContext, MGLContext_set_fbo)},
 
-    {(char *)"wireframe", (getter)MGLContext_get_wireframe, (setter)MGLContext_set_wireframe},
-    {(char *)"front_face", (getter)MGLContext_get_front_face, (setter)MGLContext_set_front_face},
-    {(char *)"cull_face", (getter)MGLContext_get_cull_face, (setter)MGLContext_set_cull_face},
+    {(char *)"wireframe", MGL_GETTER(MGLContext, MGLContext_get_wireframe), MGL_SETTER(MGLContext, MGLContext_set_wireframe)},
+    {(char *)"front_face", MGL_GETTER(MGLContext, MGLContext_get_front_face), MGL_SETTER(MGLContext, MGLContext_set_front_face)},
+    {(char *)"cull_face", MGL_GETTER(MGLContext, MGLContext_get_cull_face), MGL_SETTER(MGLContext, MGLContext_set_cull_face)},
 
-    {(char *)"patch_vertices", (getter)MGLContext_get_patch_vertices, (setter)MGLContext_set_patch_vertices},
+    {(char *)"patch_vertices", MGL_GETTER(MGLContext, MGLContext_get_patch_vertices), MGL_SETTER(MGLContext, MGLContext_set_patch_vertices)},
 
-    {(char *)"includes", (getter)MGLContext_get_includes, NULL},
-    {(char *)"extensions", (getter)MGLContext_get_extensions, NULL},
-    {(char *)"info", (getter)MGLContext_get_info, NULL},
-    {(char *)"error", (getter)MGLContext_get_error, NULL},
+    {(char *)"includes", MGL_GETTER(MGLContext, MGLContext_get_includes), NULL},
+    {(char *)"extensions", MGL_GETTER(MGLContext, MGLContext_get_extensions), NULL},
+    {(char *)"info", MGL_GETTER(MGLContext, MGLContext_get_info), NULL},
+    {(char *)"error", MGL_GETTER(MGLContext, MGLContext_get_error), NULL},
 
-    {(char *)"_context", (getter)MGLContext_get_context, NULL},
+    {(char *)"_context", MGL_GETTER(MGLContext, MGLContext_get_context), NULL},
     {},
 };
 
 static PyGetSetDef MGLFramebuffer_getset[] = {
-    {(char *)"viewport", (getter)MGLFramebuffer_get_viewport, (setter)MGLFramebuffer_set_viewport},
-    {(char *)"scissor", (getter)MGLFramebuffer_get_scissor, (setter)MGLFramebuffer_set_scissor},
-    {(char *)"color_mask", (getter)MGLFramebuffer_get_color_mask, (setter)MGLFramebuffer_set_color_mask},
-    {(char *)"depth_mask", (getter)MGLFramebuffer_get_depth_mask, (setter)MGLFramebuffer_set_depth_mask},
+    {(char *)"viewport", MGL_GETTER(MGLFramebuffer, MGLFramebuffer_get_viewport), MGL_SETTER(MGLFramebuffer, MGLFramebuffer_set_viewport)},
+    {(char *)"scissor", MGL_GETTER(MGLFramebuffer, MGLFramebuffer_get_scissor), MGL_SETTER(MGLFramebuffer, MGLFramebuffer_set_scissor)},
+    {(char *)"color_mask", MGL_GETTER(MGLFramebuffer, MGLFramebuffer_get_color_mask), MGL_SETTER(MGLFramebuffer, MGLFramebuffer_set_color_mask)},
+    {(char *)"depth_mask", MGL_GETTER(MGLFramebuffer, MGLFramebuffer_get_depth_mask), MGL_SETTER(MGLFramebuffer, MGLFramebuffer_set_depth_mask)},
 
-    {(char *)"bits", (getter)MGLFramebuffer_get_bits, NULL},
+    {(char *)"bits", MGL_GETTER(MGLFramebuffer, MGLFramebuffer_get_bits), NULL},
     {},
 };
 
 static PyMethodDef MGLFramebuffer_methods[] = {
-    {(char *)"clear", (PyCFunction)MGLFramebuffer_clear, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLFramebuffer_use, METH_NOARGS},
-    {(char *)"read_into", (PyCFunction)MGLFramebuffer_read_into, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLFramebuffer_release, METH_NOARGS},
+    {(char *)"clear", MGL_METHOD(MGLFramebuffer, MGLFramebuffer_clear), METH_VARARGS},
+    {(char *)"use", MGL_METHOD(MGLFramebuffer, MGLFramebuffer_use), METH_NOARGS},
+    {(char *)"read_into", MGL_METHOD(MGLFramebuffer, MGLFramebuffer_read_into), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLFramebuffer, MGLFramebuffer_release), METH_NOARGS},
     {},
 };
 
@@ -9600,28 +9689,28 @@ static PyGetSetDef MGLProgram_getset[] = {
 };
 
 static PyMethodDef MGLProgram_methods[] = {
-    {(char *)"run", (PyCFunction)MGLProgram_run, METH_VARARGS},
-    {(char *)"run_indirect", (PyCFunction)MGLProgram_run_indirect, METH_VARARGS},
-    {(char *)"draw_mesh_tasks", (PyCFunction)MGLProgram_draw_mesh_tasks, METH_VARARGS},
-    {(char *)"draw_mesh_tasks_indirect", (PyCFunction)MGLProgram_draw_mesh_tasks_indirect, METH_VARARGS},
-    {(char *)"draw_mesh_tasks_indirect_count", (PyCFunction)MGLProgram_draw_mesh_tasks_indirect_count, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLProgram_release, METH_NOARGS},
+    {(char *)"run", MGL_METHOD(MGLProgram, MGLProgram_run), METH_VARARGS},
+    {(char *)"run_indirect", MGL_METHOD(MGLProgram, MGLProgram_run_indirect), METH_VARARGS},
+    {(char *)"draw_mesh_tasks", MGL_METHOD(MGLProgram, MGLProgram_draw_mesh_tasks), METH_VARARGS},
+    {(char *)"draw_mesh_tasks_indirect", MGL_METHOD(MGLProgram, MGLProgram_draw_mesh_tasks_indirect), METH_VARARGS},
+    {(char *)"draw_mesh_tasks_indirect_count", MGL_METHOD(MGLProgram, MGLProgram_draw_mesh_tasks_indirect_count), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLProgram, MGLProgram_release), METH_NOARGS},
     {},
 };
 
 static PyGetSetDef MGLQuery_getset[] = {
-    {(char *)"samples", (getter)MGLQuery_get_samples, NULL},
-    {(char *)"primitives", (getter)MGLQuery_get_primitives, NULL},
-    {(char *)"elapsed", (getter)MGLQuery_get_elapsed, NULL},
+    {(char *)"samples", MGL_GETTER(MGLQuery, MGLQuery_get_samples), NULL},
+    {(char *)"primitives", MGL_GETTER(MGLQuery, MGLQuery_get_primitives), NULL},
+    {(char *)"elapsed", MGL_GETTER(MGLQuery, MGLQuery_get_elapsed), NULL},
     {},
 };
 
 static PyMethodDef MGLQuery_methods[] = {
-    {(char *)"begin", (PyCFunction)MGLQuery_begin, METH_NOARGS},
-    {(char *)"end", (PyCFunction)MGLQuery_end, METH_NOARGS},
-    {(char *)"begin_render", (PyCFunction)MGLQuery_begin_render, METH_NOARGS},
-    {(char *)"end_render", (PyCFunction)MGLQuery_end_render, METH_NOARGS},
-    // {(char *)"release", (PyCFunction)MGLQuery_release, METH_NOARGS},
+    {(char *)"begin", MGL_METHOD(MGLQuery, MGLQuery_begin), METH_NOARGS},
+    {(char *)"end", MGL_METHOD(MGLQuery, MGLQuery_end), METH_NOARGS},
+    {(char *)"begin_render", MGL_METHOD(MGLQuery, MGLQuery_begin_render), METH_NOARGS},
+    {(char *)"end_render", MGL_METHOD(MGLQuery, MGLQuery_end_render), METH_NOARGS},
+    // {(char *)"release", MGL_METHOD(MGLQuery, MGLQuery_release), METH_NOARGS},
     {},
 };
 
@@ -9630,141 +9719,141 @@ static PyGetSetDef MGLRenderbuffer_getset[] = {
 };
 
 static PyMethodDef MGLRenderbuffer_methods[] = {
-    {(char *)"release", (PyCFunction)MGLRenderbuffer_release, METH_NOARGS},
+    {(char *)"release", MGL_METHOD(MGLRenderbuffer, MGLRenderbuffer_release), METH_NOARGS},
     {},
 };
 
 static PyGetSetDef MGLSampler_getset[] = {
-    {(char *)"repeat_x", (getter)MGLSampler_get_repeat_x, (setter)MGLSampler_set_repeat_x},
-    {(char *)"repeat_y", (getter)MGLSampler_get_repeat_y, (setter)MGLSampler_set_repeat_y},
-    {(char *)"repeat_z", (getter)MGLSampler_get_repeat_z, (setter)MGLSampler_set_repeat_z},
-    {(char *)"filter", (getter)MGLSampler_get_filter, (setter)MGLSampler_set_filter},
-    {(char *)"compare_func", (getter)MGLSampler_get_compare_func, (setter)MGLSampler_set_compare_func},
-    {(char *)"anisotropy", (getter)MGLSampler_get_anisotropy, (setter)MGLSampler_set_anisotropy},
-    {(char *)"border_color", (getter)MGLSampler_get_border_color, (setter)MGLSampler_set_border_color},
-    {(char *)"min_lod", (getter)MGLSampler_get_min_lod, (setter)MGLSampler_set_min_lod},
-    {(char *)"max_lod", (getter)MGLSampler_get_max_lod, (setter)MGLSampler_set_max_lod},
+    {(char *)"repeat_x", MGL_GETTER(MGLSampler, MGLSampler_get_repeat_x), MGL_SETTER(MGLSampler, MGLSampler_set_repeat_x)},
+    {(char *)"repeat_y", MGL_GETTER(MGLSampler, MGLSampler_get_repeat_y), MGL_SETTER(MGLSampler, MGLSampler_set_repeat_y)},
+    {(char *)"repeat_z", MGL_GETTER(MGLSampler, MGLSampler_get_repeat_z), MGL_SETTER(MGLSampler, MGLSampler_set_repeat_z)},
+    {(char *)"filter", MGL_GETTER(MGLSampler, MGLSampler_get_filter), MGL_SETTER(MGLSampler, MGLSampler_set_filter)},
+    {(char *)"compare_func", MGL_GETTER(MGLSampler, MGLSampler_get_compare_func), MGL_SETTER(MGLSampler, MGLSampler_set_compare_func)},
+    {(char *)"anisotropy", MGL_GETTER(MGLSampler, MGLSampler_get_anisotropy), MGL_SETTER(MGLSampler, MGLSampler_set_anisotropy)},
+    {(char *)"border_color", MGL_GETTER(MGLSampler, MGLSampler_get_border_color), MGL_SETTER(MGLSampler, MGLSampler_set_border_color)},
+    {(char *)"min_lod", MGL_GETTER(MGLSampler, MGLSampler_get_min_lod), MGL_SETTER(MGLSampler, MGLSampler_set_min_lod)},
+    {(char *)"max_lod", MGL_GETTER(MGLSampler, MGLSampler_get_max_lod), MGL_SETTER(MGLSampler, MGLSampler_set_max_lod)},
     {},
 };
 
 static PyMethodDef MGLSampler_methods[] = {
-    {(char *)"use", (PyCFunction)MGLSampler_use, METH_VARARGS},
-    {(char *)"clear", (PyCFunction)MGLSampler_clear, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLSampler_release, METH_NOARGS},
+    {(char *)"use", MGL_METHOD(MGLSampler, MGLSampler_use), METH_VARARGS},
+    {(char *)"clear", MGL_METHOD(MGLSampler, MGLSampler_clear), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLSampler, MGLSampler_release), METH_NOARGS},
     {},
 };
 
 static PyMethodDef MGLScope_methods[] = {
-    {(char *)"begin", (PyCFunction)MGLScope_begin, METH_NOARGS},
-    {(char *)"end", (PyCFunction)MGLScope_end, METH_NOARGS},
-    {(char *)"release", (PyCFunction)MGLScope_release, METH_NOARGS},
+    {(char *)"begin", MGL_METHOD(MGLScope, MGLScope_begin), METH_NOARGS},
+    {(char *)"end", MGL_METHOD(MGLScope, MGLScope_end), METH_NOARGS},
+    {(char *)"release", MGL_METHOD(MGLScope, MGLScope_release), METH_NOARGS},
     {},
 };
 
 static PyGetSetDef MGLTexture_getset[] = {
-    {(char *)"repeat_x", (getter)MGLTexture_get_repeat_x, (setter)MGLTexture_set_repeat_x},
-    {(char *)"repeat_y", (getter)MGLTexture_get_repeat_y, (setter)MGLTexture_set_repeat_y},
-    {(char *)"filter", (getter)MGLTexture_get_filter, (setter)MGLTexture_set_filter},
-    {(char *)"swizzle", (getter)MGLTexture_get_swizzle, (setter)MGLTexture_set_swizzle},
-    {(char *)"compare_func", (getter)MGLTexture_get_compare_func, (setter)MGLTexture_set_compare_func},
-    {(char *)"anisotropy", (getter)MGLTexture_get_anisotropy, (setter)MGLTexture_set_anisotropy},
+    {(char *)"repeat_x", MGL_GETTER(MGLTexture, MGLTexture_get_repeat_x), MGL_SETTER(MGLTexture, MGLTexture_set_repeat_x)},
+    {(char *)"repeat_y", MGL_GETTER(MGLTexture, MGLTexture_get_repeat_y), MGL_SETTER(MGLTexture, MGLTexture_set_repeat_y)},
+    {(char *)"filter", MGL_GETTER(MGLTexture, MGLTexture_get_filter), MGL_SETTER(MGLTexture, MGLTexture_set_filter)},
+    {(char *)"swizzle", MGL_GETTER(MGLTexture, MGLTexture_get_swizzle), MGL_SETTER(MGLTexture, MGLTexture_set_swizzle)},
+    {(char *)"compare_func", MGL_GETTER(MGLTexture, MGLTexture_get_compare_func), MGL_SETTER(MGLTexture, MGLTexture_set_compare_func)},
+    {(char *)"anisotropy", MGL_GETTER(MGLTexture, MGLTexture_get_anisotropy), MGL_SETTER(MGLTexture, MGLTexture_set_anisotropy)},
     {},
 };
 
 static PyMethodDef MGLTexture_methods[] = {
-    {(char *)"write", (PyCFunction)MGLTexture_write, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLTexture_meth_bind, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLTexture_use, METH_VARARGS},
-    {(char *)"build_mipmaps", (PyCFunction)MGLTexture_build_mipmaps, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLTexture_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLTexture_read_into, METH_VARARGS},
-    {(char *)"get_handle", (PyCFunction)MGLTexture_get_handle, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLTexture_release, METH_NOARGS},
+    {(char *)"write", MGL_METHOD(MGLTexture, MGLTexture_write), METH_VARARGS},
+    {(char *)"bind", MGL_METHOD(MGLTexture, MGLTexture_meth_bind), METH_VARARGS},
+    {(char *)"use", MGL_METHOD(MGLTexture, MGLTexture_use), METH_VARARGS},
+    {(char *)"build_mipmaps", MGL_METHOD(MGLTexture, MGLTexture_build_mipmaps), METH_VARARGS},
+    {(char *)"read", MGL_METHOD(MGLTexture, MGLTexture_read), METH_VARARGS},
+    {(char *)"read_into", MGL_METHOD(MGLTexture, MGLTexture_read_into), METH_VARARGS},
+    {(char *)"get_handle", MGL_METHOD(MGLTexture, MGLTexture_get_handle), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLTexture, MGLTexture_release), METH_NOARGS},
     {},
 };
 
 static PyGetSetDef MGLTexture3D_getset[] = {
-    {(char *)"repeat_x", (getter)MGLTexture3D_get_repeat_x, (setter)MGLTexture3D_set_repeat_x},
-    {(char *)"repeat_y", (getter)MGLTexture3D_get_repeat_y, (setter)MGLTexture3D_set_repeat_y},
-    {(char *)"repeat_z", (getter)MGLTexture3D_get_repeat_z, (setter)MGLTexture3D_set_repeat_z},
-    {(char *)"filter", (getter)MGLTexture3D_get_filter, (setter)MGLTexture3D_set_filter},
-    {(char *)"swizzle", (getter)MGLTexture3D_get_swizzle, (setter)MGLTexture3D_set_swizzle},
+    {(char *)"repeat_x", MGL_GETTER(MGLTexture3D, MGLTexture3D_get_repeat_x), MGL_SETTER(MGLTexture3D, MGLTexture3D_set_repeat_x)},
+    {(char *)"repeat_y", MGL_GETTER(MGLTexture3D, MGLTexture3D_get_repeat_y), MGL_SETTER(MGLTexture3D, MGLTexture3D_set_repeat_y)},
+    {(char *)"repeat_z", MGL_GETTER(MGLTexture3D, MGLTexture3D_get_repeat_z), MGL_SETTER(MGLTexture3D, MGLTexture3D_set_repeat_z)},
+    {(char *)"filter", MGL_GETTER(MGLTexture3D, MGLTexture3D_get_filter), MGL_SETTER(MGLTexture3D, MGLTexture3D_set_filter)},
+    {(char *)"swizzle", MGL_GETTER(MGLTexture3D, MGLTexture3D_get_swizzle), MGL_SETTER(MGLTexture3D, MGLTexture3D_set_swizzle)},
     {},
 };
 
 static PyMethodDef MGLTexture3D_methods[] = {
-    {(char *)"write", (PyCFunction)MGLTexture3D_write, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLTexture3D_meth_bind, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLTexture3D_use, METH_VARARGS},
-    {(char *)"build_mipmaps", (PyCFunction)MGLTexture3D_build_mipmaps, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLTexture3D_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLTexture3D_read_into, METH_VARARGS},
-    {(char *)"get_handle", (PyCFunction)MGLTexture3D_get_handle, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLTexture3D_release, METH_NOARGS},
+    {(char *)"write", MGL_METHOD(MGLTexture3D, MGLTexture3D_write), METH_VARARGS},
+    {(char *)"bind", MGL_METHOD(MGLTexture3D, MGLTexture3D_meth_bind), METH_VARARGS},
+    {(char *)"use", MGL_METHOD(MGLTexture3D, MGLTexture3D_use), METH_VARARGS},
+    {(char *)"build_mipmaps", MGL_METHOD(MGLTexture3D, MGLTexture3D_build_mipmaps), METH_VARARGS},
+    {(char *)"read", MGL_METHOD(MGLTexture3D, MGLTexture3D_read), METH_VARARGS},
+    {(char *)"read_into", MGL_METHOD(MGLTexture3D, MGLTexture3D_read_into), METH_VARARGS},
+    {(char *)"get_handle", MGL_METHOD(MGLTexture3D, MGLTexture3D_get_handle), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLTexture3D, MGLTexture3D_release), METH_NOARGS},
     {},
 };
 
 static PyGetSetDef MGLTextureArray_getset[] = {
-    {(char *)"repeat_x", (getter)MGLTextureArray_get_repeat_x, (setter)MGLTextureArray_set_repeat_x},
-    {(char *)"repeat_y", (getter)MGLTextureArray_get_repeat_y, (setter)MGLTextureArray_set_repeat_y},
-    {(char *)"filter", (getter)MGLTextureArray_get_filter, (setter)MGLTextureArray_set_filter},
-    {(char *)"swizzle", (getter)MGLTextureArray_get_swizzle, (setter)MGLTextureArray_set_swizzle},
-    {(char *)"anisotropy", (getter)MGLTextureArray_get_anisotropy, (setter)MGLTextureArray_set_anisotropy},
+    {(char *)"repeat_x", MGL_GETTER(MGLTextureArray, MGLTextureArray_get_repeat_x), MGL_SETTER(MGLTextureArray, MGLTextureArray_set_repeat_x)},
+    {(char *)"repeat_y", MGL_GETTER(MGLTextureArray, MGLTextureArray_get_repeat_y), MGL_SETTER(MGLTextureArray, MGLTextureArray_set_repeat_y)},
+    {(char *)"filter", MGL_GETTER(MGLTextureArray, MGLTextureArray_get_filter), MGL_SETTER(MGLTextureArray, MGLTextureArray_set_filter)},
+    {(char *)"swizzle", MGL_GETTER(MGLTextureArray, MGLTextureArray_get_swizzle), MGL_SETTER(MGLTextureArray, MGLTextureArray_set_swizzle)},
+    {(char *)"anisotropy", MGL_GETTER(MGLTextureArray, MGLTextureArray_get_anisotropy), MGL_SETTER(MGLTextureArray, MGLTextureArray_set_anisotropy)},
     {},
 };
 
 static PyMethodDef MGLTextureArray_methods[] = {
-    {(char *)"write", (PyCFunction)MGLTextureArray_write, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLTextureArray_meth_bind, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLTextureArray_use, METH_VARARGS},
-    {(char *)"build_mipmaps", (PyCFunction)MGLTextureArray_build_mipmaps, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLTextureArray_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLTextureArray_read_into, METH_VARARGS},
-    {(char *)"get_handle", (PyCFunction)MGLTextureArray_get_handle, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLTextureArray_release, METH_NOARGS},
+    {(char *)"write", MGL_METHOD(MGLTextureArray, MGLTextureArray_write), METH_VARARGS},
+    {(char *)"bind", MGL_METHOD(MGLTextureArray, MGLTextureArray_meth_bind), METH_VARARGS},
+    {(char *)"use", MGL_METHOD(MGLTextureArray, MGLTextureArray_use), METH_VARARGS},
+    {(char *)"build_mipmaps", MGL_METHOD(MGLTextureArray, MGLTextureArray_build_mipmaps), METH_VARARGS},
+    {(char *)"read", MGL_METHOD(MGLTextureArray, MGLTextureArray_read), METH_VARARGS},
+    {(char *)"read_into", MGL_METHOD(MGLTextureArray, MGLTextureArray_read_into), METH_VARARGS},
+    {(char *)"get_handle", MGL_METHOD(MGLTextureArray, MGLTextureArray_get_handle), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLTextureArray, MGLTextureArray_release), METH_NOARGS},
     {},
 };
 
 static PyGetSetDef MGLTextureCube_getset[] = {
-    {(char *)"filter", (getter)MGLTextureCube_get_filter, (setter)MGLTextureCube_set_filter},
-    {(char *)"swizzle", (getter)MGLTextureCube_get_swizzle, (setter)MGLTextureCube_set_swizzle},
-    {(char *)"compare_func", (getter)MGLTextureCube_get_compare_func, (setter)MGLTextureCube_set_compare_func},
-    {(char *)"anisotropy", (getter)MGLTextureCube_get_anisotropy, (setter)MGLTextureCube_set_anisotropy},
+    {(char *)"filter", MGL_GETTER(MGLTextureCube, MGLTextureCube_get_filter), MGL_SETTER(MGLTextureCube, MGLTextureCube_set_filter)},
+    {(char *)"swizzle", MGL_GETTER(MGLTextureCube, MGLTextureCube_get_swizzle), MGL_SETTER(MGLTextureCube, MGLTextureCube_set_swizzle)},
+    {(char *)"compare_func", MGL_GETTER(MGLTextureCube, MGLTextureCube_get_compare_func), MGL_SETTER(MGLTextureCube, MGLTextureCube_set_compare_func)},
+    {(char *)"anisotropy", MGL_GETTER(MGLTextureCube, MGLTextureCube_get_anisotropy), MGL_SETTER(MGLTextureCube, MGLTextureCube_set_anisotropy)},
     {},
 };
 
 static PyMethodDef MGLTextureCube_methods[] = {
-    {(char *)"write", (PyCFunction)MGLTextureCube_write, METH_VARARGS},
-    {(char *)"use", (PyCFunction)MGLTextureCube_use, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLTextureCube_meth_bind, METH_VARARGS},
-    {(char *)"build_mipmaps", (PyCFunction)MGLTextureCube_build_mipmaps, METH_VARARGS},
-    {(char *)"read", (PyCFunction)MGLTextureCube_read, METH_VARARGS},
-    {(char *)"read_into", (PyCFunction)MGLTextureCube_read_into, METH_VARARGS},
-    {(char *)"get_handle", (PyCFunction)MGLTextureCube_get_handle, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLTextureCube_release, METH_NOARGS},
+    {(char *)"write", MGL_METHOD(MGLTextureCube, MGLTextureCube_write), METH_VARARGS},
+    {(char *)"use", MGL_METHOD(MGLTextureCube, MGLTextureCube_use), METH_VARARGS},
+    {(char *)"bind", MGL_METHOD(MGLTextureCube, MGLTextureCube_meth_bind), METH_VARARGS},
+    {(char *)"build_mipmaps", MGL_METHOD(MGLTextureCube, MGLTextureCube_build_mipmaps), METH_VARARGS},
+    {(char *)"read", MGL_METHOD(MGLTextureCube, MGLTextureCube_read), METH_VARARGS},
+    {(char *)"read_into", MGL_METHOD(MGLTextureCube, MGLTextureCube_read_into), METH_VARARGS},
+    {(char *)"get_handle", MGL_METHOD(MGLTextureCube, MGLTextureCube_get_handle), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLTextureCube, MGLTextureCube_release), METH_NOARGS},
     {},
 };
 
 static PyMethodDef MGLVertexArray_methods[] = {
-    {(char *)"render", (PyCFunction)MGLVertexArray_render, METH_VARARGS},
-    {(char *)"render_indirect", (PyCFunction)MGLVertexArray_render_indirect, METH_VARARGS},
-    {(char *)"transform", (PyCFunction)MGLVertexArray_transform, METH_VARARGS},
-    {(char *)"bind", (PyCFunction)MGLVertexArray_bind, METH_VARARGS},
-    {(char *)"release", (PyCFunction)MGLVertexArray_release, METH_NOARGS},
+    {(char *)"render", MGL_METHOD(MGLVertexArray, MGLVertexArray_render), METH_VARARGS},
+    {(char *)"render_indirect", MGL_METHOD(MGLVertexArray, MGLVertexArray_render_indirect), METH_VARARGS},
+    {(char *)"transform", MGL_METHOD(MGLVertexArray, MGLVertexArray_transform), METH_VARARGS},
+    {(char *)"bind", MGL_METHOD(MGLVertexArray, MGLVertexArray_bind), METH_VARARGS},
+    {(char *)"release", MGL_METHOD(MGLVertexArray, MGLVertexArray_release), METH_NOARGS},
     {},
 };
 
 static PyGetSetDef MGLVertexArray_getset[] = {
-    {(char *)"index_buffer", NULL, (setter)MGLVertexArray_set_index_buffer},
-    {(char *)"vertices", (getter)MGLVertexArray_get_vertices, (setter)MGLVertexArray_set_vertices},
-    {(char *)"instances", (getter)MGLVertexArray_get_instances, (setter)MGLVertexArray_set_instances},
+    {(char *)"index_buffer", NULL, MGL_SETTER(MGLVertexArray, MGLVertexArray_set_index_buffer)},
+    {(char *)"vertices", MGL_GETTER(MGLVertexArray, MGLVertexArray_get_vertices), MGL_SETTER(MGLVertexArray, MGLVertexArray_set_vertices)},
+    {(char *)"instances", MGL_GETTER(MGLVertexArray, MGLVertexArray_get_instances), MGL_SETTER(MGLVertexArray, MGLVertexArray_set_instances)},
     {},
 };
 
 static PyType_Slot MGLBuffer_slots[] = {
     #if PY_VERSION_HEX >= 0x03090000
-    {Py_bf_getbuffer, (void *)MGLBuffer_tp_as_buffer_get_view},
-    {Py_bf_releasebuffer, (void *)MGLBuffer_tp_as_buffer_release_view},
+    {Py_bf_getbuffer, (void *)get_buffer_guard<MGLBuffer, MGLBuffer_tp_as_buffer_get_view>},
+    {Py_bf_releasebuffer, (void *)release_buffer_guard<MGLBuffer, MGLBuffer_tp_as_buffer_release_view>},
     #endif
     {Py_tp_methods, MGLBuffer_methods},
     {Py_tp_getset, MGLBuffer_getset},
@@ -9881,32 +9970,91 @@ static PyModuleDef MGL_moduledef = {
     0,
 };
 
+// Creates the types of the module, PyType_FromSpec returns NULL if it fails.
+static bool create_types() {
+    struct TypeInfo {
+        PyTypeObject ** type;
+        PyType_Spec * spec;
+    };
+
+    const TypeInfo types[] = {
+        {&MGLBuffer_type, &MGLBuffer_spec},
+        {&MGLContext_type, &MGLContext_spec},
+        {&MGLFramebuffer_type, &MGLFramebuffer_spec},
+        {&MGLProgram_type, &MGLProgram_spec},
+        {&MGLQuery_type, &MGLQuery_spec},
+        {&MGLRenderbuffer_type, &MGLRenderbuffer_spec},
+        {&MGLScope_type, &MGLScope_spec},
+        {&MGLTexture_type, &MGLTexture_spec},
+        {&MGLTextureArray_type, &MGLTextureArray_spec},
+        {&MGLTextureCube_type, &MGLTextureCube_spec},
+        {&MGLTexture3D_type, &MGLTexture3D_spec},
+        {&MGLVertexArray_type, &MGLVertexArray_spec},
+        {&MGLSampler_type, &MGLSampler_spec},
+    };
+
+    for (const TypeInfo & info : types) {
+        *info.type = (PyTypeObject *)PyType_FromSpec(info.spec);
+        if (!*info.type) {
+            return false;
+        }
+    }
+    return true;
+}
+
 extern "C" PyObject * PyInit_mgl() {
     PyObject * module = PyModule_Create(&MGL_moduledef);
+    if (!module) {
+        return NULL;
+    }
+
+    #ifdef Py_GIL_DISABLED
+    // The module does not need the GIL: everything that is mutable belongs to a context and is
+    // protected by the lock of the context (see the guards above). The rest is set here, once.
+    if (PyUnstable_Module_SetGIL(module, Py_MOD_GIL_NOT_USED) < 0) {
+        Py_DECREF(module);
+        return NULL;
+    }
+    #endif
 
     helper = PyImport_ImportModule("_moderngl");
     if (!helper) {
+        Py_DECREF(module);
         return NULL;
     }
 
     moderngl_error = PyObject_GetAttrString(helper, "Error");
+    if (!moderngl_error) {
+        Py_DECREF(module);
+        return NULL;
+    }
 
-    MGLBuffer_type = (PyTypeObject *)PyType_FromSpec(&MGLBuffer_spec);
-    MGLContext_type = (PyTypeObject *)PyType_FromSpec(&MGLContext_spec);
-    MGLFramebuffer_type = (PyTypeObject *)PyType_FromSpec(&MGLFramebuffer_spec);
-    MGLProgram_type = (PyTypeObject *)PyType_FromSpec(&MGLProgram_spec);
-    MGLQuery_type = (PyTypeObject *)PyType_FromSpec(&MGLQuery_spec);
-    MGLRenderbuffer_type = (PyTypeObject *)PyType_FromSpec(&MGLRenderbuffer_spec);
-    MGLScope_type = (PyTypeObject *)PyType_FromSpec(&MGLScope_spec);
-    MGLTexture_type = (PyTypeObject *)PyType_FromSpec(&MGLTexture_spec);
-    MGLTextureArray_type = (PyTypeObject *)PyType_FromSpec(&MGLTextureArray_spec);
-    MGLTextureCube_type = (PyTypeObject *)PyType_FromSpec(&MGLTextureCube_spec);
-    MGLTexture3D_type = (PyTypeObject *)PyType_FromSpec(&MGLTexture3D_spec);
-    MGLVertexArray_type = (PyTypeObject *)PyType_FromSpec(&MGLVertexArray_spec);
-    MGLSampler_type = (PyTypeObject *)PyType_FromSpec(&MGLSampler_spec);
+    if (!create_types()) {
+        Py_DECREF(module);
+        return NULL;
+    }
+
+    str_cw = PyUnicode_FromString("cw");
+    str_ccw = PyUnicode_FromString("ccw");
+    str_front = PyUnicode_FromString("front");
+    str_back = PyUnicode_FromString("back");
+    str_front_and_back = PyUnicode_FromString("front_and_back");
+    if (!str_cw || !str_ccw || !str_front || !str_back || !str_front_and_back) {
+        Py_DECREF(module);
+        return NULL;
+    }
 
     PyObject * InvalidObject = PyObject_GetAttrString(helper, "InvalidObject");
-    PyModule_AddObject(module, "InvalidObject", InvalidObject);
+    if (!InvalidObject) {
+        Py_DECREF(module);
+        return NULL;
+    }
+
+    if (PyModule_AddObject(module, "InvalidObject", InvalidObject) < 0) {
+        Py_DECREF(InvalidObject);
+        Py_DECREF(module);
+        return NULL;
+    }
     Py_INCREF(InvalidObject);
 
     return module;

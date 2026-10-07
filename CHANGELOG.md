@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Using the framebuffers and scopes of a released `Context` now raises `moderngl.Error`.
 - Fix use-after-free when calling methods of a released `VertexArray` or `Scope` after its program, index buffer or framebuffers were released and freed.
 - Fix memory leaks in `Context.scope` (the samplers and the arrays of bindings were never freed).
+- Fix the release of the memory view of a `Buffer` calling OpenGL after the buffer or its `Context` was released.
+- `Context.gc()` no longer raises `IndexError` when it is called from two threads at the same time.
+- Support free-threaded Python (3.13t, 3.14t): `moderngl.mgl` declares that it does not need the GIL. Calls on a `Context` and on the objects created from it are serialized by a lock of the context, contexts on different threads run in parallel. See the new "Threads" page in the documentation.
 
 ## [5.13.0](https://github.com/moderngl/moderngl/compare/5.10.0...5.13.0)
 
