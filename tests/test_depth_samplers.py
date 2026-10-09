@@ -346,8 +346,7 @@ def test_sampler_shadow_with_bilinear_interpolation(
 
     def _with_texture_parameters():
         tex_depth.filter = depth_tex_filter
-        tex_depth.repeat_x = False
-        tex_depth.repeat_y = False
+        tex_depth.wrap = {'x' : 'clamp_to_edge', 'y' : 'clamp_to_edge'}
         tex_depth.compare_func = compare_func
         _do_test()
 

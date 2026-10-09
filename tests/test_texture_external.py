@@ -18,6 +18,7 @@ def test_init_from_texture_and_params(ctx):
     assert ext.samples == params_tex["samples"]
     assert ext.repeat_x is True
     assert ext.repeat_y is True
+    assert dict(ext.wrap) == {'x': 'repeat', 'y': 'repeat'}
     assert ext.filter == (ctx.LINEAR, ctx.LINEAR)
     assert ext.swizzle == "RGBA"
     assert ext.depth is False

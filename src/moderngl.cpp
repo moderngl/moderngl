@@ -384,8 +384,8 @@ struct MGLTexture {
     int compare_func;
     float anisotropy;
     bool depth;
-    bool repeat_x;
-    bool repeat_y;
+    int wrap_s;
+    int wrap_t;
     bool external;
     bool released;
 };
@@ -402,9 +402,9 @@ struct MGLTexture3D {
     int min_filter;
     int mag_filter;
     int max_level;
-    bool repeat_x;
-    bool repeat_y;
-    bool repeat_z;
+    int wrap_s;
+    int wrap_t;
+    int wrap_r;
     bool released;
 };
 
@@ -420,8 +420,8 @@ struct MGLTextureArray {
     int min_filter;
     int mag_filter;
     int max_level;
-    bool repeat_x;
-    bool repeat_y;
+    int wrap_s;
+    int wrap_t;
     float anisotropy;
     bool released;
 };
@@ -464,9 +464,9 @@ struct MGLSampler {
     int mag_filter;
     float anisotropy;
     int compare_func;
-    bool repeat_x;
-    bool repeat_y;
-    bool repeat_z;
+    int wrap_s;
+    int wrap_t;
+    int wrap_r;
     float border_color[4];
     float min_lod;
     float max_lod;
@@ -3236,9 +3236,9 @@ static PyObject * MGLContext_sampler(MGLContext * self, PyObject * args) {
     sampler->min_filter = GL_LINEAR;
     sampler->mag_filter = GL_LINEAR;
     sampler->anisotropy = 0.0;
-    sampler->repeat_x = true;
-    sampler->repeat_y = true;
-    sampler->repeat_z = true;
+    sampler->wrap_s = GL_REPEAT;
+    sampler->wrap_t = GL_REPEAT;
+    sampler->wrap_r = GL_REPEAT;
     sampler->compare_func = 0;
     sampler->border_color[0] = 0.0;
     sampler->border_color[1] = 0.0;
@@ -3318,68 +3318,220 @@ static PyObject * MGLSampler_release(MGLSampler * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
+static const char * wrap_constant_to_string(const int wrap_constant) {
+    switch (wrap_constant) {
+        case GL_REPEAT: return "repeat";
+        case GL_CLAMP_TO_EDGE: return "clamp_to_edge";
+        case GL_CLAMP_TO_BORDER: return "clamp_to_border";
+        case GL_MIRRORED_REPEAT: return "mirrored_repeat";
+        case GL_MIRROR_CLAMP_TO_EDGE: return "mirror_clamp_to_edge";
+    }
+    return nullptr;
+}
+
+static int wrap_string_to_constant(const char * wrap_string) {
+    if (!strcmp(wrap_string, "repeat")) return GL_REPEAT;
+    if (!strcmp(wrap_string, "clamp_to_edge")) return GL_CLAMP_TO_EDGE;
+    if (!strcmp(wrap_string, "clamp_to_border")) return GL_CLAMP_TO_BORDER;
+    if (!strcmp(wrap_string, "mirrored_repeat")) return GL_MIRRORED_REPEAT;
+    if (!strcmp(wrap_string, "mirror_clamp_to_edge")) return GL_MIRROR_CLAMP_TO_EDGE;
+    return 0; // Invalid
+}
+
+// Helper function to get a texture wrapping mode
+static int get_wrap_mode(PyObject * wrap_dict, const char * key, const int mode)
+{
+    const char * mode_string = wrap_constant_to_string(mode);
+    if (!mode_string) {
+        MGLError_Set("unrecognized wrap constant 0x%x for axis '%s'", mode, key);
+        return -1;
+    }
+    PyObject * wrap_mode_str = PyUnicode_FromString(mode_string);
+    if (!wrap_mode_str) {
+        return -1;
+    }
+    PyDict_SetItemString(wrap_dict, key, wrap_mode_str);
+    Py_DECREF(wrap_mode_str);
+    return 0;
+}
+
+using GLMethodPtr = void(*)(GLuint, GLenum, GLint);
+
+struct WrapField {
+    const char * key;
+    int field_value;
+};
+
+struct WrapKey {
+    const char * key;
+    const char * synonym_key;
+    GLenum pname;
+    int * field_ptr;
+};
+
+// Helper function to set a texture wrapping mode
+static int set_wrap_mode(const GLMethodPtr gl_method, const int field, PyObject* update_dict,
+                       const char* key, const char* synonym_key, const GLenum pname, int* wrap_mode)
+{
+    PyObject* wrap_obj = PyDict_GetItemString(update_dict, key);
+    PyObject* synonym_wrap_obj = PyDict_GetItemString(update_dict, synonym_key);
+    if (!wrap_obj && !synonym_wrap_obj)
+    {
+        return 0; // Okay for neither to exist
+    }
+    // If either key is given, then the value must be a string
+    if (wrap_obj && !PyUnicode_Check(wrap_obj)) {
+        MGLError_Set("Value for key %s must be a string", key);
+        return -1;
+    }
+    if (synonym_wrap_obj && !PyUnicode_Check(synonym_wrap_obj)) {
+        MGLError_Set("Value for key %s must be a string", synonym_key);
+        return -1;
+    }
+    // If both exist, the values must be the same
+    if (wrap_obj && synonym_wrap_obj && PyUnicode_Compare(wrap_obj, synonym_wrap_obj) != 0)
+    {
+        MGLError_Set(
+            " Both the key '%s' and its synonym '%s' were given, but with different values",
+            key, synonym_key);
+        return -1;
+    }
+
+    // Either the key or its synonym have been supplied
+    const char * key_used = wrap_obj ? key : synonym_key;
+    if (!wrap_obj) {
+        wrap_obj = synonym_wrap_obj;
+    }
+    const char * wrap_str = PyUnicode_AsUTF8(wrap_obj);
+    const int wrap_constant = wrap_string_to_constant(wrap_str);
+    if (!wrap_constant)
+    {
+        MGLError_Set("invalid wrap mode for '%s'", key_used);
+        return -1;
+    }
+    gl_method(field, pname, wrap_constant);
+    *wrap_mode = wrap_constant;
+
+    return 0;
+}
+
+static PyObject * MGLSampler_get_wrap(const MGLSampler * self, void * closure) {
+    PyObject * wrap_dict = PyDict_New();
+    if (!wrap_dict) {
+        return nullptr;
+    }
+
+    // Use the "x", "y", "z" keys to be consistent with other usage in moderngl
+    const WrapField wrap_fields[] = {
+        {"x", self->wrap_s},
+        {"y", self->wrap_t},
+        {"z", self->wrap_r},
+    };
+    for (const WrapField & wf : wrap_fields) {
+        if (get_wrap_mode(wrap_dict, wf.key, wf.field_value)) {
+            Py_DECREF(wrap_dict);
+            return nullptr;
+        }
+    }
+
+    return wrap_dict;
+}
+
+
+static int MGLSampler_set_wrap(MGLSampler * self, PyObject * value, void * closure) {
+    const GLMethods & gl = self->context->gl;
+
+    if (!PyDict_Check(value)) {
+        MGLError_Set("wrap must be a dictionary");
+        return -1;
+    }
+
+    const WrapKey known_keys[] = {
+        {"x", "s", GL_TEXTURE_WRAP_S, &self->wrap_s},
+        {"y", "t", GL_TEXTURE_WRAP_T, &self->wrap_t},
+        {"z", "r", GL_TEXTURE_WRAP_R, &self->wrap_r},
+    };
+    for (const WrapKey & k : known_keys) {
+        if (const int return_value = set_wrap_mode(gl.SamplerParameteri, self->sampler_obj,
+                                                  value, k.key, k.synonym_key, k.pname,
+                                                  k.field_ptr)) {
+            return return_value;
+        }
+    }
+
+    return 0;
+}
+
+// Map True/False to a wrap-mode GL constant. Returns 0 on success and writes
+// `*wrap_constant`; returns -1 with a Python error set otherwise.
+static int repeat_value_to_wrap_constant(PyObject * value, const char * axis_name,
+                                         int * wrap_constant) {
+    if (value == Py_True) {
+        *wrap_constant = GL_REPEAT;
+    } else if (value == Py_False) {
+        *wrap_constant = GL_CLAMP_TO_EDGE;
+    } else {
+        MGLError_Set("invalid value for texture_%s", axis_name);
+        return -1;
+    }
+    return 0;
+}
+
+// Apply a wrap-mode constant to a Sampler axis.
+static int set_sampler_wrap_axis(const GLMethods & gl, int sampler_obj, GLenum pname,
+                                 PyObject * value, const char * axis_name, int * cache_field) {
+    int wrap_constant;
+    if (repeat_value_to_wrap_constant(value, axis_name, &wrap_constant)) {
+        return -1;
+    }
+    gl.SamplerParameteri(sampler_obj, pname, wrap_constant);
+    *cache_field = wrap_constant;
+    return 0;
+}
+
+// Apply a wrap-mode constant to a Texture axis (binds the texture first, since
+// glTexParameteri operates on the currently bound texture).
+static int set_texture_wrap_axis(const GLMethods & gl, int active_unit, int target,
+                                 int texture_obj, GLenum pname,
+                                 PyObject * value, const char * axis_name, int * cache_field) {
+    int wrap_constant;
+    if (repeat_value_to_wrap_constant(value, axis_name, &wrap_constant)) {
+        return -1;
+    }
+    gl.ActiveTexture(GL_TEXTURE0 + active_unit);
+    gl.BindTexture(target, texture_obj);
+    gl.TexParameteri(target, pname, wrap_constant);
+    *cache_field = wrap_constant;
+    return 0;
+}
+
 static PyObject * MGLSampler_get_repeat_x(MGLSampler * self, void * closure) {
-    return PyBool_FromLong(self->repeat_x);
+    return self->wrap_s == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLSampler_set_repeat_x(MGLSampler * self, PyObject * value, void * closure) {
-    const GLMethods & gl = self->context->gl;
-
-    if (value == Py_True) {
-        gl.SamplerParameteri(self->sampler_obj, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        self->repeat_x = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.SamplerParameteri(self->sampler_obj, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        self->repeat_x = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_x");
-        return -1;
-    }
+    return set_sampler_wrap_axis(self->context->gl, self->sampler_obj, GL_TEXTURE_WRAP_S,
+                                 value, "x", &self->wrap_s);
 }
 
 static PyObject * MGLSampler_get_repeat_y(MGLSampler * self, void * closure) {
-    return PyBool_FromLong(self->repeat_y);
+    return self->wrap_t == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLSampler_set_repeat_y(MGLSampler * self, PyObject * value, void * closure) {
-    const GLMethods & gl = self->context->gl;
-
-    if (value == Py_True) {
-        gl.SamplerParameteri(self->sampler_obj, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        self->repeat_y = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.SamplerParameteri(self->sampler_obj, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        self->repeat_y = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_y");
-        return -1;
-    }
+    return set_sampler_wrap_axis(self->context->gl, self->sampler_obj, GL_TEXTURE_WRAP_T,
+                                 value, "y", &self->wrap_t);
 }
 
 static PyObject * MGLSampler_get_repeat_z(MGLSampler * self, void * closure) {
-    return PyBool_FromLong(self->repeat_z);
+    return self->wrap_r == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLSampler_set_repeat_z(MGLSampler * self, PyObject * value, void * closure) {
-    const GLMethods & gl = self->context->gl;
-
-    if (value == Py_True) {
-        gl.SamplerParameteri(self->sampler_obj, GL_TEXTURE_WRAP_R, GL_REPEAT);
-        self->repeat_z = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.SamplerParameteri(self->sampler_obj, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-        self->repeat_z = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_z");
-        return -1;
-    }
+    return set_sampler_wrap_axis(self->context->gl, self->sampler_obj, GL_TEXTURE_WRAP_R,
+                                 value, "z", &self->wrap_r);
 }
+
 
 static PyObject * MGLSampler_get_filter(MGLSampler * self, void * closure) {
     return Py_BuildValue("(ii)", self->min_filter, self->mag_filter);
@@ -4125,8 +4277,8 @@ static PyObject * MGLContext_texture(MGLContext * self, PyObject * args) {
     texture->min_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
     texture->mag_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
 
-    texture->repeat_x = true;
-    texture->repeat_y = true;
+    texture->wrap_s = GL_REPEAT;
+    texture->wrap_t = GL_REPEAT;
 
     Py_INCREF(self);
     texture->context = self;
@@ -4300,8 +4452,8 @@ static PyObject * MGLContext_depth_texture(MGLContext * self, PyObject * args) {
     texture->mag_filter = GL_LINEAR;
     texture->max_level = 0;
 
-    texture->repeat_x = false;
-    texture->repeat_y = false;
+    texture->wrap_s = GL_CLAMP_TO_EDGE;
+    texture->wrap_t = GL_CLAMP_TO_EDGE;
 
     Py_INCREF(self);
     texture->context = self;
@@ -4362,8 +4514,8 @@ static PyObject * MGLContext_external_texture(MGLContext * self, PyObject * args
     texture->min_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
     texture->mag_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
 
-    texture->repeat_x = true;
-    texture->repeat_y = true;
+    texture->wrap_s = GL_REPEAT;
+    texture->wrap_t = GL_REPEAT;
 
     Py_INCREF(self);
     texture->context = self;
@@ -4779,56 +4931,75 @@ static PyObject * MGLTexture_release(MGLTexture * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
+
+static PyObject * MGLTexture_get_wrap(const MGLTexture * self, void * closure) {
+    PyObject * wrap_dict = PyDict_New();
+    if (!wrap_dict) {
+        return nullptr;
+    }
+
+    // Use the "x", "y" keys to be consistent with other usage in moderngl
+    const WrapField wrap_fields[] = {
+        {"x", self->wrap_s},
+        {"y", self->wrap_t},
+    };
+    for (const WrapField & wf : wrap_fields) {
+        if (get_wrap_mode(wrap_dict, wf.key, wf.field_value)) {
+            Py_DECREF(wrap_dict);
+            return nullptr;
+        }
+    }
+
+    return wrap_dict;
+}
+
+static int MGLTexture_set_wrap(MGLTexture * self, PyObject * value, void * closure) {
+    const GLMethods & gl = self->context->gl;
+
+    if (!PyDict_Check(value)) {
+        MGLError_Set("wrap must be a dictionary");
+        return -1;
+    }
+    const int texture_target = self->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+
+    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
+    gl.BindTexture(texture_target, self->texture_obj);
+
+    const WrapKey known_keys[] = {
+        {"x", "s", GL_TEXTURE_WRAP_S, &self->wrap_s},
+        {"y", "t", GL_TEXTURE_WRAP_T, &self->wrap_t},
+    };
+    for (const WrapKey & k : known_keys) {
+        if (const int return_value = set_wrap_mode(gl.TexParameteri, texture_target, value,
+                                                  k.key, k.synonym_key, k.pname,
+                                                  k.field_ptr)) {
+            return return_value;
+        }
+    }
+
+    return 0;
+}
+
 static PyObject * MGLTexture_get_repeat_x(MGLTexture * self, void * closure) {
-    return PyBool_FromLong(self->repeat_x);
+    return self->wrap_s == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLTexture_set_repeat_x(MGLTexture * self, PyObject * value, void * closure) {
-    int texture_target = self->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-
-    const GLMethods & gl = self->context->gl;
-
-    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-    gl.BindTexture(texture_target, self->texture_obj);
-
-    if (value == Py_True) {
-        gl.TexParameteri(texture_target, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        self->repeat_x = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.TexParameteri(texture_target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        self->repeat_x = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_x");
-        return -1;
-    }
+    const int target = self->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    return set_texture_wrap_axis(self->context->gl, self->context->default_texture_unit,
+                                 target, self->texture_obj, GL_TEXTURE_WRAP_S,
+                                 value, "x", &self->wrap_s);
 }
 
 static PyObject * MGLTexture_get_repeat_y(MGLTexture * self, void * closure) {
-    return PyBool_FromLong(self->repeat_y);
+    return self->wrap_t == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLTexture_set_repeat_y(MGLTexture * self, PyObject * value, void * closure) {
-    int texture_target = self->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-
-    const GLMethods & gl = self->context->gl;
-
-    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-    gl.BindTexture(texture_target, self->texture_obj);
-
-    if (value == Py_True) {
-        gl.TexParameteri(texture_target, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        self->repeat_y = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.TexParameteri(texture_target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        self->repeat_y = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_y");
-        return -1;
-    }
+    const int target = self->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    return set_texture_wrap_axis(self->context->gl, self->context->default_texture_unit,
+                                 target, self->texture_obj, GL_TEXTURE_WRAP_T,
+                                 value, "y", &self->wrap_t);
 }
 
 static PyObject * MGLTexture_get_filter(MGLTexture * self, void * closure) {
@@ -5120,9 +5291,9 @@ static PyObject * MGLContext_texture3d(MGLContext * self, PyObject * args) {
     texture->mag_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
     texture->max_level = 0;
 
-    texture->repeat_x = true;
-    texture->repeat_y = true;
-    texture->repeat_z = true;
+    texture->wrap_s = GL_REPEAT;
+    texture->wrap_t = GL_REPEAT;
+    texture->wrap_r = GL_REPEAT;
 
     Py_INCREF(self);
     texture->context = self;
@@ -5460,79 +5631,84 @@ static PyObject * MGLTexture3D_release(MGLTexture3D * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
+
+static PyObject * MGLTexture3D_get_wrap(const MGLTexture3D * self, void * closure) {
+    PyObject * wrap_dict = PyDict_New();
+    if (!wrap_dict) {
+        return nullptr;
+    }
+
+    // Use the "x", "y", "z" keys to be consistent with other usage in moderngl
+    const WrapField wrap_fields[] = {
+        {"x", self->wrap_s},
+        {"y", self->wrap_t},
+        {"z", self->wrap_r},
+    };
+    for (const WrapField & wf : wrap_fields) {
+        if (get_wrap_mode(wrap_dict, wf.key, wf.field_value)) {
+            Py_DECREF(wrap_dict);
+            return nullptr;
+        }
+    }
+
+    return wrap_dict;
+}
+
+static int MGLTexture3D_set_wrap(MGLTexture3D * self, PyObject * value, void * closure) {
+    const GLMethods & gl = self->context->gl;
+
+    if (!PyDict_Check(value)) {
+        MGLError_Set("wrap must be a dictionary");
+        return -1;
+    }
+
+    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
+    gl.BindTexture(GL_TEXTURE_3D, self->texture_obj);
+
+    const WrapKey known_keys[] = {
+        {"x", "s", GL_TEXTURE_WRAP_S, &self->wrap_s},
+        {"y", "t", GL_TEXTURE_WRAP_T, &self->wrap_t},
+        {"z", "r", GL_TEXTURE_WRAP_R, &self->wrap_r},
+    };
+    for (const WrapKey & k : known_keys) {
+        if (const int return_value = set_wrap_mode(gl.TexParameteri, GL_TEXTURE_3D, value,
+                                                  k.key, k.synonym_key, k.pname,
+                                                  k.field_ptr)) {
+            return return_value;
+        }
+    }
+
+    return 0;
+}
+
 static PyObject * MGLTexture3D_get_repeat_x(MGLTexture3D * self, void * closure) {
-    return PyBool_FromLong(self->repeat_x);
+    return self->wrap_s == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLTexture3D_set_repeat_x(MGLTexture3D * self, PyObject * value, void * closure) {
-
-    const GLMethods & gl = self->context->gl;
-
-    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-    gl.BindTexture(GL_TEXTURE_3D, self->texture_obj);
-
-    if (value == Py_True) {
-        gl.TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        self->repeat_x = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        self->repeat_x = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_x");
-        return -1;
-    }
+    return set_texture_wrap_axis(self->context->gl, self->context->default_texture_unit,
+                                 GL_TEXTURE_3D, self->texture_obj, GL_TEXTURE_WRAP_S,
+                                 value, "x", &self->wrap_s);
 }
 
 static PyObject * MGLTexture3D_get_repeat_y(MGLTexture3D * self, void * closure) {
-    return PyBool_FromLong(self->repeat_y);
+    return self->wrap_t == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLTexture3D_set_repeat_y(MGLTexture3D * self, PyObject * value, void * closure) {
-
-    const GLMethods & gl = self->context->gl;
-
-    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-    gl.BindTexture(GL_TEXTURE_3D, self->texture_obj);
-
-    if (value == Py_True) {
-        gl.TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        self->repeat_y = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        self->repeat_y = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_y");
-        return -1;
-    }
+    return set_texture_wrap_axis(self->context->gl, self->context->default_texture_unit,
+                                 GL_TEXTURE_3D, self->texture_obj, GL_TEXTURE_WRAP_T,
+                                 value, "y", &self->wrap_t);
 }
 
 static PyObject * MGLTexture3D_get_repeat_z(MGLTexture3D * self, void * closure) {
-    return PyBool_FromLong(self->repeat_z);
+    return self->wrap_r == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLTexture3D_set_repeat_z(MGLTexture3D * self, PyObject * value, void * closure) {
-
-    const GLMethods & gl = self->context->gl;
-
-    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-    gl.BindTexture(GL_TEXTURE_3D, self->texture_obj);
-
-    if (value == Py_True) {
-        gl.TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
-        self->repeat_z = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-        self->repeat_z = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_z");
-        return -1;
-    }
+    return set_texture_wrap_axis(self->context->gl, self->context->default_texture_unit,
+                                 GL_TEXTURE_3D, self->texture_obj, GL_TEXTURE_WRAP_R,
+                                 value, "z", &self->wrap_r);
 }
 
 static PyObject * MGLTexture3D_get_filter(MGLTexture3D * self, void * closure) {
@@ -5754,8 +5930,8 @@ static PyObject * MGLContext_texture_array(MGLContext * self, PyObject * args) {
     texture->min_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
     texture->mag_filter = data_type->float_type ? GL_LINEAR : GL_NEAREST;
 
-    texture->repeat_x = true;
-    texture->repeat_y = true;
+    texture->wrap_s = GL_REPEAT;
+    texture->wrap_t = GL_REPEAT;
     texture->anisotropy = 0.0;
     texture->max_level = 0;
 
@@ -6118,54 +6294,72 @@ static PyObject * MGLTextureArray_release(MGLTextureArray * self, PyObject * arg
     Py_RETURN_NONE;
 }
 
+static PyObject * MGLTextureArray_get_wrap(const MGLTextureArray * self, void * closure) {
+    PyObject * wrap_dict = PyDict_New();
+    if (!wrap_dict) {
+        return nullptr;
+    }
+
+    // Use the "x", "y" keys to be consistent with other usage in moderngl
+    const WrapField wrap_fields[] = {
+        {"x", self->wrap_s},
+        {"y", self->wrap_t},
+    };
+    for (const WrapField & wf : wrap_fields) {
+        if (get_wrap_mode(wrap_dict, wf.key, wf.field_value)) {
+            Py_DECREF(wrap_dict);
+            return nullptr;
+        }
+    }
+
+    return wrap_dict;
+}
+
+static int MGLTextureArray_set_wrap(MGLTextureArray * self, PyObject * value, void * closure) {
+    const GLMethods & gl = self->context->gl;
+
+    if (!PyDict_Check(value)) {
+        MGLError_Set("wrap must be a dictionary");
+        return -1;
+    }
+
+    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
+    gl.BindTexture(GL_TEXTURE_2D_ARRAY, self->texture_obj);
+
+    const WrapKey known_keys[] = {
+        {"x", "s", GL_TEXTURE_WRAP_S, &self->wrap_s},
+        {"y", "t", GL_TEXTURE_WRAP_T, &self->wrap_t},
+    };
+    for (const WrapKey & k : known_keys) {
+        if (const int return_value = set_wrap_mode(gl.TexParameteri, GL_TEXTURE_2D_ARRAY, value,
+                                                  k.key, k.synonym_key, k.pname,
+                                                  k.field_ptr))
+        {
+            return return_value;
+        }
+    }
+
+    return 0;
+}
+
 static PyObject * MGLTextureArray_get_repeat_x(MGLTextureArray * self, void * closure) {
-    return PyBool_FromLong(self->repeat_x);
+    return self->wrap_s == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLTextureArray_set_repeat_x(MGLTextureArray * self, PyObject * value, void * closure) {
-
-    const GLMethods & gl = self->context->gl;
-
-    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-    gl.BindTexture(GL_TEXTURE_2D_ARRAY, self->texture_obj);
-
-    if (value == Py_True) {
-        gl.TexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        self->repeat_x = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.TexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        self->repeat_x = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_x");
-        return -1;
-    }
+    return set_texture_wrap_axis(self->context->gl, self->context->default_texture_unit,
+                                 GL_TEXTURE_2D_ARRAY, self->texture_obj, GL_TEXTURE_WRAP_S,
+                                 value, "x", &self->wrap_s);
 }
 
 static PyObject * MGLTextureArray_get_repeat_y(MGLTextureArray * self, void * closure) {
-    return PyBool_FromLong(self->repeat_y);
+    return self->wrap_t == GL_REPEAT ? Py_True : Py_False;
 }
 
 static int MGLTextureArray_set_repeat_y(MGLTextureArray * self, PyObject * value, void * closure) {
-
-    const GLMethods & gl = self->context->gl;
-
-    gl.ActiveTexture(GL_TEXTURE0 + self->context->default_texture_unit);
-    gl.BindTexture(GL_TEXTURE_2D_ARRAY, self->texture_obj);
-
-    if (value == Py_True) {
-        gl.TexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        self->repeat_y = true;
-        return 0;
-    } else if (value == Py_False) {
-        gl.TexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        self->repeat_y = false;
-        return 0;
-    } else {
-        MGLError_Set("invalid value for texture_y");
-        return -1;
-    }
+    return set_texture_wrap_axis(self->context->gl, self->context->default_texture_unit,
+                                 GL_TEXTURE_2D_ARRAY, self->texture_obj, GL_TEXTURE_WRAP_T,
+                                 value, "y", &self->wrap_t);
 }
 
 static PyObject * MGLTextureArray_get_filter(MGLTextureArray * self, void * closure) {
@@ -9838,6 +10032,7 @@ static PyGetSetDef MGLSampler_getset[] = {
     {(char *)"repeat_x", (getter)MGLSampler_get_repeat_x, (setter)MGLSampler_set_repeat_x},
     {(char *)"repeat_y", (getter)MGLSampler_get_repeat_y, (setter)MGLSampler_set_repeat_y},
     {(char *)"repeat_z", (getter)MGLSampler_get_repeat_z, (setter)MGLSampler_set_repeat_z},
+    {(char *)"wrap", (getter)MGLSampler_get_wrap, (setter)MGLSampler_set_wrap},
     {(char *)"filter", (getter)MGLSampler_get_filter, (setter)MGLSampler_set_filter},
     {(char *)"compare_func", (getter)MGLSampler_get_compare_func, (setter)MGLSampler_set_compare_func},
     {(char *)"anisotropy", (getter)MGLSampler_get_anisotropy, (setter)MGLSampler_set_anisotropy},
@@ -9864,6 +10059,7 @@ static PyMethodDef MGLScope_methods[] = {
 static PyGetSetDef MGLTexture_getset[] = {
     {(char *)"repeat_x", (getter)MGLTexture_get_repeat_x, (setter)MGLTexture_set_repeat_x},
     {(char *)"repeat_y", (getter)MGLTexture_get_repeat_y, (setter)MGLTexture_set_repeat_y},
+    {(char *)"wrap", (getter)MGLTexture_get_wrap, (setter)MGLTexture_set_wrap},
     {(char *)"filter", (getter)MGLTexture_get_filter, (setter)MGLTexture_set_filter},
     {(char *)"swizzle", (getter)MGLTexture_get_swizzle, (setter)MGLTexture_set_swizzle},
     {(char *)"compare_func", (getter)MGLTexture_get_compare_func, (setter)MGLTexture_set_compare_func},
@@ -9887,6 +10083,7 @@ static PyGetSetDef MGLTexture3D_getset[] = {
     {(char *)"repeat_x", (getter)MGLTexture3D_get_repeat_x, (setter)MGLTexture3D_set_repeat_x},
     {(char *)"repeat_y", (getter)MGLTexture3D_get_repeat_y, (setter)MGLTexture3D_set_repeat_y},
     {(char *)"repeat_z", (getter)MGLTexture3D_get_repeat_z, (setter)MGLTexture3D_set_repeat_z},
+    {(char *)"wrap", (getter)MGLTexture3D_get_wrap, (setter)MGLTexture3D_set_wrap},
     {(char *)"filter", (getter)MGLTexture3D_get_filter, (setter)MGLTexture3D_set_filter},
     {(char *)"swizzle", (getter)MGLTexture3D_get_swizzle, (setter)MGLTexture3D_set_swizzle},
     {},
@@ -9907,6 +10104,7 @@ static PyMethodDef MGLTexture3D_methods[] = {
 static PyGetSetDef MGLTextureArray_getset[] = {
     {(char *)"repeat_x", (getter)MGLTextureArray_get_repeat_x, (setter)MGLTextureArray_set_repeat_x},
     {(char *)"repeat_y", (getter)MGLTextureArray_get_repeat_y, (setter)MGLTextureArray_set_repeat_y},
+    {(char *)"wrap", (getter)MGLTextureArray_get_wrap, (setter)MGLTextureArray_set_wrap},
     {(char *)"filter", (getter)MGLTextureArray_get_filter, (setter)MGLTextureArray_set_filter},
     {(char *)"swizzle", (getter)MGLTextureArray_get_swizzle, (setter)MGLTextureArray_set_swizzle},
     {(char *)"anisotropy", (getter)MGLTextureArray_get_anisotropy, (setter)MGLTextureArray_set_anisotropy},

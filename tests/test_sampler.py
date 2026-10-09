@@ -13,6 +13,7 @@ def test_defaults(ctx):
     assert sampler.repeat_x is True
     assert sampler.repeat_y is True
     assert sampler.repeat_z is True
+    assert dict(sampler.wrap) == {'x' : 'repeat', 'y' : 'repeat', 'z' : 'repeat'}
     assert sampler.filter == (moderngl.LINEAR, moderngl.LINEAR)
     assert sampler.compare_func == '?'
     assert sampler.border_color == (0.0, 0.0, 0.0, 0.0)
@@ -38,6 +39,29 @@ def test_prop_changes(ctx):
     assert (sampler.repeat_x, sampler.repeat_y, sampler.repeat_z) == (False, False, True)
     sampler.repeat_z = False
     assert (sampler.repeat_x, sampler.repeat_y, sampler.repeat_z) == (False, False, False)
+
+    sampler.wrap = {'x' : 'repeat', 'y' : 'repeat', 'z' : 'repeat'}
+    other_wrap_modes = ['clamp_to_edge', 'clamp_to_border', 'mirrored_repeat',
+                        'mirror_clamp_to_edge']
+    for other_wrap_mode in other_wrap_modes:
+        sampler.wrap = {'x' : other_wrap_mode}
+        assert (sampler.wrap['x'] == other_wrap_mode and
+                 sampler.wrap['y'] == 'repeat' and
+                 sampler.wrap['z'] == 'repeat')
+        sampler.wrap = {'y' : other_wrap_mode}
+        assert (sampler.wrap['x'] == other_wrap_mode and
+                sampler.wrap['y'] == other_wrap_mode and
+                sampler.wrap['z'] == 'repeat')
+        sampler.wrap = {'z' : other_wrap_mode}
+        assert (sampler.wrap['x'] == other_wrap_mode and
+                sampler.wrap['y'] == other_wrap_mode and
+                sampler.wrap['z'] == other_wrap_mode)
+        sampler.wrap = {'x' : 'repeat', 'y' : 'repeat', 'z' : 'repeat'}
+        sampler.wrap = {'x' : other_wrap_mode, 'y' : other_wrap_mode}
+        assert (sampler.wrap['x'] == other_wrap_mode and
+                sampler.wrap['y'] == other_wrap_mode and
+                sampler.wrap['z'] == 'repeat')
+        sampler.wrap = {'x' : 'repeat', 'y' : 'repeat', 'z' : 'repeat'}
 
 
 def test_border_color(ctx):
