@@ -632,6 +632,20 @@ Attributes
             moderngl.ONE, moderngl.ONE
         )
 
+.. py:method:: Context.blend_func_i(buffer: int, value: tuple) -> None
+
+    Set the blend func for a specific buffer.
+
+    Example::
+        #sets blend func for all buffers in a framebuffer
+        ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
+
+        #sets blend func only for the second buffer
+        ctx.blend_func_i(
+            1,
+            (moderngl.ONE, moderngl.ONE)
+        )
+
 .. py:attribute:: Context.blend_equation
     :type: tuple
 
