@@ -1153,7 +1153,7 @@ class Context:
         ctx.depth_clamp_range = (near, far)
     """
 
-    blend_func: Tuple[int, int]
+    blend_func: Union[Tuple[int, int], Tuple[int, int, int, int]]
     """
     tuple: Set the blend func (write only).
 
@@ -2909,8 +2909,8 @@ class Query:
     extra: Any
     """Attribute for storing user defined objects"""
 
-    def __enter__(self): ...
-    def __exit__(self, *args: Tuple[Any]): ...
+    def __enter__(self) -> Query: ...
+    def __exit__(self, *args: Any) -> None: ...
     def release(self) -> None:
         """Release the ModernGL object."""
 
@@ -3192,8 +3192,8 @@ class Scope:
     - Restore the framebuffer.
     """
 
-    def __enter__(self): ...
-    def __exit__(self, *args: Tuple[Any]): ...
+    def __enter__(self) -> Scope: ...
+    def __exit__(self, *args: Any) -> None: ...
     def release(self) -> None:
         """Destroy the Scope object."""
     mglo: Any
