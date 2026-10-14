@@ -2111,7 +2111,8 @@ class Context:
 
         Args:
             framebuffer (Framebuffer): The framebuffer to use when entering.
-            enable_only (int): The enable_only flags to set when entering.
+            enable_only (int): The enable_only flags to set when entering. The default
+                ``None`` preserves the flags active at entry; ``0`` disables all flags.
 
         Keyword Args:
             textures (tuple): List of (texture, binding) tuples.

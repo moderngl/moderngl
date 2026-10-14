@@ -3810,10 +3810,10 @@ static PyObject * MGLScope_begin(MGLScope * self, PyObject * args) {
     }
 
     const GLMethods & gl = self->context->gl;
-    const int & flags = self->enable_flags;
+    const int flags = self->enable_flags == MGL_INVALID ? self->context->enable_flags : self->enable_flags;
 
     self->old_enable_flags = self->context->enable_flags;
-    self->context->enable_flags = self->enable_flags;
+    self->context->enable_flags = flags;
 
     Py_XDECREF(MGLFramebuffer_use(self->framebuffer, NULL));
 
