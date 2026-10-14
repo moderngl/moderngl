@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [main](https://github.com/moderngl/moderngl/compare/5.10.0...main)
 
+- Keep `Context.fbo` synchronized when entering and exiting render scopes.
 - Add `Context.debug_scope`.
 - Fix memory leaks of objects created from a `Context` (programs, vertex arrays, renderbuffers, cube textures and queries kept their context alive forever).
 - Fix a use-after-free in `Sampler.release()` and a context reference dropped without being taken by `Framebuffer.release()` on framebuffers from `Context.detect_framebuffer()`.

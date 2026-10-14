@@ -3812,6 +3812,11 @@ static PyObject * MGLScope_begin(MGLScope * self, PyObject * args) {
     const GLMethods & gl = self->context->gl;
     const int & flags = self->enable_flags;
 
+    MGLFramebuffer * previous = self->context->bound_framebuffer;
+    Py_INCREF(previous);
+    Py_DECREF(self->old_framebuffer);
+    self->old_framebuffer = previous;
+
     self->old_enable_flags = self->context->enable_flags;
     self->context->enable_flags = self->enable_flags;
 
