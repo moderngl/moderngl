@@ -231,7 +231,8 @@ Objects
     VertexArrays with an attached scope always have the scope settings at render time.
 
     :param Framebuffer framebuffer: The framebuffer to use when entering.
-    :param int enable_only: The enable_only flags to set when entering.
+    :param int enable_only: The enable_only flags to set when entering. The default
+        ``None`` preserves the flags active at entry; ``0`` disables all flags.
     :param tuple textures: List of (texture, binding) tuples.
     :param tuple uniform_buffers: Tuple of (buffer, binding) tuples.
     :param tuple storage_buffers: Tuple of (buffer, binding) tuples.
