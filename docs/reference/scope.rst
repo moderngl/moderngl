@@ -20,6 +20,11 @@ Scope
     - Restore the enable flags.
     - Restore the framebuffer.
 
+    :py:attr:`Context.fbo` follows the active framebuffer inside a scope and is
+    restored when the scope exits, including when distinct scopes are nested.
+    The previous framebuffer is captured on entry, so a scope can be created
+    before its caller activates a framebuffer and can be reused after it exits.
+
 Methods
 -------
 

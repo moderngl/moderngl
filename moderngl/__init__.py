@@ -770,11 +770,16 @@ class Scope:
         raise TypeError()
 
     def __enter__(self):
+        old_framebuffer = self.ctx.fbo
         self.mglo.begin()
+        self._old_framebuffer = old_framebuffer
+        self.ctx.fbo = self._framebuffer
         return self
 
     def __exit__(self, *args):
         self.mglo.end()
+        self.ctx.fbo = self._old_framebuffer
+        self._old_framebuffer = None
 
     def __del__(self):
         if not hasattr(self, "ctx"):
