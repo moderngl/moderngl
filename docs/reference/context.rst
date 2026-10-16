@@ -441,6 +441,10 @@ Methods
 
     Copy framebuffer content.
 
+    Copying into a texture preserves its allocated size and internal format.
+    The overlapping lower-left rectangle is updated; texels outside it remain
+    unchanged.
+
     Use this method to:
 
         - blit framebuffers.
