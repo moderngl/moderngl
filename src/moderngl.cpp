@@ -8253,11 +8253,12 @@ static PyObject * MGLContext_detect_framebuffer(MGLContext * self, PyObject * ar
         }
     }
 
+    const GLenum attachment = num_color_attachments ? GL_COLOR_ATTACHMENT0 : GL_DEPTH_ATTACHMENT;
     int color_attachment_type = 0;
-    gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &color_attachment_type);
+    gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &color_attachment_type);
 
     int color_attachment_name = 0;
-    gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &color_attachment_name);
+    gl.GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &color_attachment_name);
 
     int width = 0;
     int height = 0;
