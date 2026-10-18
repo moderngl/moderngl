@@ -8191,14 +8191,12 @@ static PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args
             height = src->height < dst_texture->height ? src->height : dst_texture->height;
         }
 
-        const int formats[] = {0, GL_RED, GL_RG, GL_RGB, GL_RGBA};
         int texture_target = dst_texture->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-        int format = formats[dst_texture->components];
 
         gl.BindFramebuffer(GL_READ_FRAMEBUFFER, src->framebuffer_obj);
         gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_2D, dst_texture->texture_obj);
-        gl.CopyTexImage2D(texture_target, 0, format, 0, 0, width, height, 0);
+        gl.CopyTexSubImage2D(texture_target, 0, 0, 0, 0, 0, width, height);
         gl.BindFramebuffer(GL_FRAMEBUFFER, self->bound_framebuffer->framebuffer_obj);
 
     } else {
