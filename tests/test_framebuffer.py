@@ -91,3 +91,24 @@ def test_3(ctx):
     pixels3 = bytearray(64)
     fbo4.read_into(pixels3, attachment=2, components=4, dtype='f1')
     assert bytes(pixels3) == b'\x00\x00\xff\xff' * 16
+import numpy as np
+import pytest
+
+
+@pytest.mark.parametrize('samples', [0, 2, 4])
+@pytest.mark.parametrize('size', [(4, 3), (7, 5)])
+def test_copy_depth_only(ctx, samples, size):
+    previous = ctx.fbo
+    source_depth = ctx.depth_texture(size, samples=samples)
+    target_depth = ctx.depth_texture(size)
+    source = ctx.framebuffer(depth_attachment=source_depth)
+    target = ctx.framebuffer(depth_attachment=target_depth)
+    source.clear(depth=.125)
+    target.clear(depth=.875)
+    previous.use()
+
+    ctx.copy_framebuffer(target, source)
+
+    assert ctx.fbo is previous
+    actual = np.frombuffer(target_depth.read(), dtype='f4')
+    np.testing.assert_allclose(actual, .125, atol=1e-7)

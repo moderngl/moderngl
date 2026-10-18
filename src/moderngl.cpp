@@ -8153,6 +8153,14 @@ static PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args
                 GL_NEAREST
             );
         }
+        if (color_attachment_len == 0) {
+            gl.BlitFramebuffer(
+                0, 0, width, height,
+                0, 0, width, height,
+                GL_DEPTH_BUFFER_BIT,
+                GL_NEAREST
+            );
+        }
         gl.BindFramebuffer(GL_FRAMEBUFFER, self->bound_framebuffer->framebuffer_obj);
         gl.ReadBuffer(prev_read_buffer);
         gl.DrawBuffer(prev_draw_buffer);
