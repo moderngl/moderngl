@@ -1883,6 +1883,8 @@ static PyObject * MGLFramebuffer_release(MGLFramebuffer * self, PyObject * args)
     Py_RETURN_NONE;
 }
 
+static PyObject * MGLFramebuffer_use(MGLFramebuffer * self, PyObject * args);
+
 static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
     if (context_released(self->context)) {
         return 0;
@@ -1947,11 +1949,15 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
                 self->scissor.x, self->scissor.y,
                 self->scissor.width, self->scissor.height
             );
+        } else {
+            gl.Disable(GL_SCISSOR_TEST);
         }
         gl.Clear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     }
 
-    gl.BindFramebuffer(GL_FRAMEBUFFER, self->context->bound_framebuffer->framebuffer_obj);
+    if (self != self->context->bound_framebuffer) {
+        return MGLFramebuffer_use(self->context->bound_framebuffer, NULL);
+    }
 
     Py_RETURN_NONE;
 }

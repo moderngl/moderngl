@@ -20,6 +20,10 @@ Methods
     This viewport take presence over the framebuffers :py:attr:`~moderngl.Framebuffer.scissor`.
     Clearing can still be done with scissor if no viewport is passed in.
 
+    The framebuffer's own scissor and write masks apply to the clear, even when
+    another framebuffer is bound. The previous framebuffer and its rendering
+    state are restored afterward.
+
     This method also respects the
     :py:attr:`~moderngl.Framebuffer.color_mask` and
     :py:attr:`~moderngl.Framebuffer.depth_mask`. It can for example be used to only clear
