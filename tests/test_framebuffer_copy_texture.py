@@ -32,3 +32,29 @@ def test_copy_preserves_texture_storage(ctx, dtype, components, target_size):
     width, height = min(4, target_size[0]), min(3, target_size[1])
     initial[:height, :width] = values[:height, :width]
     np.testing.assert_array_equal(actual, initial)
+
+
+@pytest.mark.parametrize('attachment', [1, -1])
+@pytest.mark.parametrize('read_method', ['read', 'read_into', 'buffer'])
+def test_copy_texture_after_reading_other_attachment(ctx, attachment, read_method):
+    red = bytes([255, 0, 0, 255]) * 16
+    green = bytes([0, 255, 0, 255]) * 16
+    source = ctx.framebuffer(
+        [ctx.texture((4, 4), 4, red), ctx.texture((4, 4), 4, green)],
+        depth_attachment=ctx.depth_renderbuffer((4, 4)),
+    )
+    target = ctx.texture((4, 4), 4, bytes(64))
+    previous = ctx.fbo
+
+    if read_method == 'read':
+        source.read(attachment=attachment, components=4)
+    elif read_method == 'read_into':
+        source.read_into(bytearray(64), attachment=attachment, components=4)
+    else:
+        buffer = ctx.buffer(reserve=64)
+        source.read_into(buffer, attachment=attachment, components=4)
+
+    ctx.copy_framebuffer(target, source)
+
+    assert ctx.fbo is previous
+    assert target.read() == red

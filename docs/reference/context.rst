@@ -444,6 +444,8 @@ Methods
     Copying into a texture preserves its allocated size and internal format.
     The overlapping lower-left rectangle is updated; texels outside it remain
     unchanged.
+    Colour textures are copied from the first colour attachment, independently
+    of previous framebuffer reads.
 
     Use this method to:
 
