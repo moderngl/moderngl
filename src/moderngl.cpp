@@ -8200,6 +8200,7 @@ static PyObject * MGLContext_copy_framebuffer(MGLContext * self, PyObject * args
         int texture_target = dst_texture->samples ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
 
         gl.BindFramebuffer(GL_READ_FRAMEBUFFER, src->framebuffer_obj);
+        gl.ReadBuffer(src->draw_buffers_len ? src->draw_buffers[0] : GL_NONE);
         gl.ActiveTexture(GL_TEXTURE0 + self->default_texture_unit);
         gl.BindTexture(GL_TEXTURE_2D, dst_texture->texture_obj);
         gl.CopyTexSubImage2D(texture_target, 0, 0, 0, 0, 0, width, height);
