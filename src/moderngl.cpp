@@ -1890,10 +1890,11 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
         return 0;
     }
 
-    float r, g, b, a, depth;
+    double r, g, b, a;
+    float depth;
     PyObject * viewport_arg;
 
-    if (!PyArg_ParseTuple(args, "fffffO", &r, &g, &b, &a, &depth, &viewport_arg)) {
+    if (!PyArg_ParseTuple(args, "ddddfO", &r, &g, &b, &a, &depth, &viewport_arg)) {
         return 0;
     }
 
@@ -1926,11 +1927,44 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
 
     gl.DepthMask(self->depth_mask);
 
+    auto clear = [&]() {
+        gl.Clear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        if (!self->framebuffer_obj) {
+            return;
+        }
+        const double color[4] = {r, g, b, a};
+        for (int i = 0; i < self->draw_buffers_len; ++i) {
+            if (self->draw_buffers[i] == GL_NONE) {
+                continue;
+            }
+            GLint component_type;
+            gl.GetFramebufferAttachmentParameteriv(
+                GL_FRAMEBUFFER, self->draw_buffers[i],
+                GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE, &component_type
+            );
+            if (component_type == GL_INT) {
+                GLint value[4];
+                for (int j = 0; j < 4; ++j) {
+                    double bounded = color[j] > -2147483648.0 ? color[j] : -2147483648.0;
+                    value[j] = bounded < 2147483647.0 ? (GLint)bounded : 2147483647;
+                }
+                gl.ClearBufferiv(GL_COLOR, i, value);
+            } else if (component_type == GL_UNSIGNED_INT) {
+                GLuint value[4];
+                for (int j = 0; j < 4; ++j) {
+                    double bounded = color[j] > 0.0 ? color[j] : 0.0;
+                    value[j] = bounded < 4294967295.0 ? (GLuint)bounded : 0xffffffffu;
+                }
+                gl.ClearBufferuiv(GL_COLOR, i, value);
+            }
+        }
+    };
+
     // Respect the passed in viewport even with scissor enabled
     if (viewport_arg != Py_None) {
         gl.Enable(GL_SCISSOR_TEST);
         gl.Scissor(viewport_rect.x, viewport_rect.y, viewport_rect.width, viewport_rect.height);
-        gl.Clear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        clear();
 
         // restore scissor if enabled
         if (self->scissor_enabled) {
@@ -1952,7 +1986,7 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
         } else {
             gl.Disable(GL_SCISSOR_TEST);
         }
-        gl.Clear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        clear();
     }
 
     if (self != self->context->bound_framebuffer) {

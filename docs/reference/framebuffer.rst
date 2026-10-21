@@ -16,6 +16,9 @@ Methods
 
     Clear the framebuffer.
 
+    For integer color attachments, color components are interpreted as signed or
+    unsigned integer values. Fractional values are truncated toward zero.
+
     If a `viewport` passed in, a scissor test will be used to clear the given viewport.
     This viewport take presence over the framebuffers :py:attr:`~moderngl.Framebuffer.scissor`.
     Clearing can still be done with scissor if no viewport is passed in.
