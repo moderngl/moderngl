@@ -16,9 +16,6 @@ Methods
 
     Clear the framebuffer.
 
-    For integer color attachments, color components are interpreted as signed or
-    unsigned integer values. Fractional values are truncated toward zero.
-
     If a `viewport` passed in, a scissor test will be used to clear the given viewport.
     This viewport take presence over the framebuffers :py:attr:`~moderngl.Framebuffer.scissor`.
     Clearing can still be done with scissor if no viewport is passed in.
@@ -44,6 +41,27 @@ Methods
     :param float depth: depth value.
     :param tuple viewport: The viewport.
     :param tuple color: Optional tuple replacing the red, green, blue and alpha arguments
+
+.. py:method:: Framebuffer.clear_attachment(attachment: int = 0, color=(0.0, 0.0, 0.0, 0.0), viewport=None) -> None
+
+    Clear one color attachment using its signed integer, unsigned integer, or
+    floating-point component type. Other color attachments and depth are preserved.
+    Integer values are truncated toward zero and bounded to the 32-bit integer range.
+    Normalized fixed-point attachments use floating-point colors as in :py:meth:`~moderngl.Framebuffer.clear`.
+
+    The attachment's color mask and the framebuffer's scissor apply. An explicit
+    viewport overrides the scissor for this clear. The previous framebuffer and
+    its rendering state are restored afterward.
+
+    :param int attachment: The color attachment number.
+    :param tuple color: Up to four color components; omitted components are zero.
+    :param tuple viewport: Optional 2-tuple size or 4-tuple region to clear.
+
+    .. code:: python
+
+        labels = ctx.texture((640, 480), 1, dtype='u4')
+        fbo = ctx.framebuffer([labels])
+        fbo.clear_attachment(0, color=(17,))
 
 .. py:method:: Framebuffer.read(viewport=..., components: int = 3, attachment: int = 0, alignment: int = 1, dtype: str = 'f1', clamp: bool = False) -> bytes
 

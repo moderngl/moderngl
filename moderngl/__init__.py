@@ -398,6 +398,12 @@ class Framebuffer:
 
         self.mglo.clear(red, green, blue, alpha, depth, viewport)
 
+    def clear_attachment(self, attachment=0, color=(0.0, 0.0, 0.0, 0.0), viewport=None):
+        red, green, blue, alpha, *_ = tuple(color) + (0.0, 0.0, 0.0, 0.0)
+        if viewport is not None:
+            viewport = tuple(viewport)
+        self.mglo.clear_attachment(attachment, red, green, blue, alpha, viewport)
+
     def use(self):
         self.ctx.fbo = self
         self.mglo.use()
