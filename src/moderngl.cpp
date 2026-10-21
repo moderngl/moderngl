@@ -1962,6 +1962,82 @@ static PyObject * MGLFramebuffer_clear(MGLFramebuffer * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
+static PyObject * MGLFramebuffer_clear_attachment(MGLFramebuffer * self, PyObject * args) {
+    if (context_released(self->context)) {
+        return 0;
+    }
+
+    int attachment;
+    double color[4];
+    PyObject * viewport_arg;
+    if (!PyArg_ParseTuple(args, "iddddO", &attachment, &color[0], &color[1], &color[2], &color[3], &viewport_arg)) {
+        return 0;
+    }
+    if (attachment < 0 || attachment >= self->draw_buffers_len || self->draw_buffers[attachment] == GL_NONE) {
+        MGLError_Set("invalid color attachment");
+        return 0;
+    }
+
+    Rect viewport_rect = self->scissor;
+    if (viewport_arg != Py_None && !parse_rect(viewport_arg, &viewport_rect)) {
+        MGLError_Set("wrong values in the viewport");
+        return 0;
+    }
+
+    const GLMethods & gl = self->context->gl;
+    gl.BindFramebuffer(GL_FRAMEBUFFER, self->framebuffer_obj);
+    GLint component_type = GL_FLOAT;
+    if (self->framebuffer_obj) {
+        gl.DrawBuffers(self->draw_buffers_len, self->draw_buffers);
+        gl.GetFramebufferAttachmentParameteriv(
+            GL_FRAMEBUFFER, self->draw_buffers[attachment],
+            GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE, &component_type
+        );
+    }
+
+    char mask = self->color_mask[attachment];
+    if (self->draw_buffers_len == 1) {
+        gl.ColorMask(mask & 1, mask & 2, mask & 4, mask & 8);
+    } else {
+        gl.ColorMaski(attachment, mask & 1, mask & 2, mask & 4, mask & 8);
+    }
+    if (viewport_arg != Py_None || self->scissor_enabled) {
+        gl.Enable(GL_SCISSOR_TEST);
+        gl.Scissor(viewport_rect.x, viewport_rect.y, viewport_rect.width, viewport_rect.height);
+    } else {
+        gl.Disable(GL_SCISSOR_TEST);
+    }
+
+    if (component_type == GL_INT) {
+        GLint value[4];
+        for (int i = 0; i < 4; ++i) {
+            double bounded = color[i] > -2147483648.0 ? color[i] : -2147483648.0;
+            value[i] = bounded < 2147483647.0 ? (GLint)bounded : 2147483647;
+        }
+        gl.ClearBufferiv(GL_COLOR, attachment, value);
+    } else if (component_type == GL_UNSIGNED_INT) {
+        GLuint value[4];
+        for (int i = 0; i < 4; ++i) {
+            double bounded = color[i] > 0.0 ? color[i] : 0.0;
+            value[i] = bounded < 4294967295.0 ? (GLuint)bounded : 0xffffffffu;
+        }
+        gl.ClearBufferuiv(GL_COLOR, attachment, value);
+    } else {
+        GLfloat value[4] = {(GLfloat)color[0], (GLfloat)color[1], (GLfloat)color[2], (GLfloat)color[3]};
+        gl.ClearBufferfv(GL_COLOR, attachment, value);
+    }
+
+    if (self->scissor_enabled) {
+        gl.Scissor(self->scissor.x, self->scissor.y, self->scissor.width, self->scissor.height);
+    } else {
+        gl.Disable(GL_SCISSOR_TEST);
+    }
+    if (self != self->context->bound_framebuffer) {
+        return MGLFramebuffer_use(self->context->bound_framebuffer, NULL);
+    }
+    Py_RETURN_NONE;
+}
+
 static PyObject * MGLFramebuffer_use(MGLFramebuffer * self, PyObject * args) {
     if (context_released(self->context)) {
         return 0;
@@ -9808,6 +9884,7 @@ static PyGetSetDef MGLFramebuffer_getset[] = {
 
 static PyMethodDef MGLFramebuffer_methods[] = {
     {(char *)"clear", (PyCFunction)MGLFramebuffer_clear, METH_VARARGS},
+    {(char *)"clear_attachment", (PyCFunction)MGLFramebuffer_clear_attachment, METH_VARARGS},
     {(char *)"use", (PyCFunction)MGLFramebuffer_use, METH_NOARGS},
     {(char *)"read_into", (PyCFunction)MGLFramebuffer_read_into, METH_VARARGS},
     {(char *)"release", (PyCFunction)MGLFramebuffer_release, METH_NOARGS},
