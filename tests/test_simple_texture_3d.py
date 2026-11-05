@@ -15,6 +15,7 @@ def test_properties(ctx):
     assert tex.repeat_x is True
     assert tex.repeat_y is True
     assert tex.repeat_z is True
+    assert dict(tex.wrap) == {'x' : 'repeat', 'y' : 'repeat', 'z' : 'repeat'}
     assert tex == tex
 
     tex.repeat_x = False
@@ -23,6 +24,13 @@ def test_properties(ctx):
     assert tex.repeat_x is False
     assert tex.repeat_y is False
     assert tex.repeat_z is False
+    assert dict(tex.wrap) == {'x' : 'clamp_to_edge', 'y' : 'clamp_to_edge', 'z' : 'clamp_to_edge'}
+    tex.wrap['z'] = 'repeat'
+    assert dict(tex.wrap) == {'x' : 'clamp_to_edge', 'y' : 'clamp_to_edge', 'z' : 'repeat'}
+    assert tex.wrap['z'] == 'repeat'
+    assert tex.repeat_x is False
+    assert tex.repeat_y is False
+    assert tex.repeat_z is True
 
 
 def test_mipmaps(ctx):

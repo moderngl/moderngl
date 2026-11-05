@@ -635,6 +635,31 @@ class Renderbuffer:
             self.mglo.release()
             self.mglo = InvalidObject()
 
+_WRAP_SYNONYMS = {'x': 's', 'y': 't', 'z': 'r'}
+
+# A proxy object returned for the wrap property for Sampler, Texture, Texture3D and TextureArray
+class WrapProxy:
+    def __init__(self, mglo):
+        self._mglo = mglo
+
+    def __getitem__(self, k):
+        return self._mglo.wrap.get(k)
+
+    def __setitem__(self, k, v):
+        canonical = self._mglo.wrap.keys()
+        valid = set(canonical) | {_WRAP_SYNONYMS[c] for c in canonical}
+        if k not in valid:
+            raise KeyError(k)
+        self._mglo.wrap = {k: v}
+
+    def __iter__(self):
+        return iter(self._mglo.wrap.keys())
+
+    def __len__(self):
+        return len(self._mglo.wrap)
+
+    def keys(self):
+        return list(self._mglo.wrap.keys())
 
 class Sampler:
     def __init__(self):
@@ -691,6 +716,14 @@ class Sampler:
     @repeat_z.setter
     def repeat_z(self, value):
         self.mglo.repeat_z = value
+
+    @property
+    def wrap(self):
+        return WrapProxy(self.mglo)
+
+    @wrap.setter
+    def wrap(self, value):
+        self.mglo.wrap = value
 
     @property
     def filter(self):
@@ -845,6 +878,14 @@ class Texture:
     @repeat_y.setter
     def repeat_y(self, value):
         self.mglo.repeat_y = value
+
+    @property
+    def wrap(self):
+        return WrapProxy(self.mglo)
+
+    @wrap.setter
+    def wrap(self, value):
+        self.mglo.wrap = value
 
     @property
     def filter(self):
@@ -1007,6 +1048,14 @@ class Texture3D:
     @repeat_z.setter
     def repeat_z(self, value):
         self.mglo.repeat_z = value
+
+    @property
+    def wrap(self):
+        return WrapProxy(self.mglo)
+
+    @wrap.setter
+    def wrap(self, value):
+        self.mglo.wrap = value
 
     @property
     def filter(self):
@@ -1268,6 +1317,14 @@ class TextureArray:
     @repeat_y.setter
     def repeat_y(self, value):
         self.mglo.repeat_y = value
+
+    @property
+    def wrap(self):
+        return WrapProxy(self.mglo)
+
+    @wrap.setter
+    def wrap(self, value):
+        self.mglo.wrap = value
 
     @property
     def filter(self):

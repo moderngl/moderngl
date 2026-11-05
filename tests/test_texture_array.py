@@ -17,6 +17,7 @@ def test_create(ctx):
     # Texture parameters
     assert texture.repeat_x is True
     assert texture.repeat_y is True
+    assert dict(texture.wrap) == {'x': 'repeat', 'y': 'repeat'}
     assert texture.filter == (moderngl.LINEAR, moderngl.LINEAR)
     assert texture.swizzle == "RGBA"
     assert texture == texture
@@ -25,6 +26,7 @@ def test_create(ctx):
     texture.repeat_y = False
     assert texture.repeat_x is False
     assert texture.repeat_y is False
+    assert dict(texture.wrap) == {'x': 'clamp_to_edge', 'y': 'clamp_to_edge'}
 
     assert texture.swizzle == "RGBA"
     texture.swizzle = "RGBA"

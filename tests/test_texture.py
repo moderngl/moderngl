@@ -42,6 +42,22 @@ def test_texture_properties(ctx):
     assert tex.filter == (moderngl.LINEAR, moderngl.LINEAR)
     assert tex.repeat_x is True
     assert tex.repeat_y is True
+    assert dict(tex.wrap) == {"x": "repeat", "y": "repeat"}
+    tex.wrap = {"x": "repeat", "y": "repeat", "z": "repeat"}  # ignores the "z" key for Texture
+    assert dict(tex.wrap) == {"x": "repeat", "y": "repeat"}
+    tex.wrap = {"s": "mirrored_repeat", "t": "clamp_to_edge"}  # "s" and "t" are synonyms for "x" and "y"
+    assert dict(tex.wrap) == {"x": "mirrored_repeat", "y": "clamp_to_edge"}
+    tex.wrap['x'] = 'repeat'  # Set just one of the values
+    assert dict(tex.wrap) == {"x": "repeat", "y": "clamp_to_edge"}
+    # if "s" and "x" (or "t" and "y", or "r" and "z") are both present, they must be the same
+    with pytest.raises(moderngl.Error):
+        tex.wrap = {"s": "mirrored_repeat", "x": "clamp_to_edge"}
+    # if "s" and "x" (or "t" and "y", or "r" and "z") are both present, they can be the same
+    tex.wrap = {"y": "mirrored_repeat", "t": "mirrored_repeat"}
+    with pytest.raises(moderngl.Error):
+        tex.wrap['x'] = 'invalid'
+    with pytest.raises(KeyError):
+        tex.wrap['invalid'] = 'repeat'
     assert tex.dtype == 'f1'
     assert tex.anisotropy == 0.0
 
