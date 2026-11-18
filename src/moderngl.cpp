@@ -1582,6 +1582,28 @@ static int attachment_parameters(PyObject * attachment, AttachmentParameters * p
         layered = 1;
     }
 
+    if (Py_TYPE(attachment) == MGLTextureCube_type) {
+        MGLTextureCube * image = (MGLTextureCube *)attachment;
+        depth = image->depth;
+        width = image->width;
+        height = image->height;
+        samples = 0;
+        glo = image->texture_obj;
+        renderbuffer = 0;
+        layered = 1;
+    }
+
+    if (Py_TYPE(attachment) == MGLTexture3D_type) {
+        MGLTexture3D * image = (MGLTexture3D *)attachment;
+        depth = image->depth;
+        width = image->width;
+        height = image->height;
+        samples = 0;
+        glo = image->texture_obj;
+        renderbuffer = 0;
+        layered = 1;
+    }
+
     if (Py_TYPE(attachment) == MGLRenderbuffer_type) {
         MGLRenderbuffer * image = (MGLRenderbuffer *)attachment;
         depth = image->depth;
