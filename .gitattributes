@@ -1,6 +1,0 @@
-.github/** linguist-detectable=false
-examples/** linguist-documentation=false
-**/Containerfile linguist-detectable=false
-src/glcorearb.h linguist-detectable=false
-src/khrplatform.h linguist-detectable=false
-examples/data/** linguist-detectable=false
