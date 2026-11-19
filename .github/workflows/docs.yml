@@ -1,0 +1,10 @@
+name: docs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  stub:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "pick the next branch"
