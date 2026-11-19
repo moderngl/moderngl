@@ -28,8 +28,7 @@ jobs:
       - name: wheels
         run: python -m cibuildwheel --output-dir package
         env:
-          CIBW_BUILD: "cp313-* cp314-* cp314t-*"
-          CIBW_SKIP: "*-musllinux_*"
+          CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-* cp314t-*"
           CIBW_ARCHS: native
 
       - uses: actions/upload-artifact@v6
