@@ -1,0 +1,23 @@
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin: 16px 0; }
+.cards a { padding: 10px; border: 1px solid var(--color-background-border); border-radius: 8px; background: var(--color-background-secondary); transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+.cards a, .cards a:visited, .cards a:hover { color: var(--color-foreground-primary); text-decoration: none; }
+.cards a:hover { border-color: var(--color-brand-primary); box-shadow: 0 0 0 1px var(--color-brand-primary), 0 6px 20px rgba(0, 0, 0, 0.5); transform: translateY(-2px); }
+.cards span { display: block; margin-bottom: 8px; font-weight: 600; }
+.cards img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; }
+.cards div { width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; background: #000; }
+.tutorial { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding: 16px; margin: 16px 0; border: 1px solid var(--color-background-border); border-radius: 8px; background: var(--color-background-secondary); }
+.tutorial img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; transition: transform 0.15s; }
+.tutorial img:hover { transform: translateY(-2px); }
+.tutorial ol { margin: 0; padding-left: 2em; columns: 2; column-gap: 32px; font-size: 0.9em; white-space: nowrap; }
+.tutorial li { margin: 0 0 4px; }
+.tutorial li a { text-decoration: none; }
+@media (max-width: 700px) { .tutorial { grid-template-columns: 1fr; } }
+.porting { position: relative; }
+.porting pre { white-space: pre-wrap; max-height: 280px; overflow: hidden; }
+.porting.open pre { max-height: none; }
+.porting:not(.open) .highlight::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(transparent, var(--color-code-background)); pointer-events: none; }
+.porting .highlight { position: relative; }
+.porting button { border: 1px solid var(--color-background-border); border-radius: 6px; background: var(--color-background-secondary); color: var(--color-foreground-primary); cursor: pointer; }
+.porting button:hover { border-color: var(--color-brand-primary); }
+.porting-copy { position: absolute; top: 8px; right: 8px; padding: 2px 10px; font-size: 0.8em; }
+.porting-more { display: block; margin: 8px auto 0; padding: 4px 16px; }

@@ -1,0 +1,26 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: setup
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          architecture: x64
+
+      - name: deps
+        run: python -m pip install -U pip wheel setuptools
+
+      - name: wheel
+        run: python -m pip wheel .

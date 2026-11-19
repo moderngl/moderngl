@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>moderngl example</title>
+  <link rel="icon" href="_static/favicon.png">
+  <style>
+    body { margin: 0 auto; padding: 16px; max-width: 1280px; background: #131416; color: #cfd0d0; font-family: sans-serif; }
+    a { color: #3ea2ff; }
+    #stage { position: relative; aspect-ratio: 16 / 9; background: #000; }
+    canvas { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; }
+    #status, #source { white-space: pre-wrap; font-family: monospace; }
+    #source { background: #0d1117; color: #e6edf3; padding: 12px; overflow-x: auto; font-size: 13px; border-radius: 6px; }
+    .c { color: #8b949e; } .s { color: #a5d6ff; } .k { color: #ff7b72; } .n { color: #79c0ff; }
+  </style>
+</head>
+<body>
+  <p><a href="examples.html">All examples</a> · <a href="index.html">Docs</a></p>
+  <h1 id="title"></h1>
+  <div id="stage"><canvas id="canvas"></canvas></div>
+  <pre id="status">Loading Python...</pre>
+  <pre id="source"></pre>
+  <script type="module">
+    import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/pyodide.mjs';
+    const status = document.getElementById('status');
+    const path = new URLSearchParams(location.search).get('example');
+    const url = (file) => new URL(file, document.baseURI).href;
+    const text = async (file) => (await fetch(url(file), { cache: 'no-cache' })).text();
+    document.getElementById('title').textContent = path;
+    document.title = path;
+    try {
+      const source = await text(path);
+      const escaped = source.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const tokens = /(#.*)|([rfb]?(?:'''[\s\S]*?'''|"""[\s\S]*?"""|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"))|\b(def|class|import|from|as|return|if|elif|else|for|while|in|not|and|or|is|True|False|None|with|lambda|global|pass|break|continue|yield)\b|\b(\d+(?:\.\d*)?(?:e[+-]?\d+)?)\b/g;
+      const kinds = ['c', 's', 'k', 'n'];
+      document.getElementById('source').innerHTML = escaped.replace(tokens, (match, ...groups) => `<span class="${kinds[groups.findIndex((group, i) => i < 4 && group !== undefined)]}">${match}</span>`);
+      const size = source.match(/set_mode\(\((\d+), (\d+)\)/);
+      const canvas = document.getElementById('canvas');
+      [canvas.width, canvas.height] = size ? [Number(size[1]), Number(size[2])] : [1280, 720];
+      const pyodide = await loadPyodide();
+      const wheels = (await text('wheels.txt')).trim().split('\n');
+      const files = new Set([path, ...[...source.matchAll(/'(examples\/[^']+)'/g)].map((m) => m[1])]);
+      const packages = [url(wheels.find((name) => name.startsWith('moderngl')))];
+      if (/^import extras$/m.test(source)) {
+        files.add('examples/extras.py');
+      }
+      if (/^import glm$/m.test(source)) {
+        packages.push(url(wheels.find((name) => name.toLowerCase().startsWith('pyglm'))));
+      }
+      if (/^import numpy\b/m.test(source)) {
+        packages.push('numpy');
+      }
+      if (/^(from|import) PIL\b/m.test(source)) {
+        packages.push('pillow');
+      }
+      status.textContent = `Loading ${packages.length} packages and ${files.size} files...`;
+      await pyodide.loadPackage(packages);
+      for (const file of files) {
+        const data = new Uint8Array(await (await fetch(url(file), { cache: 'no-cache' })).arrayBuffer());
+        pyodide.FS.mkdirTree(file.split('/').slice(0, -1).join('/'));
+        pyodide.FS.writeFile(file, data);
+      }
+      pyodide.FS.writeFile('pygame.py', await text('pygame.py'));
+      pyodide.FS.writeFile('runner.py', await text('runner.py'));
+      status.textContent = '';
+      pyodide.runPython(`import runner\nrunner.run(${JSON.stringify(path)})`);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  </script>
+</body>
+</html>

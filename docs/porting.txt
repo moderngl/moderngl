@@ -1,0 +1,112 @@
+Porting code from ModernGL 5 to ModernGL 6
+
+ModernGL 6 is a rewrite. It is a thin Python layer over OpenGL 3.3 core that also runs on WebGL2 through Pyodide. It keeps the OpenGL model, removes boilerplate and checks what it can when objects are created. Nothing happens implicitly: state is explicit, shader interfaces are declared up front, objects are not freed by the garbage collector. Names are strings, there are no integer constants. It requires Python 3.11 or newer and has no dependencies. The ModernGL 5 documentation is at https://moderngl.readthedocs.io/en/5.12.0/ for comparison.
+
+Design differences to keep in mind while porting:
+- One Python object per OpenGL object: Buffer, Texture, Sampler, VertexArray, Program, Framebuffer, plus Resources (a set of texture units and uniform buffer bindings) and Pipeline (everything one draw call needs).
+- Two ways to render, mixable. Direct rendering binds objects and draws, like plain OpenGL. A Pipeline owns its full state and draws with pipeline.run(), nothing from the global state leaks into it.
+- Vertex arrays do not reference a program. Attribute locations and fragment outputs come from layout (location = N) in the shader.
+- Shader interfaces (samplers, uniform blocks, plain uniforms with their types) are declared when the program is created. Undeclared uniforms cannot be set.
+- Uniform values cannot be read back, except with program.debug() which is slow and for debugging only.
+- Textures cover plain textures, depth textures, array textures, cubemaps and renderbuffers. Formats are WebGPU style names. 3D textures and 3 component formats do not exist.
+- Only vertex and fragment shaders in the core. Compute, storage buffers, image load and store, indirect drawing, queries, debug output and mesh shaders are done with small extension modules that call OpenGL through moderngl.get_proc_address() on the same buffers and textures. Geometry and tessellation shaders and transform feedback are not supported.
+
+Context
+- moderngl.create_context() is deprecated, use ctx = moderngl.get_context(). It wraps the OpenGL context current on the calling thread, so create the window first. There is no standalone argument and no require argument.
+- Headless: moderngl.create_standalone_context() and moderngl.create_context(standalone=True) become headless = moderngl.headless_context() then ctx = moderngl.get_context(). It makes a hidden OpenGL 3.3 core context current on the calling thread (EGL on Linux, WGL on Windows, CGL on macOS), headless.release() destroys it. No glcontext needed.
+- moderngl.init(loader) loads OpenGL functions from a custom loader, any object with load_opengl_function(name) -> int, for example the object returned by moderngl.headless_context() or a glcontext backend.
+- ctx.screen replaces ctx.fbo and ctx.detect_framebuffer(). Its size cannot be queried, set ctx.screen.size = new_size when the window is resized.
+- ctx.info is a dict with vendor, renderer, version, glsl and limits. It replaces ctx.info, ctx.version_code, ctx.max_samples and the other limit attributes.
+- ctx.error does not exist, invalid calls raise exceptions. GL debug output is available through an extension.
+- A context must only be used from the thread that created it. OpenGL calls from a thread without a context stop the process with a fatal error.
+
+Frames
+- Call ctx.start_frame() at the start of every frame. It resets the state to defaults and binds ctx.screen.
+- Render into a texture and end with ctx.present(image), which copies it to the screen 1:1 and flushes. Then swap the window buffers with the window library, for example pygame.display.flip().
+- ctx.reset_state() alone restores defaults after other code touched OpenGL. ctx.end_frame() flushes. ctx.finish() does not exist, reads wait for the GPU anyway.
+
+Shaders and programs
+- Shader sources go into a plain dict, ctx.shaders['name.vert'] = source, and are referenced by name. #include "name" includes another entry. ctx.source(name) returns the expanded source.
+- Shaders use #version 330 core. On WebGL it is rewritten to #version 300 es.
+- ctx.program(vertex_shader=src, fragment_shader=src) becomes:
+  program = ctx.program('mesh.vert', 'mesh.frag', samplers={'Texture': 0}, uniform_buffers={'Common': 0}, uniforms={'color': 'vec4', 'weights': 'float[4]'})
+- prog['Texture'].value = 0 (sampler unit) becomes samplers={'Texture': 0} at creation.
+- prog['Block'].binding = 0 becomes uniform_buffers={'Block': 0} at creation.
+- prog['color'].value = x and prog['color'].write(bytes) become program.use() then program['color'] = x. Values are numbers, nested sequences or bytes of the exact size. The program must be bound when setting.
+- Every sampler and uniform block used by the shader must be declared or creation fails. A declared uniform that the driver optimized out is accepted and ignored. Struct uniforms are not supported, use a uniform buffer.
+- geometry_shader, tess shaders and varyings (transform feedback) are not supported.
+
+Buffers
+- ctx.buffer(data) stays. ctx.buffer(reserve=N) becomes ctx.buffer(size=N). dynamic=True becomes usage='dynamic_draw'.
+- The kind is fixed at creation: kind='vertex_buffer' (default), 'index_buffer', 'uniform_buffer' or 'copy_buffer'. Index buffers can only be used as index buffers.
+- buffer.write(data, offset), buffer.read(size, offset) and buffer.read_into(memory, size, offset) stay. orphan() and clear() do not exist, write new data or create a new buffer.
+- ctx.copy_buffer(dst, src, size, read_offset, write_offset) becomes ctx.copy_buffer(src, dst, size, src_offset=, dst_offset=). Note the source comes first.
+- buffer.bind_to_uniform_block(binding) becomes buffer.use(binding) for direct rendering, or a Resources entry. buffer.view(offset, size) binds a range.
+- bind_to_storage_buffer is done by an extension.
+
+Vertex arrays
+- ctx.vertex_array(prog, [(vbo, '3f 2f', 'in_vert', 'in_uv')], ibo, index_element_size=4) becomes:
+  ctx.vertex_array([*vbo.bind('3f 2f', 0, 1)], ibo, index_size=4)
+  where 0 and 1 are the layout locations in the shader.
+- ctx.simple_vertex_array is gone, same replacement.
+- Per instance attributes: '3f/i' becomes '3f /i' at the end of the layout. Padding is 'Nx'. Half floats are 'h' instead of 'f2', normalized formats are written like '4nu1'. See the vertex format table.
+- Shaders that build vertices from gl_VertexID use ctx.empty_vertex_array with an explicit vertex count.
+- vao.render(mode=moderngl.TRIANGLES, vertices=-1, first=0, instances=1) becomes vertex_array.render(mode='triangles', vertices=None, first=0, instances=1). It draws with the currently bound program and framebuffer, so call program.use() and framebuffer.use() first.
+- The vertex count is derived from the buffers or the index buffer, vertex_array.vertices overrides it.
+- Primitive restart is always on, the largest index (0xFFFFFFFF for 4 byte indices) restarts.
+- vao.transform, render_indirect and the scope argument do not exist. Indirect drawing is an extension.
+
+Textures and samplers
+- ctx.texture(size, components, data, dtype='f1') becomes ctx.texture(size, 'rgba8unorm', data). Formats: 1, 2 or 4 components named r, rg, rgba, with 8unorm, 8snorm, 8uint, 8sint, 16uint, 16sint, 16float, 32uint, 32sint, 32float. dtype 'f1' maps to 8unorm, 'f2' to 16float, 'f4' to 32float, 'u1' to 8uint, 'i4' to 32sint and so on. Also bgra8unorm and rgb10a2unorm.
+- 3 component textures do not exist, pad RGB data to RGBA, for example with Pillow image.convert('RGBA').
+- ctx.depth_texture(size) becomes ctx.texture(size, 'depth24plus'), also 'depth16unorm', 'depth32float' and 'depth24plus-stencil8'.
+- ctx.renderbuffer(size) becomes ctx.texture(size, format, renderbuffer=True). Any samples > 1 makes a renderbuffer.
+- ctx.texture_array((w, h, layers)) becomes ctx.texture((w, h), format, data, array=layers). ctx.texture_cube(size) becomes ctx.texture(size, format, data, cubemap=True), faces in the order +x -x +y -y +z -z. ctx.texture3d does not exist.
+- texture.write(data, viewport) becomes texture.write(data, size, offset, layer=None, level=0). texture.read() returns the whole level. Rows are always aligned to 4 bytes, there is no alignment argument.
+- texture.build_mipmaps() becomes ctx.texture(..., levels=0) to allocate the chain and texture.mipmaps() to generate it.
+- Filtering, wrapping, anisotropy and depth compare live on samplers, not textures: sampler = ctx.sampler(texture, min_filter='nearest', mag_filter='nearest', wrap_x='clamp_to_edge', wrap_y='clamp_to_edge', anisotropy=8.0, compare_func='lequal'). texture.filter, repeat_x, repeat_y, swizzle and compare_func on textures are gone. Swizzle is not supported.
+- texture.use(location) becomes sampler.use(unit) for direct rendering, or Resources.
+- Multisampled textures cannot be sampled, resolve them with ctx.copy_texture(msaa, resolved).
+- bind_to_image is done by an extension.
+
+Resources
+- A Resources object binds samplers to units and uniform buffers to bindings: resources = ctx.resources(samplers={0: sampler}, uniform_buffers={0: camera_buffer}). resources.use() binds them for direct rendering, pipelines take resources=.
+- Sets combine explicitly: ctx.resources(common, material, samplers={1: other}). Binding the same slot twice is an error, keyword arguments override. The combined set is a copy.
+- This replaces ctx.scope.
+
+Framebuffers
+- ctx.framebuffer(color_attachments=[a, b], depth_attachment=d) becomes ctx.framebuffer([a, b, d]), depth last. Layers and levels attach with texture.attachment(layer=..., level=..., face=...).
+- fbo.clear(r, g, b, a, depth=1.0) becomes framebuffer.clear_color = (r, g, b, a), framebuffer.clear_depth = 1.0, framebuffer.clear(). With several color attachments clear_color is a tuple of values. framebuffer.clear([0]) clears selected attachments.
+- ctx.clear(...) becomes ctx.screen.clear_color = ... then ctx.screen.clear(), but usually you clear your own framebuffer and present.
+- fbo.use() stays and applies framebuffer.viewport. fbo.scissor and color_mask are not wrapped, call OpenGL directly and restore.
+- fbo.read(...) becomes reading a texture: render into a texture, resolve if multisampled, texture.read() or texture.read_into(memory).
+- ctx.copy_framebuffer(dst, src) becomes ctx.copy_texture(src, dst). Note the source comes first. dst_size with filter='linear' scales, flip_y=True mirrors.
+
+State
+- ctx.enable(moderngl.DEPTH_TEST) becomes ctx.depth_test = True. ctx.enable(moderngl.CULL_FACE) becomes ctx.cull_face = 'back'. ctx.enable(moderngl.BLEND) with ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA becomes ctx.blend('src_alpha', 'one_minus_src_alpha'). ctx.blend() with no arguments disables blending. ctx.blend_equation becomes the equation argument.
+- ctx.enable_only and ctx.disable are gone, set each piece of state. ctx.start_frame() resets all of it.
+- ctx.depth_func = '<=' becomes ctx.depth_func = 'lequal'. Compare funcs are never less equal lequal greater notequal gequal always.
+- fbo.depth_mask becomes ctx.depth_write. Stencil is ctx.stencil(func, ref, read_mask=, write_mask=, fail=, depth_fail=, depth_pass=).
+- ctx.point_size becomes gl_PointSize in the vertex shader, program point size is always enabled.
+- ctx.wireframe, line_width, polygon_offset, front_face, provoking_vertex and scissor are not wrapped. Call OpenGL directly through moderngl.get_proc_address and restore the state after. Front faces are counter clockwise.
+- ctx.multisample is always on for multisampled targets.
+
+Pipelines (new, optional)
+- pipeline = ctx.pipeline('fullscreen.vert', 'blur.frag', samplers={'Source': 0}, uniforms={'radius': 'float'}, vertex_array=ctx.empty_vertex_array, vertices=3, framebuffer=fb, resources=ctx.resources(samplers={0: ctx.sampler(src)}), depth_test=False, blend={'src': 'src_alpha', 'dst': 'one_minus_src_alpha'}).
+- pipeline['radius'] = 2.0 stores the value and uploads it on every run. pipeline.run() draws. vertices, instances, first and viewport are writable.
+- Use pipelines for fixed passes like post processing, direct rendering for dynamic scenes.
+
+Cleanup
+- obj.release() becomes ctx.release(obj). ctx.release('all') releases everything. ctx.gc() lists unreleased objects. ctx.gc_mode does not exist, the Python garbage collector never frees OpenGL objects.
+
+Helpers
+- moderngl.camera(eye, target, up=(0, 0, 1), fov=60.0, aspect=1.0, near=0.1, far=1000.0) returns a column major mat4 view projection as 64 bytes for a uniform buffer. The default up axis is z. fov=0.0 gives an orthographic projection.
+
+Compute and other newer features
+- Write a small module like examples/extensions/compute.py: load functions with moderngl.get_proc_address('glDispatchCompute') and friends through ctypes, compile ctx.source('particles.comp'), bind moderngl objects by their glo (buffer.glo, texture.glo), dispatch, then restore what moderngl assumes: the bound program, draw framebuffer and vertex array match ctx.bound_program, ctx.bound_framebuffer and ctx.bound_vertex_array, the viewport is unchanged, the read framebuffer is 0, pixel pack and unpack buffers are unbound, depth, cull, blend and stencil are as moderngl last set them. Storage buffer bindings, image units, indirect buffers and queries are free to use. Direct state access functions avoid binding at all.
+- ctx.compute_shader, storage buffers, image units, queries and indirect drawing all follow this pattern. The repository has extension examples for compute, images, indirect, queries, debug output, streaming and mesh shaders.
+
+Interoperability
+- ctx.external_buffer(glo, size), ctx.external_texture(glo, size, format) and ctx.external_framebuffer(glo, size) wrap objects from other libraries. Every object exposes its OpenGL name as glo.
+
+When porting, keep the program structure, move shader sources into ctx.shaders, add layout (location = N) to shader inputs and outputs, declare samplers, uniform blocks and uniforms when creating programs, replace constants with strings, replace enable calls with state properties, and render into a texture that is presented at the end of the frame. If something has no counterpart here, say so and propose calling OpenGL directly or an extension module instead of inventing an API.

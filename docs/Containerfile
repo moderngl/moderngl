@@ -1,0 +1,37 @@
+FROM docker.io/library/python:3.14 AS wheel
+ARG PYODIDE_VERSION=314.0.3
+RUN pip install --no-cache-dir pyodide-build && pyodide xbuildenv install ${PYODIDE_VERSION}
+RUN pip download --no-deps --no-binary :all: pyglm==2.8.3 -d /sdist && tar xf /sdist/*.tar.gz -C /sdist && pyodide build /sdist/pyglm-*/ -o /wheel
+COPY pyproject.toml setup.py MANIFEST.in README.md LICENSE moderngl.c moderngl.js /src/
+COPY moderngl-stubs /src/moderngl-stubs
+RUN pyodide build /src -o /wheel && cd /wheel && ls *.whl > wheels.txt
+
+FROM docker.io/library/python:3.14 AS previews
+RUN apt-get update && apt-get install -y --no-install-recommends libegl1 libegl-mesa0 libgl1-mesa-dri && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir pillow numpy pyglm==2.8.3
+COPY pyproject.toml setup.py MANIFEST.in README.md LICENSE moderngl.c moderngl.js /src/
+COPY moderngl-stubs /src/moderngl-stubs
+RUN pip install --no-cache-dir /src
+WORKDIR /repo
+COPY examples examples
+COPY docs/examples.rst docs/previews.py docs/
+RUN python docs/previews.py
+
+FROM docker.io/library/python:3.14 AS build
+COPY docs/requirements.txt /docs/requirements.txt
+RUN pip install --no-cache-dir -r /docs/requirements.txt
+COPY docs /docs
+COPY --from=previews /repo/docs/demo/images/favicon.png /docs/_static/favicon.png
+RUN sphinx-build -E -b html -d /doctrees /docs /site
+COPY --from=wheel /wheel /site
+COPY examples /site/examples
+COPY --from=previews /repo/docs/demo/images /site/images
+
+FROM scratch AS site
+COPY --from=build /site /
+
+FROM docker.io/library/nginx
+RUN sed -i 's/^worker_processes.*/worker_processes 2;/' /etc/nginx/nginx.conf
+COPY --from=build /site /usr/share/nginx/html
+
+# podman build . -f docs/Containerfile -t moderngl-docs && podman run --rm -p 8000:80 moderngl-docs
