@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v6
@@ -28,8 +28,7 @@ jobs:
       - name: wheels
         run: python -m cibuildwheel --output-dir package
         env:
-          CIBW_PROJECT_REQUIRES_PYTHON: ">=3.11"
-          CIBW_ENABLE: cpython-freethreading
+          CIBW_BUILD: "cp313-* cp314-* cp314t-*"
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS: native
 
@@ -56,35 +55,18 @@ jobs:
 
       - uses: actions/upload-artifact@v6
         with:
-          name: package-pyodide
+          name: pyodide
           path: package/*
-
-  docs:
-    name: Build docs
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: build
-        run: docker build . -f docs/Containerfile --target site -o site
-
-      - uses: actions/upload-artifact@v6
-        with:
-          name: docs
-          path: site
 
   merge:
     name: Merge Artifacts
     runs-on: ubuntu-latest
     needs:
       - release
-      - pyodide
-      - docs
 
     steps:
       - uses: actions/upload-artifact/merge@v6
         with:
           name: moderngl-6.0.0b1
-          separate-directories: true
+          pattern: package-*
           delete-merged: true
