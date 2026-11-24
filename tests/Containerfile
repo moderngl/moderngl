@@ -1,0 +1,12 @@
+FROM docker.io/library/python:3.14
+
+RUN apt-get update && apt-get install -y --no-install-recommends libegl1 libgl1 libgl1-mesa-dri && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir setuptools pytest gcovr
+
+WORKDIR /app
+COPY . .
+RUN MODERNGL_COVERAGE=1 python setup.py build_ext --inplace
+
+CMD python -m pytest -v tests; status=$?; gcovr -r . --filter moderngl.c; exit $status
+
+# podman build . -f tests/Containerfile -t moderngl-tests && podman run --rm moderngl-tests

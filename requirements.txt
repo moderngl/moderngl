@@ -1,0 +1,4 @@
+pygame-ce==2.5.8
+numpy==2.5.5
+pillow==13.0.0
+pyglm==2.8.3

@@ -1,0 +1,7 @@
+build/
+*.so
+*.zip
+.nvim
+__pycache__/
+.pytest_cache/
+temp_*
