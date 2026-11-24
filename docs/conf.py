@@ -1,6 +1,6 @@
 project = 'ModernGL'
 author = 'Szabolcs Dombi'
-release = '6.0.0b2'
+release = '6.0.0b3'
 copyright = '2017-2026, Szabolcs Dombi'
 
 extensions = []

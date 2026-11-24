@@ -14,7 +14,7 @@ if wasm:
 
 setup(
     name='moderngl',
-    version='6.0.0b2',
+    version='6.0.0b3',
     description='ModernGL: a thin Python layer over OpenGL 3.3 core',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',

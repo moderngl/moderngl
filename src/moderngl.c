@@ -6327,7 +6327,7 @@ static int module_exec(PyObject * self) {
     if (!(state->HeadlessContext_type = add_type(self, &HeadlessContext_spec))) {
         return -1;
     }
-    if (PyModule_AddStringConstant(self, "__version__", "6.0.0b2")) {
+    if (PyModule_AddStringConstant(self, "__version__", "6.0.0b3")) {
         return -1;
     }
 

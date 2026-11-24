@@ -69,6 +69,6 @@ jobs:
     steps:
       - uses: actions/upload-artifact/merge@v6
         with:
-          name: moderngl-6.0.0b2
+          name: moderngl-6.0.0b3
           pattern: package-*
           delete-merged: true
