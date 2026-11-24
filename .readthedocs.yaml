@@ -11,7 +11,7 @@ build:
   commands:
     - python -m pip install pyodide-build pillow numpy pyglm==2.8.3 -r docs/requirements.txt
     - pyodide xbuildenv install 314.0.3
-    - python -m pip download --no-deps --no-binary :all: pyglm==2.8.3 -d _sdist
+    - 'python -m pip download --no-deps --no-binary :all: pyglm==2.8.3 -d _sdist'
     - tar xf _sdist/*.tar.gz -C _sdist
     - pyodide build _sdist/pyglm-*/ -o _wheel
     - pyodide build . -o _wheel
