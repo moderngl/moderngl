@@ -7,6 +7,6 @@ WORKDIR /app
 COPY . .
 RUN MODERNGL_COVERAGE=1 python setup.py build_ext --inplace
 
-CMD python -m pytest -v tests; status=$?; gcovr -r . --filter moderngl.c; exit $status
+CMD python -m pytest -v tests; status=$?; gcovr -r . --filter src/moderngl.c; exit $status
 
 # podman build . -f tests/Containerfile -t moderngl-tests && podman run --rm moderngl-tests

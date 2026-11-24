@@ -2,14 +2,16 @@ FROM docker.io/library/python:3.14 AS wheel
 ARG PYODIDE_VERSION=314.0.3
 RUN pip install --no-cache-dir pyodide-build && pyodide xbuildenv install ${PYODIDE_VERSION}
 RUN pip download --no-deps --no-binary :all: pyglm==2.8.3 -d /sdist && tar xf /sdist/*.tar.gz -C /sdist && pyodide build /sdist/pyglm-*/ -o /wheel
-COPY pyproject.toml setup.py MANIFEST.in README.md LICENSE moderngl.c gl.h /src/
+COPY pyproject.toml setup.py MANIFEST.in README.md LICENSE /src/
+COPY src /src/src
 COPY moderngl-stubs /src/moderngl-stubs
 RUN pyodide build /src -o /wheel && cd /wheel && ls *.whl > wheels.txt
 
 FROM docker.io/library/python:3.14 AS previews
 RUN apt-get update && apt-get install -y --no-install-recommends libegl1 libegl-mesa0 libgl1-mesa-dri && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir pillow numpy pyglm==2.8.3
-COPY pyproject.toml setup.py MANIFEST.in README.md LICENSE moderngl.c gl.h /src/
+COPY pyproject.toml setup.py MANIFEST.in README.md LICENSE /src/
+COPY src /src/src
 COPY moderngl-stubs /src/moderngl-stubs
 RUN pip install --no-cache-dir /src
 WORKDIR /repo

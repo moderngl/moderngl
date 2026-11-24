@@ -1,1 +1,2 @@
-include gl.h moderngl.js embed_js.py README.md LICENSE
+recursive-include src *
+include README.md LICENSE

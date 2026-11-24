@@ -22,7 +22,7 @@ setup(
     author='Szabolcs Dombi',
     license='MIT',
     python_requires='>=3.11',
-    ext_modules=[Extension(name='moderngl', sources=['moderngl.c'], depends=['gl.h'], libraries=libraries, define_macros=define_macros, extra_compile_args=extra_args, extra_link_args=extra_args)],
+    ext_modules=[Extension(name='moderngl', sources=['src/moderngl.c'], depends=['src/gl.h'], libraries=libraries, define_macros=define_macros, extra_compile_args=extra_args, extra_link_args=extra_args)],
     packages=['moderngl-stubs'],
     package_data={'moderngl-stubs': ['__init__.pyi']},
     include_package_data=True,
