@@ -1,0 +1,24 @@
+version: 2
+
+build:
+  os: ubuntu-lts-latest
+  tools:
+    python: "3.14"
+  apt_packages:
+    - libegl1
+    - libegl-mesa0
+    - libgl1-mesa-dri
+  commands:
+    - python -m pip install pyodide-build pillow numpy pyglm==2.8.3 -r docs/requirements.txt
+    - pyodide xbuildenv install 314.0.3
+    - python -m pip download --no-deps --no-binary :all: pyglm==2.8.3 -d _sdist
+    - tar xf _sdist/*.tar.gz -C _sdist
+    - pyodide build _sdist/pyglm-*/ -o _wheel
+    - pyodide build . -o _wheel
+    - python -m pip install .
+    - python docs/previews.py
+    - cp docs/demo/images/favicon.png docs/_static/favicon.png
+    - python -m sphinx -E -b html docs $READTHEDOCS_OUTPUT/html
+    - cp _wheel/*.whl $READTHEDOCS_OUTPUT/html/
+    - cd $READTHEDOCS_OUTPUT/html && ls *.whl > wheels.txt
+    - cp -r examples $READTHEDOCS_OUTPUT/html/examples
