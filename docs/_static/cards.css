@@ -21,3 +21,7 @@
 .porting button:hover { border-color: var(--color-brand-primary); }
 .porting-copy { position: absolute; top: 8px; right: 8px; padding: 2px 10px; font-size: 0.8em; }
 .porting-more { display: block; margin: 8px auto 0; padding: 4px 16px; }
+
+table.align-default {
+    margin-left: 0;
+}

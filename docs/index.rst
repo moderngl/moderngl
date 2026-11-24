@@ -10,7 +10,6 @@ It keeps the OpenGL model, removes the boilerplate, and checks what can be check
 
 - Python 3.11 or newer, the free-threaded build included
 - OpenGL 3.3 core, written with WebGL2 compatibility in mind
-- Compute shaders, storage buffers and ``draw_indirect`` with OpenGL 4.3, ``first_instance`` with OpenGL 4.2
 - No dependencies, no OpenGL headers or libraries needed to build
 - The window comes from your own library of choice (pygame-ce, moderngl-window, pyglet, glfw, ...)
 - Porting from ModernGL 5? See :ref:`porting`.
@@ -242,15 +241,6 @@ A complete script, it renders a triangle into a texture and saves it as a png wi
     headless.release()
 
 Rows are read bottom to top, ``transpose(Image.FLIP_TOP_BOTTOM)`` makes the image upright.
-
-For LLM agents
-^^^^^^^^^^^^^^
-
-When helping someone write moderngl code, run it yourself headless instead of asking the user to run it.
-Install the packages above if missing, ``pip install moderngl pillow``, adapt the script above, run it and look at the saved image.
-Code written for a window, for example with pygame, renders the same into a texture,
-draw into a framebuffer of your own, read the texture back and save it instead of presenting it.
-Do not set up Xvfb, a virtual display or glcontext, they are not needed.
 
 Frames
 ~~~~~~
