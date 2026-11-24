@@ -1659,13 +1659,13 @@ static PyObject * read_uniform_element(Program * self, UniformBinding * b, int32
     } else {
         glGetUniformuiv(self->program, location, (uint32_t *)raw);
     }
-    int boolean = b->gltype == GL_BOOL || b->gltype == GL_BOOL_VEC2 || b->gltype == GL_BOOL_VEC3 || b->gltype == GL_BOOL_VEC4;
+    int is_bool = b->gltype == GL_BOOL || b->gltype == GL_BOOL_VEC2 || b->gltype == GL_BOOL_VEC3 || b->gltype == GL_BOOL_VEC4;
     PyObject * values = PyTuple_New(items);
     for (int32_t i = 0; i < items; ++i) {
         PyObject * item = NULL;
         if (b->type == 'f') {
             item = PyFloat_FromDouble(((float *)raw)[i]);
-        } else if (boolean) {
+        } else if (is_bool) {
             item = PyBool_FromLong(raw[i]);
         } else if (b->type == 'i') {
             item = PyLong_FromLong(raw[i]);

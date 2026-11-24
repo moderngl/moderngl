@@ -192,9 +192,9 @@ static THREAD_LOCAL void (GLAPI * glDispatchCompute)(uint32_t x, uint32_t y, uin
 static THREAD_LOCAL void (GLAPI * glMemoryBarrier)(uint32_t barriers) = NULL;
 static THREAD_LOCAL void (GLAPI * glBindImageTexture)(uint32_t unit, uint32_t texture, int32_t level, uint8_t layered, int32_t layer, uint32_t access, uint32_t format) = NULL;
 static THREAD_LOCAL void (GLAPI * glShaderStorageBlockBinding)(uint32_t program, uint32_t index, uint32_t binding) = NULL;
-static THREAD_LOCAL void (GLAPI * glGetProgramInterfaceiv)(uint32_t program, uint32_t interface, uint32_t pname, int32_t * params) = NULL;
-static THREAD_LOCAL void (GLAPI * glGetProgramResourceName)(uint32_t program, uint32_t interface, uint32_t index, int32_t size, int32_t * length, char * name) = NULL;
-static THREAD_LOCAL uint32_t (GLAPI * glGetProgramResourceIndex)(uint32_t program, uint32_t interface, const char * name) = NULL;
+static THREAD_LOCAL void (GLAPI * glGetProgramInterfaceiv)(uint32_t program, uint32_t program_interface, uint32_t pname, int32_t * params) = NULL;
+static THREAD_LOCAL void (GLAPI * glGetProgramResourceName)(uint32_t program, uint32_t program_interface, uint32_t index, int32_t size, int32_t * length, char * name) = NULL;
+static THREAD_LOCAL uint32_t (GLAPI * glGetProgramResourceIndex)(uint32_t program, uint32_t program_interface, const char * name) = NULL;
 static THREAD_LOCAL void (GLAPI * glDrawArraysInstancedBaseInstance)(uint32_t mode, int32_t first, int32_t count, int32_t instances, uint32_t base_instance) = NULL;
 static THREAD_LOCAL void (GLAPI * glDrawElementsInstancedBaseVertexBaseInstance)(uint32_t mode, int32_t count, uint32_t type, const void * indices, int32_t instances, int32_t base_vertex, uint32_t base_instance) = NULL;
 static THREAD_LOCAL void (GLAPI * glMultiDrawArraysIndirect)(uint32_t mode, const void * indirect, int32_t count, int32_t stride) = NULL;
@@ -925,9 +925,9 @@ extern void glViewport(int32_t x, int32_t y, int32_t width, int32_t height) __as
 static void (* glDispatchCompute)(uint32_t x, uint32_t y, uint32_t z) = NULL;
 static void (* glMemoryBarrier)(uint32_t barriers) = NULL;
 static void (* glShaderStorageBlockBinding)(uint32_t program, uint32_t index, uint32_t binding) = NULL;
-static void (* glGetProgramInterfaceiv)(uint32_t program, uint32_t interface, uint32_t pname, int32_t * params) = NULL;
-static void (* glGetProgramResourceName)(uint32_t program, uint32_t interface, uint32_t index, int32_t size, int32_t * length, char * name) = NULL;
-static uint32_t (* glGetProgramResourceIndex)(uint32_t program, uint32_t interface, const char * name) = NULL;
+static void (* glGetProgramInterfaceiv)(uint32_t program, uint32_t program_interface, uint32_t pname, int32_t * params) = NULL;
+static void (* glGetProgramResourceName)(uint32_t program, uint32_t program_interface, uint32_t index, int32_t size, int32_t * length, char * name) = NULL;
+static uint32_t (* glGetProgramResourceIndex)(uint32_t program, uint32_t program_interface, const char * name) = NULL;
 static void (* glDrawArraysInstancedBaseInstance)(uint32_t mode, int32_t first, int32_t count, int32_t instances, uint32_t base_instance) = NULL;
 static void (* glDrawElementsInstancedBaseVertexBaseInstance)(uint32_t mode, int32_t count, uint32_t type, const void * indices, int32_t instances, int32_t base_vertex, uint32_t base_instance) = NULL;
 static void (* glMultiDrawArraysIndirect)(uint32_t mode, const void * indirect, int32_t count, int32_t stride) = NULL;
