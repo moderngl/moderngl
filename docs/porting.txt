@@ -79,7 +79,7 @@ Framebuffers
 - ctx.framebuffer(color_attachments=[a, b], depth_attachment=d) becomes ctx.framebuffer([a, b, d]), depth last. Layers and levels attach with texture.attachment(layer=..., level=..., face=...).
 - fbo.clear(r, g, b, a, depth=1.0) becomes framebuffer.clear_color = (r, g, b, a), framebuffer.clear_depth = 1.0, framebuffer.clear(). With several color attachments clear_color is a tuple of values. framebuffer.clear([0]) clears selected attachments.
 - ctx.clear(...) becomes ctx.screen.clear_color = ... then ctx.screen.clear(), but usually you clear your own framebuffer and present.
-- fbo.use() stays and applies framebuffer.viewport. fbo.scissor and color_mask are not wrapped, call OpenGL directly and restore.
+- fbo.use() stays and applies framebuffer.viewport and framebuffer.scissor. fbo.scissor = (x, y, w, h) stays, None disables it. ctx.scissor becomes ctx.bound_framebuffer.scissor. Clears and copies ignore the scissor. color_mask is not wrapped, call OpenGL directly and restore.
 - fbo.read(...) becomes reading a texture: render into a texture, resolve if multisampled, texture.read().wait(). On OpenGL the read happens right away and the request is already ready. request.is_ready() checks without waiting, in the browser wait() raises until it is ready.
 - ctx.copy_framebuffer(dst, src) becomes ctx.copy_texture(src, dst). Note the source comes first. dst_size with filter='linear' scales, flip_y=True mirrors.
 
@@ -89,12 +89,13 @@ State
 - ctx.depth_func = '<=' becomes ctx.depth_func = 'lequal'. Compare funcs are never less equal lequal greater notequal gequal always.
 - fbo.depth_mask becomes ctx.depth_write. Stencil is ctx.stencil(func, ref, read_mask=, write_mask=, fail=, depth_fail=, depth_pass=).
 - ctx.point_size becomes gl_PointSize in the vertex shader, program point size is always enabled.
-- ctx.wireframe, line_width, polygon_offset, front_face, provoking_vertex and scissor are not wrapped. Call OpenGL directly through moderngl.get_proc_address and restore the state after. Front faces are counter clockwise.
+- ctx.polygon_offset = (factor, units) stays, None disables it. It only offsets triangles, not lines or points.
+- ctx.wireframe, line_width, front_face and provoking_vertex are not wrapped. Call OpenGL directly through moderngl.get_proc_address and restore the state after. Front faces are counter clockwise.
 - ctx.multisample is always on for multisampled targets.
 
 Pipelines (new, optional)
 - pipeline = ctx.pipeline('fullscreen.vert', 'blur.frag', samplers={'Source': 0}, uniforms={'radius': 'float'}, vertex_array=ctx.empty_vertex_array, vertices=3, framebuffer=fb, resources=ctx.resources(samplers={0: ctx.sampler(src)}), depth_test=False, blend={'src': 'src_alpha', 'dst': 'one_minus_src_alpha'}).
-- pipeline['radius'] = 2.0 stores the value and uploads it on every run. pipeline.run() draws. vertices, instances, first, first_instance and viewport are writable.
+- pipeline['radius'] = 2.0 stores the value and uploads it on every run. pipeline.run() draws. vertices, instances, first, first_instance, viewport and scissor are writable. viewport and scissor ignore the framebuffer values, unset viewport is the full framebuffer, unset scissor is disabled. polygon_offset=(factor, units) is set at creation.
 - pipeline.use() binds everything without drawing, vertex_array.draw(vertices, first) then draws ranges.
 - vao.render_indirect(buffer, mode, count, first) becomes vertex_array.draw_indirect(buffer, count, offset) with the vertex array bound, for example after pipeline.use(). Needs OpenGL 4.3.
 - Use pipelines for fixed passes like post processing, direct rendering for dynamic scenes.
@@ -109,7 +110,7 @@ Compute
 - ctx.compute_shader(source) becomes ctx.compute('name.comp', storage_buffers={'Name': 0}, uniforms={...}, resources=ctx.resources(storage_buffers={0: buffer}), group_count=(x, y, z)). compute['time'] = 1.0 stores a uniform, compute.run() dispatches. Call ctx.memory_barrier() between writing storage buffers in a shader and using the data. Needs OpenGL 4.3.
 
 Other newer features
-- Write a small module like examples/extensions/queries.py: load functions with moderngl.get_proc_address() through ctypes, compile ctx.source('name'), bind moderngl objects by their glo (buffer.glo, texture.glo), then restore what moderngl assumes: the bound program, draw framebuffer and vertex array match ctx.bound_program, ctx.bound_framebuffer and ctx.bound_vertex_array, the viewport is unchanged, the read framebuffer is 0, pixel pack and unpack buffers are unbound, depth, cull, blend and stencil are as moderngl last set them. Indirect buffers and queries are free to use, image units are set by Resources. Direct state access functions avoid binding at all.
+- Write a small module like examples/extensions/queries.py: load functions with moderngl.get_proc_address() through ctypes, compile ctx.source('name'), bind moderngl objects by their glo (buffer.glo, texture.glo), then restore what moderngl assumes: the bound program, draw framebuffer and vertex array match ctx.bound_program, ctx.bound_framebuffer and ctx.bound_vertex_array, the viewport and scissor are unchanged, the read framebuffer is 0, pixel pack and unpack buffers are unbound, depth, cull, blend, stencil and polygon offset are as moderngl last set them. Indirect buffers and queries are free to use, image units are set by Resources. Direct state access functions avoid binding at all.
 - Queries follow this pattern. The repository has extension examples for queries, debug output, streaming and mesh shaders. examples/optional has compute, storage images, first_instance and indirect drawing on the core.
 
 Interoperability

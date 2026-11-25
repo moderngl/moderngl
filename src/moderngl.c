@@ -102,6 +102,12 @@ typedef struct Region {
     int32_t height;
 } Region;
 
+typedef struct PolygonOffset {
+    int8_t enabled;
+    float factor;
+    float units;
+} PolygonOffset;
+
 typedef union ClearValue {
     float clear_floats[4];
     int32_t clear_ints[4];
@@ -300,6 +306,8 @@ typedef struct Framebuffer {
     float clear_depth;
     int32_t clear_stencil;
     Region viewport;
+    int8_t has_scissor;
+    Region scissor;
 } Framebuffer;
 
 typedef struct Pipeline {
@@ -321,6 +329,9 @@ typedef struct Pipeline {
     uint32_t mode;
     int8_t has_viewport;
     Region viewport;
+    int8_t has_scissor;
+    Region scissor;
+    PolygonOffset polygon_offset;
     int8_t depth_test;
     int8_t depth_write;
     uint32_t depth_func;
@@ -361,6 +372,9 @@ struct Context {
     uint32_t cull_face;
     uint32_t stencil_write_mask;
     Region viewport;
+    int8_t scissor_test;
+    Region scissor;
+    PolygonOffset polygon_offset;
     Program * bound_program;
     Framebuffer * bound_framebuffer;
     VertexArray * bound_vertex_array;
@@ -983,6 +997,75 @@ static void apply_viewport(Context * ctx, Region * viewport) {
     }
 }
 
+static void apply_scissor(Context * ctx, int8_t enabled, Region * scissor) {
+    if (ctx->scissor_test != enabled) {
+        ctx->scissor_test = enabled;
+        if (enabled) {
+            glEnable(GL_SCISSOR_TEST);
+        } else {
+            glDisable(GL_SCISSOR_TEST);
+        }
+    }
+    if (enabled && memcmp(&ctx->scissor, scissor, sizeof(Region))) {
+        ctx->scissor = *scissor;
+        glScissor(scissor->x, scissor->y, scissor->width, scissor->height);
+    }
+}
+
+static void suspend_scissor(Context * ctx) {
+    if (ctx->scissor_test) {
+        glDisable(GL_SCISSOR_TEST);
+    }
+}
+
+static void resume_scissor(Context * ctx) {
+    if (ctx->scissor_test) {
+        glEnable(GL_SCISSOR_TEST);
+    }
+}
+
+static void apply_polygon_offset(Context * ctx, PolygonOffset * state) {
+    ctx->polygon_offset = *state;
+    if (state->enabled) {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(state->factor, state->units);
+    } else {
+        glDisable(GL_POLYGON_OFFSET_FILL);
+    }
+}
+
+static int parse_polygon_offset(PyObject * value, PolygonOffset * state) {
+    if (value == Py_None) {
+        state->enabled = 0;
+        state->factor = 0.0f;
+        state->units = 0.0f;
+        return 1;
+    }
+    if (!PyArg_ParseTuple(value, "ff", &state->factor, &state->units)) {
+        PyErr_Clear();
+        PyErr_Format(PyExc_TypeError, "the polygon_offset must be a tuple of 2 floats or None");
+        return 0;
+    }
+    state->enabled = 1;
+    return 1;
+}
+
+static PyObject * polygon_offset_value(PolygonOffset * state) {
+    if (!state->enabled) {
+        Py_RETURN_NONE;
+    }
+    return Py_BuildValue("(ff)", state->factor, state->units);
+}
+
+static int parse_rect(PyObject * value, Region * region, const char * name) {
+    if (!value || !PyArg_ParseTuple(value, "iiii", &region->x, &region->y, &region->width, &region->height)) {
+        PyErr_Clear();
+        PyErr_Format(PyExc_TypeError, "the %s must be a tuple of 4 ints or None", name);
+        return 0;
+    }
+    return 1;
+}
+
 static void bind_framebuffer(Context * ctx, Framebuffer * framebuffer) {
     if (ctx->bound_framebuffer != framebuffer) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer->framebuffer);
@@ -1146,6 +1229,8 @@ static Framebuffer * new_framebuffer(Context * ctx, uint32_t framebuffer, PyObje
     res->viewport.y = 0;
     res->viewport.width = width;
     res->viewport.height = height;
+    res->has_scissor = 0;
+    memset(&res->scissor, 0, sizeof(res->scissor));
     return res;
 }
 
@@ -2697,6 +2782,7 @@ static int Program_ass_subscript(Program * self, PyObject * key, PyObject * valu
 static PyObject * Framebuffer_meth_use(Framebuffer * self, PyObject * args) {
     bind_framebuffer(self->ctx, self);
     apply_viewport(self->ctx, &self->viewport);
+    apply_scissor(self->ctx, self->has_scissor, &self->scissor);
     Py_RETURN_NONE;
 }
 
@@ -2721,6 +2807,7 @@ static PyObject * Framebuffer_meth_clear(Framebuffer * self, PyObject * args, Py
     }
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self->framebuffer);
+    suspend_scissor(self->ctx);
     if (!depth_write) {
         glDepthMask(GL_TRUE);
     }
@@ -2736,6 +2823,7 @@ static PyObject * Framebuffer_meth_clear(Framebuffer * self, PyObject * args, Py
     if (stencil_masked) {
         glStencilMask(self->ctx->stencil_write_mask);
     }
+    resume_scissor(self->ctx);
     restore_framebuffer(self->ctx);
     Py_RETURN_NONE;
 }
@@ -2852,6 +2940,26 @@ static int Framebuffer_set_viewport(Framebuffer * self, PyObject * value, void *
     return 0;
 }
 
+static PyObject * Framebuffer_get_scissor(Framebuffer * self, void * closure) {
+    if (!self->has_scissor) {
+        Py_RETURN_NONE;
+    }
+    return Py_BuildValue("(iiii)", self->scissor.x, self->scissor.y, self->scissor.width, self->scissor.height);
+}
+
+static int Framebuffer_set_scissor(Framebuffer * self, PyObject * value, void * closure) {
+    Region scissor = {0};
+    if (value != Py_None && !parse_rect(value, &scissor, "scissor")) {
+        return -1;
+    }
+    self->has_scissor = value != Py_None;
+    self->scissor = scissor;
+    if (self->ctx->bound_framebuffer == self) {
+        apply_scissor(self->ctx, self->has_scissor, &self->scissor);
+    }
+    return 0;
+}
+
 static PyObject * Framebuffer_get_size(Framebuffer * self, void * closure) {
     return Py_NewRef(self->size);
 }
@@ -2899,6 +3007,8 @@ static void bind_pipeline(Pipeline * self) {
     bind_framebuffer(ctx, self->framebuffer);
     Region full = {0, 0, self->framebuffer->width, self->framebuffer->height};
     apply_viewport(ctx, self->has_viewport ? &self->viewport : &full);
+    apply_scissor(ctx, self->has_scissor, &self->scissor);
+    apply_polygon_offset(ctx, &self->polygon_offset);
     Py_DECREF(Program_meth_use(self->program, NULL));
     Py_DECREF(VertexArray_meth_use(self->vertex_array, NULL));
 
@@ -2948,6 +3058,7 @@ static PyObject * Pipeline_meth_run(Pipeline * self, PyObject * args) {
 
     PyObject * res = draw_vertex_array(self->vertex_array, self->mode, self->first, self->vertices, self->instances, self->first_instance);
     apply_viewport(self->ctx, &self->framebuffer->viewport);
+    apply_scissor(self->ctx, self->framebuffer->has_scissor, &self->framebuffer->scissor);
     return res;
 }
 
@@ -3006,6 +3117,23 @@ static int Pipeline_set_viewport(Pipeline * self, PyObject * value, void * closu
     }
     self->has_viewport = 1;
     self->viewport = viewport;
+    return 0;
+}
+
+static PyObject * Pipeline_get_scissor(Pipeline * self, void * closure) {
+    if (!self->has_scissor) {
+        Py_RETURN_NONE;
+    }
+    return Py_BuildValue("(iiii)", self->scissor.x, self->scissor.y, self->scissor.width, self->scissor.height);
+}
+
+static int Pipeline_set_scissor(Pipeline * self, PyObject * value, void * closure) {
+    Region scissor = {0};
+    if (value != Py_None && !parse_rect(value, &scissor, "scissor")) {
+        return -1;
+    }
+    self->has_scissor = value != Py_None;
+    self->scissor = scissor;
     return 0;
 }
 
@@ -4351,6 +4479,9 @@ static Pipeline * new_pipeline(Context * self, Program * program, PyObject * res
     res->compute = 0;
     res->mode = 0;
     res->has_viewport = 0;
+    res->has_scissor = 0;
+    memset(&res->scissor, 0, sizeof(res->scissor));
+    memset(&res->polygon_offset, 0, sizeof(res->polygon_offset));
     res->depth_test = 0;
     res->depth_write = 1;
     res->depth_func = GL_LESS;
@@ -4437,6 +4568,8 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
         "first_instance",
         "mode",
         "viewport",
+        "scissor",
+        "polygon_offset",
         "depth_test",
         "depth_write",
         "depth_func",
@@ -4462,6 +4595,8 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
     int32_t first_instance = 0;
     const char * mode_arg = NULL;
     PyObject * viewport_arg = Py_None;
+    PyObject * scissor_arg = Py_None;
+    PyObject * polygon_offset_arg = Py_None;
     int depth_test = 0;
     int depth_write = 1;
     const char * depth_func_arg = "less";
@@ -4472,7 +4607,7 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
     int args_ok = PyArg_ParseTupleAndKeywords(
         args,
         kwargs,
-        "UU|$OOOOOO!O!OOiiizOppszOO",
+        "UU|$OOOOOO!O!OOiiizOOOppszOO",
         keywords,
         &vertex_shader,
         &fragment_shader,
@@ -4492,6 +4627,8 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
         &first_instance,
         &mode_arg,
         &viewport_arg,
+        &scissor_arg,
+        &polygon_offset_arg,
         &depth_test,
         &depth_write,
         &depth_func_arg,
@@ -4538,6 +4675,11 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
         return NULL;
     }
 
+    PolygonOffset polygon_offset = {0};
+    if (!parse_polygon_offset(polygon_offset_arg, &polygon_offset)) {
+        return NULL;
+    }
+
     BlendState blend = {0};
     StencilState stencil = {0};
     PyObject * empty = PyTuple_New(0);
@@ -4580,8 +4722,9 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
     res->cull_face = cull_face;
     res->blend = blend;
     res->stencil = stencil;
+    res->polygon_offset = polygon_offset;
 
-    if (Pipeline_set_viewport(res, viewport_arg, NULL)) {
+    if (Pipeline_set_viewport(res, viewport_arg, NULL) || Pipeline_set_scissor(res, scissor_arg, NULL)) {
         Py_DECREF(res);
         return NULL;
     }
@@ -5009,7 +5152,9 @@ static PyObject * Context_meth_copy_texture(Context * self, PyObject * args, PyO
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, read_framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw_framebuffer);
+    suspend_scissor(self);
     glBlitFramebuffer(sx0, sy0, sx1, sy1, dx0, dy0, dx1, dy1, mask, filter);
+    resume_scissor(self);
     restore_framebuffer(self);
     Py_RETURN_NONE;
 }
@@ -5207,6 +5352,12 @@ static PyObject * Context_meth_reset_state(Context * self, PyObject * args) {
     glEnable(GL_PRIMITIVE_RESTART);
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(0.0f, 0.0f);
+    self->scissor_test = 0;
+    self->scissor.width = -1;
+    memset(&self->polygon_offset, 0, sizeof(self->polygon_offset));
 
     Py_CLEAR(self->bound_program);
     Py_CLEAR(self->bound_vertex_array);
@@ -5217,6 +5368,7 @@ static PyObject * Context_meth_reset_state(Context * self, PyObject * args) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     self->viewport = self->bound_framebuffer->viewport;
     glViewport(self->viewport.x, self->viewport.y, self->viewport.width, self->viewport.height);
+    apply_scissor(self, self->bound_framebuffer->has_scissor, &self->bound_framebuffer->scissor);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -5533,6 +5685,19 @@ static int Context_set_cull_face(Context * self, PyObject * value, void * closur
     return 0;
 }
 
+static PyObject * Context_get_polygon_offset(Context * self, void * closure) {
+    return polygon_offset_value(&self->polygon_offset);
+}
+
+static int Context_set_polygon_offset(Context * self, PyObject * value, void * closure) {
+    PolygonOffset state = {0};
+    if (!parse_polygon_offset(value, &state)) {
+        return -1;
+    }
+    apply_polygon_offset(self, &state);
+    return 0;
+}
+
 static Context * create_context(PyObject * self) {
     ModuleState * module_state = (ModuleState *)PyModule_GetState(self);
     Context * res = NULL;
@@ -5596,6 +5761,12 @@ static Context * create_context(PyObject * self) {
         res->depth_func = GL_LESS;
         res->cull_face = 0;
         res->stencil_write_mask = 0xFF;
+        glDisable(GL_SCISSOR_TEST);
+        glDisable(GL_POLYGON_OFFSET_FILL);
+        res->scissor_test = 0;
+        memset(&res->scissor, 0, sizeof(res->scissor));
+        res->scissor.width = -1;
+        memset(&res->polygon_offset, 0, sizeof(res->polygon_offset));
         res->bound_program = NULL;
         res->bound_framebuffer = NULL;
         res->bound_vertex_array = NULL;
@@ -6011,6 +6182,7 @@ static PyObject * Framebuffer_get_multisampled(Framebuffer * self, void * closur
 
 static PyGetSetDef Framebuffer_getset[] = {
     {"viewport", (getter)Framebuffer_get_viewport, (setter)Framebuffer_set_viewport, NULL, NULL},
+    {"scissor", (getter)Framebuffer_get_scissor, (setter)Framebuffer_set_scissor, NULL, NULL},
     {"size", (getter)Framebuffer_get_size, (setter)Framebuffer_set_size, NULL, NULL},
     {"clear_color", (getter)Framebuffer_get_clear_color, (setter)Framebuffer_set_clear_color, NULL, NULL},
     {"clear_depth", (getter)Framebuffer_get_clear_depth, (setter)Framebuffer_set_clear_depth, NULL, NULL},
@@ -6055,6 +6227,7 @@ static PyMemberDef Pipeline_members[] = {
 
 static PyGetSetDef Pipeline_getset[] = {
     {"viewport", (getter)Pipeline_get_viewport, (setter)Pipeline_set_viewport, NULL, NULL},
+    {"scissor", (getter)Pipeline_get_scissor, (setter)Pipeline_set_scissor, NULL, NULL},
     {"group_count", (getter)Pipeline_get_group_count, (setter)Pipeline_set_group_count, NULL, NULL},
     {0},
 };
@@ -6105,6 +6278,7 @@ static PyGetSetDef Context_getset[] = {
     {"depth_write", (getter)Context_get_depth_write, (setter)Context_set_depth_write, NULL, NULL},
     {"depth_func", (getter)Context_get_depth_func, (setter)Context_set_depth_func, NULL, NULL},
     {"cull_face", (getter)Context_get_cull_face, (setter)Context_set_cull_face, NULL, NULL},
+    {"polygon_offset", (getter)Context_get_polygon_offset, (setter)Context_set_polygon_offset, NULL, NULL},
     {0},
 };
 

@@ -163,6 +163,7 @@ class Framebuffer:
     size: IVec2
     multisampled: bool
     viewport: IVec4
+    scissor: IVec4 | None
     clear_color: Any
     clear_depth: float
     clear_stencil: int
@@ -208,6 +209,7 @@ class Pipeline:
     first_instance: int
     group_count: IVec3
     viewport: IVec4 | None
+    scissor: IVec4 | None
     def run(self) -> None: ...
     def use(self) -> None: ...
     def __setitem__(self, key: str, value: UniformValue) -> None: ...
@@ -224,6 +226,7 @@ class Context:
     depth_write: bool
     depth_func: CompareFunc
     cull_face: CullFace | None
+    polygon_offset: tuple[float, float] | None
     def buffer(
         self,
         data: Data | None = None,
@@ -306,6 +309,8 @@ class Context:
         first_instance: int = 0,
         mode: Mode | None = None,
         viewport: IVec4 | None = None,
+        scissor: IVec4 | None = None,
+        polygon_offset: tuple[float, float] | None = None,
         depth_test: bool = False,
         depth_write: bool = True,
         depth_func: CompareFunc = 'less',

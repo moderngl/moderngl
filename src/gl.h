@@ -73,6 +73,7 @@ enum {
     GL_ONE = 1,
     GL_PIXEL_PACK_BUFFER = 0x88EB,
     GL_PIXEL_UNPACK_BUFFER = 0x88EC,
+    GL_POLYGON_OFFSET_FILL = 0x8037,
     GL_PRIMITIVE_RESTART = 0x8F9D,
     GL_PROGRAM_POINT_SIZE = 0x8642,
     GL_R8 = 0x8229,
@@ -81,6 +82,7 @@ enum {
     GL_READ_WRITE = 0x88BA,
     GL_RENDERBUFFER = 0x8D41,
     GL_RENDERER = 0x1F01,
+    GL_SCISSOR_TEST = 0x0C11,
     GL_SHADER_STORAGE_BLOCK = 0x92E6,
     GL_SHADER_STORAGE_BUFFER = 0x90D2,
     GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT = 0x90DF,
@@ -226,12 +228,14 @@ static THREAD_LOCAL void (GLAPI * glGetUniformfv)(uint32_t program, int32_t loca
 static THREAD_LOCAL void (GLAPI * glGetUniformiv)(uint32_t program, int32_t location, int32_t * params) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glGetUniformuiv)(uint32_t program, int32_t location, uint32_t * params) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glLinkProgram)(uint32_t program) = (void *)gl_trap;
+static THREAD_LOCAL void (GLAPI * glPolygonOffset)(float factor, float units) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glPrimitiveRestartIndex)(uint32_t index) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glReadBuffer)(uint32_t src) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glReadPixels)(int32_t x, int32_t y, int32_t width, int32_t height, uint32_t format, uint32_t type, void * pixels) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glRenderbufferStorageMultisample)(uint32_t target, int32_t samples, uint32_t internal_format, int32_t width, int32_t height) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glSamplerParameterf)(uint32_t sampler, uint32_t pname, float param) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glSamplerParameteri)(uint32_t sampler, uint32_t pname, int32_t param) = (void *)gl_trap;
+static THREAD_LOCAL void (GLAPI * glScissor)(int32_t x, int32_t y, int32_t width, int32_t height) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glShaderSource)(uint32_t shader, int32_t count, const char * const * string, const int32_t * length) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glStencilFunc)(uint32_t func, int32_t ref, uint32_t mask) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glStencilFuncSeparate)(uint32_t face, uint32_t func, int32_t ref, uint32_t mask) = (void *)gl_trap;
@@ -629,12 +633,14 @@ static int load_gl(PyObject * loader) {
         {"glGetUniformiv", (void **)&glGetUniformiv},
         {"glGetUniformuiv", (void **)&glGetUniformuiv},
         {"glLinkProgram", (void **)&glLinkProgram},
+        {"glPolygonOffset", (void **)&glPolygonOffset},
         {"glPrimitiveRestartIndex", (void **)&glPrimitiveRestartIndex},
         {"glReadBuffer", (void **)&glReadBuffer},
         {"glReadPixels", (void **)&glReadPixels},
         {"glRenderbufferStorageMultisample", (void **)&glRenderbufferStorageMultisample},
         {"glSamplerParameterf", (void **)&glSamplerParameterf},
         {"glSamplerParameteri", (void **)&glSamplerParameteri},
+        {"glScissor", (void **)&glScissor},
         {"glShaderSource", (void **)&glShaderSource},
         {"glStencilFunc", (void **)&glStencilFunc},
         {"glStencilFuncSeparate", (void **)&glStencilFuncSeparate},
@@ -876,12 +882,14 @@ extern void glGetUniformfv(uint32_t program, int32_t location, float * params) _
 extern void glGetUniformiv(uint32_t program, int32_t location, int32_t * params) __asm__("moderngl_glGetUniformiv");
 extern void glGetUniformuiv(uint32_t program, int32_t location, uint32_t * params) __asm__("moderngl_glGetUniformuiv");
 extern void glLinkProgram(uint32_t program) __asm__("moderngl_glLinkProgram");
+extern void glPolygonOffset(float factor, float units) __asm__("moderngl_glPolygonOffset");
 extern void glPrimitiveRestartIndex(uint32_t index) __asm__("moderngl_glPrimitiveRestartIndex");
 extern void glReadBuffer(uint32_t src) __asm__("moderngl_glReadBuffer");
 extern void glReadPixels(int32_t x, int32_t y, int32_t width, int32_t height, uint32_t format, uint32_t type, void * pixels) __asm__("moderngl_glReadPixels");
 extern void glRenderbufferStorageMultisample(uint32_t target, int32_t samples, uint32_t internal_format, int32_t width, int32_t height) __asm__("moderngl_glRenderbufferStorageMultisample");
 extern void glSamplerParameterf(uint32_t sampler, uint32_t pname, float param) __asm__("moderngl_glSamplerParameterf");
 extern void glSamplerParameteri(uint32_t sampler, uint32_t pname, int32_t param) __asm__("moderngl_glSamplerParameteri");
+extern void glScissor(int32_t x, int32_t y, int32_t width, int32_t height) __asm__("moderngl_glScissor");
 extern void glShaderSource(uint32_t shader, int32_t count, const char * const * string, const int32_t * length) __asm__("moderngl_glShaderSource");
 extern void glStencilFunc(uint32_t func, int32_t ref, uint32_t mask) __asm__("moderngl_glStencilFunc");
 extern void glStencilFuncSeparate(uint32_t face, uint32_t func, int32_t ref, uint32_t mask) __asm__("moderngl_glStencilFuncSeparate");
@@ -1173,6 +1181,7 @@ static const char webgl_js[] =
     "    moderngl_glGetUniformiv: (program, location, params) => setValues(wasm.HEAP32, params, gl.getUniform(get(program), get(location))),\n"
     "    moderngl_glGetUniformuiv: (program, location, params) => setValues(wasm.HEAPU32, params, gl.getUniform(get(program), get(location))),\n"
     "    moderngl_glLinkProgram: (program) => gl.linkProgram(get(program)),\n"
+    "    moderngl_glPolygonOffset: (factor, units) => gl.polygonOffset(factor, units),\n"
     "    moderngl_glPrimitiveRestartIndex: (index) => {},\n"
     "    moderngl_glReadBuffer: (src) => gl.readBuffer(src),\n"
     "    moderngl_glReadPixels: (x, y, width, height, format, type, pixels) => {\n"
@@ -1186,6 +1195,7 @@ static const char webgl_js[] =
     "    moderngl_glRenderbufferStorageMultisample: (target, samples, internalFormat, width, height) => gl.renderbufferStorageMultisample(target, samples, internalFormat, width, height),\n"
     "    moderngl_glSamplerParameterf: (sampler, pname, param) => gl.samplerParameterf(get(sampler), pname, param),\n"
     "    moderngl_glSamplerParameteri: (sampler, pname, param) => gl.samplerParameteri(get(sampler), pname, param),\n"
+    "    moderngl_glScissor: (x, y, width, height) => gl.scissor(x, y, width, height),\n"
     "    moderngl_glShaderSource: (shader, count, string, length) => {\n"
     "      const source = getString(wasm.HEAPU32[string >> 2]).replace(/^\\s*#version 330 core/, shaderHeader);\n"
     "      gl.shaderSource(get(shader), source);\n"

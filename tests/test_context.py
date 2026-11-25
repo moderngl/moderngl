@@ -2462,3 +2462,145 @@ def test_storage_images_errors(ctx):
         ctx.compute('image.comp', storage_images={'Counters': 1}, uniforms={'Output': 'int'})
     with pytest.raises(ValueError, match='storage image "Counters" has no resource'):
         ctx.compute('image.comp', storage_images={'Output': 0, 'Counters': 1}, resources=ctx.resources(storage_images={0: output}))
+
+
+def test_framebuffer_scissor(ctx):
+    color = ctx.texture((4, 4), 'rgba8unorm')
+    fbo = ctx.framebuffer([color])
+    assert fbo.scissor is None
+    fbo.clear()
+    fbo.scissor = (0, 0, 2, 2)
+    assert fbo.scissor == (0, 0, 2, 2)
+    render_color(ctx, fbo, (1.0, 0.0, 0.0, 1.0))
+    assert color.read(size=(2, 2)).wait() == b'\xff\x00\x00\xff' * 4
+    assert color.read(size=(2, 2), offset=(2, 2)).wait() == bytes(16)
+    fbo.clear()
+    assert color.read().wait() == bytes(64)
+    fbo.use()
+    fbo.scissor = (2, 2, 2, 2)
+    program = ctx.program('fullscreen.vert', 'color.frag', uniforms={'color': 'vec4'})
+    program.use()
+    program['color'] = (0.0, 1.0, 0.0, 1.0)
+    empty(ctx).render(vertices=3)
+    assert color.read(size=(2, 2)).wait() == bytes(16)
+    assert color.read(size=(2, 2), offset=(2, 2)).wait() == b'\x00\xff\x00\xff' * 4
+    fbo.scissor = None
+    empty(ctx).render(vertices=3)
+    assert color.read().wait() == b'\x00\xff\x00\xff' * 16
+    fbo.scissor = (-8, -8, 100, 100)
+    fbo.clear()
+    empty(ctx).render(vertices=3)
+    assert color.read().wait() == b'\x00\xff\x00\xff' * 16
+    with pytest.raises(TypeError):
+        fbo.scissor = (1, 2)
+    fbo.scissor = None
+    ctx.release(program)
+
+
+def test_pipeline_scissor(ctx):
+    color = ctx.texture((4, 4), 'rgba8unorm')
+    fbo = ctx.framebuffer([color])
+    fbo.scissor = (0, 0, 2, 2)
+    pipeline = ctx.pipeline(
+        'fullscreen.vert',
+        'color.frag',
+        uniforms={'color': 'vec4'},
+        vertex_array=ctx.empty_vertex_array,
+        vertices=3,
+        framebuffer=fbo,
+        scissor=(2, 2, 2, 2),
+    )
+    assert pipeline.scissor == (2, 2, 2, 2)
+    pipeline['color'] = (1.0, 0.0, 0.0, 1.0)
+    fbo.clear()
+    pipeline.run()
+    assert color.read(size=(2, 2)).wait() == bytes(16)
+    assert color.read(size=(2, 2), offset=(2, 2)).wait() == b'\xff\x00\x00\xff' * 4
+    pipeline.scissor = None
+    fbo.clear()
+    pipeline.run()
+    assert color.read().wait() == b'\xff\x00\x00\xff' * 16
+    fbo.clear()
+    pipeline.program.use()
+    ctx.empty_vertex_array.render(vertices=3)
+    assert color.read(size=(2, 2)).wait() == b'\xff\x00\x00\xff' * 4
+    assert color.read(size=(2, 2), offset=(2, 2)).wait() == bytes(16)
+    with pytest.raises(TypeError):
+        pipeline.scissor = (1, 2)
+    fbo.scissor = None
+    ctx.release(pipeline)
+
+
+def test_copy_texture_ignores_scissor(ctx):
+    src = ctx.texture((4, 4), 'rgba8unorm', b'\xff\x00\x00\xff' * 16)
+    dst = ctx.texture((4, 4), 'rgba8unorm')
+    fbo = ctx.framebuffer([dst])
+    fbo.scissor = (0, 0, 1, 1)
+    fbo.use()
+    ctx.copy_texture(src, fbo)
+    assert dst.read().wait() == b'\xff\x00\x00\xff' * 16
+    fbo.scissor = None
+
+
+def test_polygon_offset(ctx):
+    assert ctx.polygon_offset is None
+    color = ctx.texture((2, 2), 'rgba8unorm')
+    fbo = ctx.framebuffer([color, ctx.texture((2, 2), 'depth24plus')])
+    try:
+        ctx.depth_test = True
+        fbo.clear()
+        render_color(ctx, fbo, (1.0, 0.0, 0.0, 1.0), 0.0)
+        render_color(ctx, fbo, (0.0, 1.0, 0.0, 1.0), 0.0)
+        assert color.read().wait() == b'\xff\x00\x00\xff' * 4
+        ctx.polygon_offset = (0.0, -4.0)
+        assert ctx.polygon_offset == (0.0, -4.0)
+        render_color(ctx, fbo, (0.0, 1.0, 0.0, 1.0), 0.0)
+        assert color.read().wait() == b'\x00\xff\x00\xff' * 4
+        ctx.polygon_offset = None
+        assert ctx.polygon_offset is None
+        render_color(ctx, fbo, (0.0, 0.0, 1.0, 1.0), 0.0)
+        assert color.read().wait() == b'\x00\xff\x00\xff' * 4
+        with pytest.raises(TypeError):
+            ctx.polygon_offset = (1.0,)
+    finally:
+        ctx.depth_test = False
+        ctx.polygon_offset = None
+
+
+def test_pipeline_polygon_offset(ctx):
+    if 'depth.vert' not in ctx.shaders:
+        ctx.shaders['depth.vert'] = DEPTH_VERT
+    color = ctx.texture((2, 2), 'rgba8unorm')
+    fbo = ctx.framebuffer([color, ctx.texture((2, 2), 'depth24plus')])
+    kwargs = dict(uniforms={'color': 'vec4', 'depth': 'float'}, vertex_array=ctx.empty_vertex_array, vertices=3, framebuffer=fbo, depth_test=True)
+    first = ctx.pipeline('depth.vert', 'color.frag', **kwargs)
+    second = ctx.pipeline('depth.vert', 'color.frag', polygon_offset=(0.0, -4.0), **kwargs)
+    first['color'] = (1.0, 0.0, 0.0, 1.0)
+    second['color'] = (0.0, 1.0, 0.0, 1.0)
+    fbo.clear()
+    first.run()
+    second.run()
+    assert color.read().wait() == b'\x00\xff\x00\xff' * 4
+    assert ctx.polygon_offset == (0.0, -4.0)
+    first.run()
+    assert color.read().wait() == b'\x00\xff\x00\xff' * 4
+    assert ctx.polygon_offset is None
+    with pytest.raises(TypeError):
+        ctx.pipeline('depth.vert', 'color.frag', polygon_offset=(1.0,), **kwargs)
+    ctx.release(first)
+    ctx.release(second)
+    ctx.depth_test = False
+
+
+def test_reset_state_scissor_polygon_offset(ctx):
+    GL.glIsEnabled.restype = ctypes.c_ubyte
+    ctx.screen.scissor = (0, 0, 1, 1)
+    ctx.polygon_offset = (1.0, 1.0)
+    ctx.reset_state()
+    assert ctx.polygon_offset is None
+    assert not GL.glIsEnabled(0x8037)
+    assert GL.glIsEnabled(0x0C11)
+    ctx.screen.scissor = None
+    assert not GL.glIsEnabled(0x0C11)
+    ctx.reset_state()
+    assert not GL.glIsEnabled(0x0C11)

@@ -31,6 +31,7 @@ Geometry and 3D
         <a href="example.html?example=examples/quaternions.py"><span>Quaternions</span><img src="images/quaternions.png" alt="Quaternions"></a>
         <a href="example.html?example=examples/shadow.py"><span>Shadow</span><img src="images/shadow.png" alt="Shadow"></a>
         <a href="example.html?example=examples/reflection.py"><span>Reflection</span><img src="images/reflection.png" alt="Reflection"></a>
+        <a href="example.html?example=examples/polygon_offset.py"><span>Polygon offset</span><img src="images/polygon_offset.png" alt="Polygon offset"></a>
     </div>
 
 Simulations

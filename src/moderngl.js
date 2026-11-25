@@ -213,6 +213,7 @@ precision highp usampler2DArray;`;
     moderngl_glGetUniformiv: (program, location, params) => setValues(wasm.HEAP32, params, gl.getUniform(get(program), get(location))),
     moderngl_glGetUniformuiv: (program, location, params) => setValues(wasm.HEAPU32, params, gl.getUniform(get(program), get(location))),
     moderngl_glLinkProgram: (program) => gl.linkProgram(get(program)),
+    moderngl_glPolygonOffset: (factor, units) => gl.polygonOffset(factor, units),
     moderngl_glPrimitiveRestartIndex: (index) => {},
     moderngl_glReadBuffer: (src) => gl.readBuffer(src),
     moderngl_glReadPixels: (x, y, width, height, format, type, pixels) => {
@@ -226,6 +227,7 @@ precision highp usampler2DArray;`;
     moderngl_glRenderbufferStorageMultisample: (target, samples, internalFormat, width, height) => gl.renderbufferStorageMultisample(target, samples, internalFormat, width, height),
     moderngl_glSamplerParameterf: (sampler, pname, param) => gl.samplerParameterf(get(sampler), pname, param),
     moderngl_glSamplerParameteri: (sampler, pname, param) => gl.samplerParameteri(get(sampler), pname, param),
+    moderngl_glScissor: (x, y, width, height) => gl.scissor(x, y, width, height),
     moderngl_glShaderSource: (shader, count, string, length) => {
       const source = getString(wasm.HEAPU32[string >> 2]).replace(/^\s*#version 330 core/, shaderHeader);
       gl.shaderSource(get(shader), source);
