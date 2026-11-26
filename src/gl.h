@@ -74,7 +74,7 @@ enum {
     GL_PIXEL_PACK_BUFFER = 0x88EB,
     GL_PIXEL_UNPACK_BUFFER = 0x88EC,
     GL_POLYGON_OFFSET_FILL = 0x8037,
-    GL_PRIMITIVE_RESTART = 0x8F9D,
+    GL_PRIMITIVE_RESTART_FIXED_INDEX = 0x8D69,
     GL_PROGRAM_POINT_SIZE = 0x8642,
     GL_R8 = 0x8229,
     GL_READ_FRAMEBUFFER = 0x8CA8,
@@ -232,7 +232,6 @@ static THREAD_LOCAL void (GLAPI * glGetUniformuiv)(uint32_t program, int32_t loc
 static THREAD_LOCAL uint8_t (GLAPI * glIsEnabled)(uint32_t cap) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glLinkProgram)(uint32_t program) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glPolygonOffset)(float factor, float units) = (void *)gl_trap;
-static THREAD_LOCAL void (GLAPI * glPrimitiveRestartIndex)(uint32_t index) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glReadBuffer)(uint32_t src) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glReadPixels)(int32_t x, int32_t y, int32_t width, int32_t height, uint32_t format, uint32_t type, void * pixels) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glRenderbufferStorageMultisample)(uint32_t target, int32_t samples, uint32_t internal_format, int32_t width, int32_t height) = (void *)gl_trap;
@@ -640,7 +639,6 @@ static int load_gl(PyObject * loader) {
         {"glIsEnabled", (void **)&glIsEnabled},
         {"glLinkProgram", (void **)&glLinkProgram},
         {"glPolygonOffset", (void **)&glPolygonOffset},
-        {"glPrimitiveRestartIndex", (void **)&glPrimitiveRestartIndex},
         {"glReadBuffer", (void **)&glReadBuffer},
         {"glReadPixels", (void **)&glReadPixels},
         {"glRenderbufferStorageMultisample", (void **)&glRenderbufferStorageMultisample},
@@ -892,7 +890,6 @@ extern void glGetUniformuiv(uint32_t program, int32_t location, uint32_t * param
 extern uint8_t glIsEnabled(uint32_t cap) __asm__("moderngl_glIsEnabled");
 extern void glLinkProgram(uint32_t program) __asm__("moderngl_glLinkProgram");
 extern void glPolygonOffset(float factor, float units) __asm__("moderngl_glPolygonOffset");
-extern void glPrimitiveRestartIndex(uint32_t index) __asm__("moderngl_glPrimitiveRestartIndex");
 extern void glReadBuffer(uint32_t src) __asm__("moderngl_glReadBuffer");
 extern void glReadPixels(int32_t x, int32_t y, int32_t width, int32_t height, uint32_t format, uint32_t type, void * pixels) __asm__("moderngl_glReadPixels");
 extern void glRenderbufferStorageMultisample(uint32_t target, int32_t samples, uint32_t internal_format, int32_t width, int32_t height) __asm__("moderngl_glRenderbufferStorageMultisample");
@@ -1055,7 +1052,7 @@ static const char webgl_js[] =
     "    }\n"
     "  };\n"
     "\n"
-    "  const ignoredCaps = new Set([0x8F9D, 0x8642, 0x884F]);\n"
+    "  const ignoredCaps = new Set([0x8D69, 0x8642, 0x884F]);\n"
     "\n"
     "  const shaderHeader = `#version 300 es\n"
     "precision highp float;\n"
@@ -1200,7 +1197,6 @@ static const char webgl_js[] =
     "    moderngl_glIsEnabled: (cap) => (gl.isEnabled(cap) \? 1 : 0),\n"
     "    moderngl_glLinkProgram: (program) => gl.linkProgram(get(program)),\n"
     "    moderngl_glPolygonOffset: (factor, units) => gl.polygonOffset(factor, units),\n"
-    "    moderngl_glPrimitiveRestartIndex: (index) => {},\n"
     "    moderngl_glReadBuffer: (src) => gl.readBuffer(src),\n"
     "    moderngl_glReadPixels: (x, y, width, height, format, type, pixels) => {\n"
     "      if (packBuffer) {\n"

@@ -78,7 +78,7 @@
     }
   };
 
-  const ignoredCaps = new Set([0x8F9D, 0x8642, 0x884F]);
+  const ignoredCaps = new Set([0x8D69, 0x8642, 0x884F]);
 
   const shaderHeader = `#version 300 es
 precision highp float;
@@ -223,7 +223,6 @@ precision highp usampler2DArray;`;
     moderngl_glIsEnabled: (cap) => (gl.isEnabled(cap) ? 1 : 0),
     moderngl_glLinkProgram: (program) => gl.linkProgram(get(program)),
     moderngl_glPolygonOffset: (factor, units) => gl.polygonOffset(factor, units),
-    moderngl_glPrimitiveRestartIndex: (index) => {},
     moderngl_glReadBuffer: (src) => gl.readBuffer(src),
     moderngl_glReadPixels: (x, y, width, height, format, type, pixels) => {
       if (packBuffer) {

@@ -108,7 +108,7 @@ def test_render_vertex_array(ctx):
     offsets = ctx.buffer(struct.pack('4f', -1.0, -1.0, -1.0, 0.0))
     index = ctx.buffer(struct.pack('6H', 0, 1, 2, 2, 1, 3), index=True)
     attributes = [*vertices.bind('2f', 0), *vertices.bind('4nu1', 1, offset=32), *offsets.bind('2f /i', 2)]
-    vao = ctx.vertex_array(attributes, index_buffer=index, index_size=2)
+    vao = ctx.vertex_array(attributes, index_buffer=index, short_index=True)
     color = ctx.texture((4, 4), 'rgba8unorm')
     fbo = ctx.framebuffer([color])
     fbo.clear()
@@ -1066,11 +1066,11 @@ def test_vertex_array(ctx):
     instances = ctx.buffer(size=64)
     ibo = ctx.buffer(size=12, index=True)
     attributes = [*vbo.bind('3f 3f', 0, 1), *instances.bind('4f /i', 2)]
-    vao = ctx.vertex_array(attributes, index_buffer=ibo, index_size=2)
+    vao = ctx.vertex_array(attributes, index_buffer=ibo, short_index=True)
     attributes.clear()
     assert len(vao.attributes) == 3
     assert vao.index_buffer is ibo
-    assert vao.index_size == 2
+    assert vao.short_index
     empty = ctx.vertex_array([])
     assert empty.attributes == ()
     assert empty.index_buffer is None
@@ -1099,8 +1099,8 @@ def test_vertex_array_errors(ctx):
         ctx.vertex_array(ibo.bind('3f', 0))
     with pytest.raises(TypeError):
         ctx.vertex_array(vbo.bind('3f', 0), index_buffer=vbo)
-    with pytest.raises(ValueError):
-        ctx.vertex_array(vbo.bind('3f', 0), index_buffer=ibo, index_size=3)
+    with pytest.raises(TypeError):
+        ctx.vertex_array(vbo.bind('3f', 0), index_buffer=ibo, index_size=2)
     with pytest.raises(ValueError):
         ctx.vertex_array([*vbo.bind('3f', 0), *vbo.bind('3f', 0)])
     with pytest.raises(ValueError):
@@ -1951,6 +1951,7 @@ def test_release_all(ctx):
     framebuffer = ctx.framebuffer([texture])
     buffer = ctx.buffer(size=16)
     ctx.release('all')
+    CACHE.clear()
     assert not GL.glIsTexture(texture.glo)
     assert not GL.glIsFramebuffer(framebuffer.glo)
     assert not GL.glIsBuffer(buffer.glo)
@@ -2611,6 +2612,7 @@ def test_reset_state_scissor_polygon_offset(ctx):
     assert not GL.glIsEnabled(0x0C11)
     ctx.reset_state()
     assert not GL.glIsEnabled(0x0C11)
+    assert GL.glIsEnabled(0x8D69)
 
 
 def test_context_debug(ctx):
@@ -2658,3 +2660,57 @@ def test_context_debug(ctx):
     assert debug['units']['uniform_buffers'] == {2: (buffer, 0, 64)}
     ctx.reset_state()
     fbo.scissor = None
+
+
+def test_release_bound_framebuffer_restores_scissor(ctx):
+    ctx.reset_state()
+    fbo = ctx.framebuffer([ctx.texture((4, 4), 'rgba8unorm')])
+    fbo.scissor = (0, 0, 1, 1)
+    fbo.use()
+    ctx.release(fbo)
+    assert ctx.debug()['scissor'] is None
+    assert ctx.bound_framebuffer is ctx.screen
+
+
+def test_release_zeroes_names(ctx):
+    texture = ctx.texture((1, 1), 'rgba8unorm')
+    objects = [
+        ctx.buffer(size=4),
+        texture,
+        ctx.sampler(texture),
+        ctx.framebuffer([ctx.texture((1, 1), 'rgba8unorm')]),
+        ctx.vertex_array([]),
+        ctx.program('fullscreen.vert', 'color.frag', uniforms={'color': 'vec4'}),
+    ]
+    for obj in objects:
+        assert obj.glo
+        ctx.release(obj)
+        assert obj.glo == 0
+
+
+def test_primitive_restart(ctx):
+    ctx.shaders['restart.vert'] = """
+        #version 330 core
+        layout (location = 0) in vec2 in_vertex;
+        void main() {
+            gl_Position = vec4(in_vertex, 0.0, 1.0);
+        }
+    """
+    data = bytearray(65536 * 8)
+    data[:64] = struct.pack('16f', -1, -1, -0.5, -1, -1, 1, -0.5, 1, 0.5, -1, 1, -1, 0.5, 1, 1, 1)
+    data[-8:] = struct.pack('2f', 0.25, -1.0)
+    vertices = ctx.buffer(data)
+    color = ctx.texture((4, 1), 'rgba8unorm')
+    fbo = ctx.framebuffer([color])
+    program = ctx.program('restart.vert', 'color.frag', uniforms={'color': 'vec4'})
+    for short_index, fmt, restart in [(True, '9H', 0xFFFF), (False, '9I', 0xFFFFFFFF)]:
+        index = ctx.buffer(struct.pack(fmt, 0, 1, 2, 3, restart, 4, 5, 6, 7), index=True)
+        vao = ctx.vertex_array(vertices.bind('2f', 0), index, short_index=short_index, mode='triangle_strip')
+        fbo.clear()
+        fbo.use()
+        program.use()
+        program['color'] = (1.0, 1.0, 1.0, 1.0)
+        vao.render()
+        assert color.read().wait() == b'\xff' * 4 + bytes(8) + b'\xff' * 4
+        ctx.release(vao)
+    ctx.release(program)

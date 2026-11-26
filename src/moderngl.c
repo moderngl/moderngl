@@ -268,6 +268,7 @@ typedef struct VertexArray {
     PyObject * index_buffer;
     uint32_t vertex_array;
     uint32_t index_type;
+    int8_t short_index;
     int32_t index_size;
     int32_t vertices;
     uint32_t mode;
@@ -2480,9 +2481,7 @@ static PyObject * draw_vertex_array(VertexArray * self, uint32_t mode, int32_t f
         Py_RETURN_NONE;
     }
 
-    uint32_t restart_index = self->index_size == 1 ? 0xFF : self->index_size == 2 ? 0xFFFF : 0xFFFFFFFF;
     void * offset = (void *)(intptr_t)(first * self->index_size);
-    glPrimitiveRestartIndex(restart_index);
     if (first_instance) {
         glDrawElementsInstancedBaseVertexBaseInstance(mode, vertices, self->index_type, offset, instances, 0, first_instance);
     } else {
@@ -2600,7 +2599,6 @@ static PyObject * VertexArray_meth_draw_indirect(VertexArray * self, PyObject * 
 
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer->buffer);
     if (self->index_type) {
-        glPrimitiveRestartIndex(self->index_size == 1 ? 0xFF : self->index_size == 2 ? 0xFFFF : 0xFFFFFFFF);
         glMultiDrawElementsIndirect(mode, self->index_type, (void *)(intptr_t)offset, count, 0);
     } else {
         glMultiDrawArraysIndirect(mode, (void *)(intptr_t)offset, count, 0);
@@ -3617,15 +3615,15 @@ static Resources * Context_meth_resources(Context * self, PyObject * args, PyObj
 }
 
 static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, PyObject * kwargs) {
-    static char * keywords[] = {"attributes", "index_buffer", "index_size", "vertices", "mode", NULL};
+    static char * keywords[] = {"attributes", "index_buffer", "short_index", "vertices", "mode", NULL};
 
     PyObject * attributes_arg = NULL;
     PyObject * index_buffer = Py_None;
-    int32_t index_size = 4;
+    int short_index = 0;
     PyObject * vertices_arg = Py_None;
     const char * mode_arg = "triangles";
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O$iOs", keywords, &attributes_arg, &index_buffer, &index_size, &vertices_arg, &mode_arg)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O$pOs", keywords, &attributes_arg, &index_buffer, &short_index, &vertices_arg, &mode_arg)) {
         return NULL;
     }
 
@@ -3650,10 +3648,7 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
         return NULL;
     }
 
-    if (index_size != 1 && index_size != 2 && index_size != 4) {
-        PyErr_Format(PyExc_ValueError, "the index size must be 1, 2 or 4");
-        return NULL;
-    }
+    int32_t index_size = short_index ? 2 : 4;
 
     PyObject * attributes = PySequence_Tuple(attributes_arg);
     if (!attributes) {
@@ -3773,7 +3768,7 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
 
     uint32_t index_type = 0;
     if (index_buffer != Py_None) {
-        index_type = index_size == 1 ? GL_UNSIGNED_BYTE : index_size == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT;
+        index_type = short_index ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT;
     }
 
     VertexArray * res = PyObject_New(VertexArray, self->module_state->VertexArray_type);
@@ -3784,6 +3779,7 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
     res->index_buffer = Py_NewRef(index_buffer);
     res->vertex_array = vertex_array;
     res->index_type = index_type;
+    res->short_index = (int8_t)short_index;
     res->index_size = index_size;
     res->vertices = vertices;
     res->mode = mode;
@@ -5221,7 +5217,7 @@ static PyObject * Context_meth_reset_state(Context * self, PyObject * args) {
     glStencilFunc(GL_ALWAYS, 0, 0xFFFFFFFF);
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
     glStencilMask(0xFFFFFFFF);
-    glEnable(GL_PRIMITIVE_RESTART);
+    glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
     glDisable(GL_SCISSOR_TEST);
@@ -5329,6 +5325,7 @@ static PyObject * release_object(Context * self, PyObject * arg) {
         Buffer * buffer = (Buffer *)arg;
         if (untrack_object(self, (GCHeader *)buffer)) {
             glDeleteBuffers(1, &buffer->buffer);
+            buffer->buffer = 0;
             Py_DECREF(buffer);
         }
         Py_RETURN_NONE;
@@ -5346,6 +5343,7 @@ static PyObject * release_object(Context * self, PyObject * arg) {
             } else {
                 glDeleteTextures(1, &texture->texture);
             }
+            texture->texture = 0;
             Py_DECREF(texture);
         }
         Py_RETURN_NONE;
@@ -5358,8 +5356,10 @@ static PyObject * release_object(Context * self, PyObject * arg) {
                 Py_XSETREF(self->bound_framebuffer, (Framebuffer *)Context_get_screen(self, NULL));
                 glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
                 apply_viewport(self, &self->bound_framebuffer->viewport);
+                apply_scissor(self, self->bound_framebuffer->has_scissor, &self->bound_framebuffer->scissor);
             }
             glDeleteFramebuffers(1, &framebuffer->framebuffer);
+            framebuffer->framebuffer = 0;
             Py_DECREF(framebuffer);
         }
         Py_RETURN_NONE;
@@ -5373,6 +5373,7 @@ static PyObject * release_object(Context * self, PyObject * arg) {
                 glBindVertexArray(0);
             }
             glDeleteVertexArrays(1, &vertex_array->vertex_array);
+            vertex_array->vertex_array = 0;
             Py_DECREF(vertex_array);
         }
         Py_RETURN_NONE;
@@ -5382,6 +5383,7 @@ static PyObject * release_object(Context * self, PyObject * arg) {
         Sampler * sampler = (Sampler *)arg;
         if (untrack_object(self, (GCHeader *)sampler)) {
             glDeleteSamplers(1, &sampler->sampler);
+            sampler->sampler = 0;
             Py_DECREF(sampler);
         }
         Py_RETURN_NONE;
@@ -5395,6 +5397,7 @@ static PyObject * release_object(Context * self, PyObject * arg) {
                 glUseProgram(0);
             }
             glDeleteProgram(program->program);
+            program->program = 0;
             Py_DECREF(program);
         }
         Py_RETURN_NONE;
@@ -5991,7 +5994,7 @@ static Context * create_context(PyObject * self) {
         res->shaders = PyDict_New();
         res->shader_cache = PyDict_New();
         res->empty_vertex_array = NULL;
-        glEnable(GL_PRIMITIVE_RESTART);
+        glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
         glEnable(GL_PROGRAM_POINT_SIZE);
         glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
         int32_t max_texture_units = get_limit(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, 2, 1024);
@@ -6407,7 +6410,7 @@ static PyMemberDef VertexArray_members[] = {
     {"vertices", Py_T_INT, offsetof(VertexArray, vertices), 0, NULL},
     {"attributes", Py_T_OBJECT_EX, offsetof(VertexArray, attributes), Py_READONLY, NULL},
     {"index_buffer", Py_T_OBJECT_EX, offsetof(VertexArray, index_buffer), Py_READONLY, NULL},
-    {"index_size", Py_T_INT, offsetof(VertexArray, index_size), Py_READONLY, NULL},
+    {"short_index", Py_T_BOOL, offsetof(VertexArray, short_index), Py_READONLY, NULL},
     {"glo", Py_T_UINT, offsetof(VertexArray, vertex_array), Py_READONLY, NULL},
     {0},
 };

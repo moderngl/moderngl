@@ -96,7 +96,7 @@ wireframe = ctx.pipeline(
     'polygon_offset.vert',
     'wireframe.frag',
     uniform_buffers={'Common': 0},
-    vertex_array=ctx.vertex_array(vertex_buffer.bind('3f 3f', 0, 1), index_buffer, index_size=4),
+    vertex_array=ctx.vertex_array(vertex_buffer.bind('3f 3f', 0, 1), index_buffer),
     mode='lines',
     framebuffer=framebuffer,
     resources=ctx.resources(uniform_buffers={0: uniform_buffer}),

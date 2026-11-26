@@ -174,7 +174,7 @@ class Framebuffer:
 class VertexArray:
     attributes: tuple[Attribute, ...]
     index_buffer: Buffer | None
-    index_size: int
+    short_index: bool
     vertices: int
     mode: Mode
     glo: int
@@ -251,7 +251,7 @@ class Context:
         attributes: Sequence[Attribute],
         index_buffer: Buffer | None = None,
         *,
-        index_size: int = 4,
+        short_index: bool = False,
         vertices: int | None = None,
         mode: Mode = 'triangles',
     ) -> VertexArray: ...

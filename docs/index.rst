@@ -750,10 +750,11 @@ Context
     ``storage_images`` maps units to textures or ``texture.storage_image()`` tuples.
     The bases are combined first, a slot bound twice is an error, keyword arguments override.
 
-.. py:method:: Context.vertex_array(attributes, index_buffer=None, *, index_size=4, vertices=None, mode='triangles') -> VertexArray
+.. py:method:: Context.vertex_array(attributes, index_buffer=None, *, short_index=False, vertices=None, mode='triangles') -> VertexArray
 
     Create a vertex array from ``buffer.bind()`` attributes.
     ``vertices`` defaults to the count derived from the buffers or the index buffer.
+    Indices are 4 byte unsigned ints, or 2 byte unsigned shorts with ``short_index=True``. The largest value restarts the primitive.
 
 .. py:method:: Context.program(vertex_shader, fragment_shader, *, samplers=None, uniform_buffers=None, storage_buffers=None, storage_images=None, uniforms=None) -> Program
 
@@ -1107,10 +1108,10 @@ VertexArray
 
     The index buffer, ``None`` for non indexed drawing.
 
-.. py:attribute:: VertexArray.index_size
-    :type: int
+.. py:attribute:: VertexArray.short_index
+    :type: bool
 
-    Bytes per index: 1, 2 or 4.
+    2 byte indices instead of 4 byte indices.
 
 .. py:attribute:: VertexArray.vertices
     :type: int

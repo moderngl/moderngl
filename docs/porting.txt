@@ -47,7 +47,8 @@ Buffers
 
 Vertex arrays
 - ctx.vertex_array(prog, [(vbo, '3f 2f', 'in_vert', 'in_uv')], ibo, index_element_size=4) becomes:
-  ctx.vertex_array([*vbo.bind('3f 2f', 0, 1)], ibo, index_size=4)
+  ctx.vertex_array([*vbo.bind('3f 2f', 0, 1)], ibo)
+  index_element_size=2 becomes short_index=True. 1 byte indices are not supported. The primitive restart index is always the largest index value.
   where 0 and 1 are the layout locations in the shader.
 - ctx.simple_vertex_array is gone, same replacement.
 - Per instance attributes: '3f/i' becomes '3f /i' at the end of the layout. Padding is 'Nx'. Half floats are 'h' instead of 'f2', normalized formats are written like '4nu1'. See the vertex format table.
