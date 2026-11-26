@@ -163,7 +163,7 @@ Without a window, ``moderngl.headless_context()`` makes a hidden OpenGL 3.3 core
     ...
     headless.release()
 
-``ctx.info`` holds the backend (``'gl'`` or ``'webgl'``), vendor, renderer, version, the limits in use and the optional features: ``compute``, ``storage_images``, ``first_instance`` and ``draw_indirect``.
+``ctx.info`` holds the backend (``'gl'``, ``'webgl'``, ``'vulkan'`` or ``'webgpu'``), vendor, renderer, version, the limits in use and the optional features: ``compute``, ``storage_images``, ``first_instance`` and ``draw_indirect``.
 Include it when reporting bugs.
 
 .. _headless:
@@ -261,6 +261,7 @@ Shaders
 ~~~~~~~
 
 Shader sources live in ``ctx.shaders``, a plain dict.
+A source is a ``str`` or ``bytes``. ``bytes`` starting with the SPIR-V magic number are SPIR-V, other ``bytes`` are UTF-8 GLSL.
 Programs and pipelines refer to them by name.
 A source can include other sources with ``#include "name"``, error line numbers still point into the including source.
 
@@ -651,12 +652,90 @@ moderngl assumes the following between its calls, a module must restore what it 
 - the pixel pack and pixel unpack buffer targets are unbound
 - depth, cull face, blend and stencil are as last set through moderngl
 
-Primitive restart is always enabled, moderngl sets the restart index before its own indexed draws.
-Set it to the largest index before drawing indexed geometry outside moderngl.
+Primitive restart with the fixed index is always enabled, the largest index of the index type restarts a strip.
 
 Everything else is free, for example queries. The indirect buffer is bound and unbound by ``draw_indirect``.
 Storage buffer and storage image bindings are set again by every ``resources.use()`` and pipeline run.
 Direct state access functions avoid binding anything at all.
+
+Backends
+~~~~~~~~
+
+Besides OpenGL and WebGL2 there are two compatibility backends: Vulkan on the desktop and WebGPU in the browser.
+They emulate the OpenGL calls of moderngl, the API stays the same.
+A loader picks one with a ``backend`` attribute, ``'gl'``, ``'vulkan'`` or ``'webgpu'``, a loader without one is ``'gl'``.
+
+.. note::
+
+    Author's note: I do not like these backends.
+    They are here for compatibility and they are thin ice to walk on.
+    They should work, but they are shims.
+    WebGPU is worth it when porting to the web and compute is really needed, the shaders have to be ported from GLSL to WGSL.
+    Vulkan may be worth it on macOS to get compute out of the box, but ANGLE should be a better pick.
+
+Common to both:
+
+- Pipelines and direct rendering work, plain uniforms do not, use uniform buffers.
+- Scissor and polygon offset work, polygon offset is part of the pipeline state there.
+- External objects and ``line_loop`` do not work. ``ctx.debug()`` is not supported.
+- Everything is in descriptor set or bind group 0: uniform buffer ``n`` at binding ``n``, storage buffer ``n`` at ``32 + n``, sampler unit ``n`` at ``64 + n``, storage image ``n`` at ``128 + n``.
+- The descriptor layout is built from what is bound, a shader must not use a binding without a resource.
+
+Vulkan
+^^^^^^
+
+Vulkan 1.3, for platforms without a usable OpenGL.
+
+.. code::
+
+    class Loader:
+        backend = 'vulkan'
+
+    moderngl.init(Loader())
+    ctx = moderngl.get_context()
+    ctx.shaders['triangle.vert'] = open('triangle.vert.spv', 'rb').read()
+
+- Shaders are SPIR-V, compiled ahead with ``glslangValidator -V``, GLSL shaders fail. SPIR-V needs this backend.
+- Samplers are combined image samplers.
+- An optional ``size`` on the loader sets the screen framebuffer, ``instance_extensions`` and ``device_extensions`` add extensions.
+- There is no swapchain inside moderngl. ``moderngl.get_proc_address()`` gives the Vulkan handles like an extension would:
+
+  - ``'vkGetInstanceProcAddr'``
+  - ``'vkglHandles'``, ``void vkglHandles(uint64_t out[5])`` fills the instance, physical device, device, queue and queue family
+  - ``'vkglImage'``, ``uint64_t vkglImage(uint32_t glo)`` returns the ``VkImage`` of a texture, in the general layout
+
+- OpenGL names return the emulated functions, missing ones return 0.
+- ``examples/vulkan/swapchain.py`` presents into a pygame-ce window with ctypes, ``ctx.end_frame()`` waits for the frame before.
+- Images are stored like OpenGL, the swapchain blit flips them.
+
+WebGPU
+^^^^^^
+
+In the browser the ``'webgpu'`` backend replaces WebGL2. The page gets the device, moderngl gets the functions.
+
+.. code::
+
+    adapter = await js.navigator.gpu.requestAdapter()
+    device = await adapter.requestDevice()
+    symbols = js.window.eval(moderngl._extern_webgpu)(pyodide_js._module, device, canvas.getContext('webgpu'))
+    pyodide_js._module.mergeLibSymbols(symbols)
+
+    class Loader:
+        backend = 'webgpu'
+
+    moderngl.init(Loader())
+    ctx = moderngl.get_context()
+
+- Shaders are WGSL ``str``, ``#include`` works, entry points are found by stage.
+- Sampler unit ``n`` has its sampler at ``96 + n`` next to its texture at ``64 + n``.
+- Storage buffers are ``read`` in render pipelines and ``read_write`` in compute.
+- Storage images are bound only in compute, at most 4. ``r32float``, ``r32uint`` and ``r32sint`` are ``read_write``, other formats are ``write``.
+- Depth is 0..1, use ``moderngl.camera(..., clip=True)``.
+- Polygon offset units are rounded to an integer.
+- Reads are polled, ``wait()`` fails until ``is_ready()``.
+- Buffer writes and copies need 4 byte aligned offsets and sizes, odd sizes write zeros up to the next 4 bytes.
+- No ``triangle_fan`` and no lod bias.
+- ``docs/demo/webgpu.html`` runs the cube demo.
 
 Coming from ModernGL 5
 ======================

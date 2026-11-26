@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>moderngl webgpu</title>
+</head>
+<body style="background: #1a1a1f; color: #ccc; font-family: sans-serif">
+  <canvas id="demo" width="512" height="512" style="display: block"></canvas>
+  <p id="demo-status">Loading Python...</p>
+  <script type="module">
+    import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/pyodide.mjs';
+    const status = document.getElementById('demo-status');
+    try {
+      const pyodide = await loadPyodide();
+      const wheels = (await (await fetch(new URL('wheels.txt', document.baseURI), { cache: 'no-cache' })).text()).trim().split('\n');
+      const wheel = wheels.find((name) => name.startsWith('moderngl'));
+      await pyodide.loadPackage(new URL(wheel, document.baseURI).href);
+      await pyodide.runPythonAsync(await (await fetch(new URL('webgpu.py', document.baseURI), { cache: 'no-cache' })).text());
+      status.textContent = '';
+    } catch (error) {
+      status.textContent = `The demo failed to load: ${error.message}`;
+    }
+  </script>
+</body>
+</html>

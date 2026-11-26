@@ -1188,9 +1188,14 @@ def test_shaders_include_errors(ctx):
     ctx.shaders['missing_include.frag'] = '#version 330 core\n#include "nope.glsl"\nvoid main() {}\n'
     with pytest.raises(KeyError, match='nope.glsl'):
         ctx.program('fullscreen.vert', 'missing_include.frag')
-    ctx.shaders['bytes.frag'] = b'abc'
+    ctx.shaders['spirv.frag'] = struct.pack('I', 0x07230203) + bytes(16)
+    with pytest.raises(ValueError, match='vulkan backend'):
+        ctx.program('fullscreen.vert', 'spirv.frag')
+    ctx.shaders['bytes.frag'] = b'#version 330 core\nlayout (location = 0) out vec4 c;\nvoid main() { c = vec4(1.0); }\n'
+    ctx.release(ctx.program('fullscreen.vert', 'bytes.frag'))
+    ctx.shaders['number.frag'] = 1
     with pytest.raises(TypeError):
-        ctx.program('fullscreen.vert', 'bytes.frag')
+        ctx.program('fullscreen.vert', 'number.frag')
 
 
 def test_shaders_include_line_numbers(ctx):
@@ -2840,3 +2845,11 @@ def test_released(ctx):
         assert not obj.released and obj in ctx.gc()
         ctx.release(obj)
         assert obj.released and obj not in ctx.gc()
+
+
+def test_loader_backend():
+    class Loader:
+        backend = 'metal'
+
+    with pytest.raises(ValueError, match='metal'):
+        moderngl.init(loader=Loader())

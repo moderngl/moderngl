@@ -657,8 +657,32 @@ static PyObject * meth_init(PyObject * self, PyObject * args, PyObject * kwargs)
         return NULL;
     }
 
+#ifdef EXTERN_GL
+    const char * shim = "webgpu";
+#else
+    const char * shim = "vulkan";
+#endif
+
+    PyObject * backend = loader != Py_None ? PyObject_GetAttrString(loader, "backend") : NULL;
+    PyErr_Clear();
+    int named = backend && PyUnicode_Check(backend);
+    int gl = !backend || (named && PyUnicode_EqualToUTF8(backend, "gl"));
+    int compat = named && PyUnicode_EqualToUTF8(backend, shim);
+
+    if (!gl && !compat) {
+        PyErr_Format(PyExc_ValueError, "backend %R is not supported", backend);
+        Py_DECREF(backend);
+        return NULL;
+    }
+
+    Py_XDECREF(backend);
+
     PyMutex_Lock(&gl_mutex);
-    int ok = load_gl(loader);
+#ifdef EXTERN_GL
+    int ok = compat ? load_webgpu() : load_gl(loader);
+#else
+    int ok = compat ? load_vulkan(loader) : load_gl(loader);
+#endif
     PyMutex_Unlock(&gl_mutex);
 
     if (!ok) {
@@ -1359,6 +1383,11 @@ static int parse_mode(VertexArray * self, const char * mode_arg, uint32_t * mode
     return 1;
 }
 
+static int is_spirv(PyObject * source) {
+    static const uint32_t magic = 0x07230203;
+    return PyBytes_Check(source) && PyBytes_Size(source) >= 4 && !memcmp(PyBytes_AsString(source), &magic, 4);
+}
+
 static PyObject * load_shader(PyObject * shaders, PyObject * name, int32_t depth) {
     if (depth > 32) {
         PyErr_Format(PyExc_ValueError, "too deep include chain at \"%U\"", name);
@@ -1374,9 +1403,21 @@ static PyObject * load_shader(PyObject * shaders, PyObject * name, int32_t depth
         return NULL;
     }
 
+    if (is_spirv(source)) {
+        return source;
+    }
+
+    if (PyBytes_Check(source)) {
+        Py_SETREF(source, PyUnicode_FromEncodedObject(source, "utf-8", NULL));
+    }
+
+    if (!source) {
+        return NULL;
+    }
+
     if (!PyUnicode_Check(source)) {
         Py_DECREF(source);
-        PyErr_Format(PyExc_TypeError, "shader \"%U\" must be a str", name);
+        PyErr_Format(PyExc_TypeError, "shader \"%U\" must be a str or bytes", name);
         return NULL;
     }
 
@@ -1448,6 +1489,12 @@ static uint32_t compile_shader(PyObject * cache, uint32_t type, PyObject * shade
         return 0;
     }
 
+    if (is_spirv(source) && !glShaderBinary) {
+        Py_DECREF(source);
+        PyErr_Format(PyExc_ValueError, "shader \"%U\" is SPIR-V, it needs the vulkan backend", name);
+        return 0;
+    }
+
     PyObject * key = Py_BuildValue("(IN)", type, source);
     PyObject * cached = PyDict_GetItemWithError(cache, key);
     if (cached) {
@@ -1456,9 +1503,15 @@ static uint32_t compile_shader(PyObject * cache, uint32_t type, PyObject * shade
     }
 
     uint32_t shader = glCreateShader(type);
-    const char * text = PyUnicode_AsUTF8(source);
-    glShaderSource(shader, 1, &text, NULL);
-    glCompileShader(shader);
+    if (is_spirv(source)) {
+        int32_t size = (int32_t)PyBytes_Size(source);
+        glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V, PyBytes_AsString(source), size);
+        glSpecializeShader(shader, "main", 0, NULL, NULL);
+    } else {
+        const char * text = PyUnicode_AsUTF8(source);
+        glShaderSource(shader, 1, &text, NULL);
+        glCompileShader(shader);
+    }
 
     int32_t compiled = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
@@ -1740,7 +1793,7 @@ static int direct_read(void) {
 #ifdef EXTERN_GL
     return 0;
 #else
-    return 1;
+    return !strcmp(gl_backend, "gl");
 #endif
 }
 
@@ -3811,6 +3864,11 @@ static Program * create_program(
     }
 
     int32_t uniform_count = declared ? (int32_t)PyDict_Size(declared) : 0;
+
+    if (uniform_count && !glUniform1fv) {
+        PyErr_Format(PyExc_RuntimeError, "uniforms are not supported on the %s backend, use uniform buffers", gl_backend);
+        return NULL;
+    }
 
     UniformBinding * bindings = (UniformBinding *)PyMem_Malloc(sizeof(UniformBinding) * (uniform_count + 1));
     PyObject * uniform_index = PyDict_New();
@@ -6026,6 +6084,11 @@ static PyObject * debug_units_bound(Context * self) {
 }
 
 static PyObject * Context_meth_debug(Context * self, PyObject * args) {
+    if (!glIsEnabled) {
+        PyErr_Format(PyExc_RuntimeError, "debug is not supported on the %s backend", gl_backend);
+        return NULL;
+    }
+
     ModuleState * state = self->module_state;
     PyObject * res = PyDict_New();
     uint32_t program = (uint32_t)debug_int(DEBUG_CURRENT_PROGRAM);
@@ -6791,6 +6854,9 @@ static int module_exec(PyObject * self) {
 
 #ifdef EXTERN_GL
     if (PyModule_Add(self, "_extern_gl", PyUnicode_FromString(webgl_js))) {
+        return -1;
+    }
+    if (PyModule_Add(self, "_extern_webgpu", PyUnicode_FromString(webgpu_js))) {
         return -1;
     }
 #endif

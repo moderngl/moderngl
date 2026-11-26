@@ -53,6 +53,20 @@ pip install -e . -r examples/requirements.txt
 python examples/hello_triangle.py
 ```
 
+## Backends
+
+Vulkan and WebGPU compatibility backends run the same API, see the documentation.
+
+```
+python examples/vulkan/cube.py
+```
+
+WebGPU in Chrome on Linux needs Vulkan:
+
+```
+google-chrome-stable --user-data-dir=/tmp/webgpu --enable-unsafe-webgpu --enable-features=Vulkan,VulkanFromANGLE --use-angle=vulkan
+```
+
 ## Easy to use with Pillow
 
 ```py

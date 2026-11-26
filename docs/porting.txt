@@ -16,7 +16,7 @@ Context
 - Headless: moderngl.create_standalone_context() and moderngl.create_context(standalone=True) become headless = moderngl.headless_context() then ctx = moderngl.get_context(). It makes a hidden OpenGL 3.3 core context current on the calling thread (EGL on Linux, WGL on Windows, CGL on macOS), headless.release() destroys it. No glcontext needed.
 - moderngl.init(loader) loads OpenGL functions from a custom loader, any object with load_opengl_function(name) -> int, for example the object returned by moderngl.headless_context() or a glcontext backend.
 - ctx.screen replaces ctx.fbo and ctx.detect_framebuffer(). Its size cannot be queried, set ctx.screen.size = new_size when the window is resized.
-- ctx.info is a dict with the backend ('gl' or 'webgl'), vendor, renderer, version, glsl, limits and optional features. It replaces ctx.info, ctx.version_code and the other limit attributes. ctx.max_samples does not exist, multisampling is always 4 samples.
+- ctx.info is a dict with the backend ('gl', 'webgl', 'vulkan' or 'webgpu'), vendor, renderer, version, glsl, limits and optional features. It replaces ctx.info, ctx.version_code and the other limit attributes. ctx.max_samples does not exist, multisampling is always 4 samples.
 - ctx.error does not exist, invalid calls raise exceptions. GL debug output is available through an extension.
 - A context must only be used from the thread that created it. OpenGL calls from a thread without a context stop the process with a fatal error.
 

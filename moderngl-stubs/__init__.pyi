@@ -220,7 +220,7 @@ class Pipeline:
     def __setitem__(self, key: str, value: UniformValue) -> None: ...
 
 class Context:
-    shaders: dict[str, str]
+    shaders: dict[str, str | bytes]
     info: dict[str, Any]
     screen: Framebuffer
     empty_vertex_array: VertexArray
