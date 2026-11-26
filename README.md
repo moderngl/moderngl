@@ -70,7 +70,7 @@ buf = ctx.buffer(np.array([0.0, 0.0, 1.0, 1.0], 'f4'))
 
 ModernGL is implemented in C, a single render call with many OpenGL calls behind it counts as a single Python function call.
 
-ModernGL requires **OpenGL 3.3**. Storage images require **OpenGL 4.2**, compute shaders and storage buffers require **OpenGL 4.3**.
+ModernGL requires **OpenGL 3.3** core with the fixed primitive restart index (OpenGL 4.3 or `ARB_ES3_compatibility`). Storage images require **OpenGL 4.2**, compute shaders and storage buffers require **OpenGL 4.3**.
 
 ModernGL calls the OpenGL API and provides a Pythonic API instead.
 It works with any window library that creates an OpenGL context, and without a window too.

@@ -1,6 +1,6 @@
 Porting code from ModernGL 5 to ModernGL 6
 
-ModernGL 6 is a rewrite. It is a thin Python layer over OpenGL 3.3 core that also runs on WebGL2 through Pyodide. It keeps the OpenGL model, removes boilerplate and checks what it can when objects are created. Nothing happens implicitly: state is explicit, shader interfaces are declared up front, objects are not freed by the garbage collector. Names are strings, there are no integer constants. It requires Python 3.11 or newer and has no dependencies. The ModernGL 5 documentation is at https://moderngl.readthedocs.io/en/5.12.0/ for comparison.
+ModernGL 6 is a rewrite. It is a thin Python layer over OpenGL 3.3 core plus the fixed primitive restart index (OpenGL 4.3 or ARB_ES3_compatibility), that also runs on WebGL2 through Pyodide. It keeps the OpenGL model, removes boilerplate and checks what it can when objects are created. Nothing happens implicitly: state is explicit, shader interfaces are declared up front, objects are not freed by the garbage collector. Names are strings, there are no integer constants. It requires Python 3.11 or newer and has no dependencies. The ModernGL 5 documentation is at https://moderngl.readthedocs.io/en/5.12.0/ for comparison.
 
 Design differences to keep in mind while porting:
 - One Python object per OpenGL object: Buffer, Texture, Sampler, VertexArray, Program, Framebuffer, plus Resources (a set of texture units and uniform buffer bindings) and Pipeline (everything one draw call needs).

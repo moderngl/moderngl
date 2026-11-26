@@ -9,7 +9,7 @@ It keeps the OpenGL model, removes the boilerplate, and checks what can be check
     pip install --pre moderngl
 
 - Python 3.11 or newer, the free-threaded build included
-- OpenGL 3.3 core, written with WebGL2 compatibility in mind
+- OpenGL 3.3 core, written with WebGL2 compatibility in mind, see :ref:`requirements <requirements>`
 - No dependencies, no OpenGL headers or libraries needed to build
 - The window comes from your own library of choice (pygame-ce, moderngl-window, pyglet, glfw, ...)
 - Porting from ModernGL 5? See :ref:`porting`.
@@ -620,7 +620,11 @@ moderngl objects can be dropped on any thread, OpenGL objects are only deleted b
 Modules
 ~~~~~~~
 
-The core covers what OpenGL 3.3 and WebGL2 have in common, plus compute shaders, storage buffers and storage images on OpenGL 4.2 and 4.3.
+.. _requirements:
+
+The core needs OpenGL 3.3 core plus the fixed primitive restart index (OpenGL 4.3 or ARB_ES3_compatibility).
+Mesa, the Windows and Linux drivers of the last decade and WebGL2 have it, on macOS use Mesa or ANGLE.
+On top of that, compute shaders, storage buffers and storage images need OpenGL 4.2 and 4.3.
 Newer features are supported through extensions: mesh shaders, indirect draw counts from the GPU, queries, debug output and streaming.
 Extensions work directly on moderngl buffers and textures, a compute shader can write a vertex buffer that moderngl draws.
 
