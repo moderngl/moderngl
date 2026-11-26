@@ -587,8 +587,13 @@ OpenGL objects are not freed by the Python garbage collector.
     ctx.release('all')
     ctx.release()  # everything and the context
 
-``ctx.gc()`` lists the objects not released yet.
-External objects, resources and ``ctx.empty_vertex_array`` are not tracked.
+Every created object has to be released, also when the context is lost.
+``ctx.gc()`` lists the objects not released yet, external objects and pipelines included.
+``obj.released`` tells if an object was released, releasing twice does nothing.
+Releasing an external object only forgets it, the OpenGL object is left to its owner.
+Before that, ``ctx.gc()`` and ``glo`` can be used to delete external objects manually.
+``ctx.screen`` and ``ctx.empty_vertex_array`` belong to the context and are not tracked.
+Resources own no OpenGL object, they are not tracked and the Python garbage collector frees them.
 
 Interoperability
 ~~~~~~~~~~~~~~~~
@@ -786,17 +791,17 @@ Context
 
 .. py:method:: Context.external_buffer(buffer, size=None, *, index=False) -> Buffer
 
-    Wrap an existing buffer name. The size is queried when not given. Not released by the context.
+    Wrap an existing buffer name. The size is queried when not given. Releasing it does not delete the buffer.
 
 .. py:method:: Context.external_texture(texture, size, format='rgba8unorm', *, multisampled=False, array=0, levels=1, cubemap=False) -> Texture
 
-    Wrap an existing texture name, a renderbuffer name when multisampled. Nothing is checked. Not released by the context.
+    Wrap an existing texture name, a renderbuffer name when multisampled. Nothing is checked. Releasing it does not delete the texture.
 
 .. py:method:: Context.external_framebuffer(framebuffer, size, formats=None, *, multisampled=False) -> Framebuffer
 
     Wrap an existing framebuffer name.
     ``formats`` lists the attachment formats, defaults to ``('rgba8unorm', 'depth24plus-stencil8')``.
-    Framebuffer 0 returns ``ctx.screen``.
+    Always returns a new framebuffer, also for framebuffer 0.
 
 .. py:method:: Context.copy_buffer(src, dst, size=None, *, src_offset=0, dst_offset=0)
 
@@ -1114,11 +1119,6 @@ VertexArray
 
     The index buffer, ``None`` for non indexed drawing.
 
-.. py:attribute:: VertexArray.short_index
-    :type: bool
-
-    2 byte indices instead of 4 byte indices.
-
 .. py:attribute:: VertexArray.vertices
     :type: int
 
@@ -1144,11 +1144,6 @@ Program
 .. py:method:: Program.use()
 
     Bind the program.
-
-.. py:attribute:: Program.uniforms
-    :type: dict[str, int]
-
-    Declared uniform names to their locations.
 
 .. py:attribute:: Program.glo
     :type: int
@@ -1236,7 +1231,7 @@ Pipeline
 .. py:attribute:: Pipeline.program
     :type: Program
 
-    The private program of the pipeline, released with it.
+    The program of the pipeline, shared with its variants, deleted when the last of them is released.
 
 .. py:attribute:: Pipeline.vertex_array
     :type: VertexArray | None

@@ -37,29 +37,12 @@ static int PyDict_GetItemRef(PyObject * dict, PyObject * key, PyObject ** result
 
 #include "gl.h"
 
-
-static PyObject * meth_init(PyObject * self, PyObject * args, PyObject * kwargs) {
-    static char * keywords[] = {"loader", NULL};
-
-    PyObject * loader = Py_None;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", keywords, &loader)) {
-        return NULL;
-    }
-
-    PyMutex_Lock(&gl_mutex);
-    int ok = load_gl(loader);
-    PyMutex_Unlock(&gl_mutex);
-
-    if (!ok) {
-        return NULL;
-    }
-
-    Py_RETURN_NONE;
-}
-
-static const int32_t max_buffer_bindings = 8;
-static const int32_t max_sampler_bindings = 16;
+enum {
+    MAX_SAMPLERS = 16,
+    MAX_BUFFERS = 8,
+    MAX_ATTACHMENTS = 8,
+    MAX_ATTRIBUTES = 64,
+};
 
 typedef struct GCHeader GCHeader;
 typedef struct Context Context;
@@ -186,6 +169,7 @@ typedef struct Buffer {
     uint32_t target;
     int32_t size;
     int8_t index;
+    int8_t external;
 } Buffer;
 
 typedef struct Attribute {
@@ -210,10 +194,10 @@ typedef struct Texture {
     uint32_t framebuffer;
     int32_t width;
     int32_t height;
-    int32_t samples;
     int32_t array;
     int8_t cubemap;
-    int8_t renderbuffer;
+    int8_t multisampled;
+    int8_t external;
     int32_t layer_count;
     int32_t level_count;
 } Texture;
@@ -253,10 +237,10 @@ typedef struct Resources {
     int32_t uniform_buffer_count;
     int32_t storage_buffer_count;
     int32_t storage_image_count;
-    SamplerSlot samplers[16];
-    BufferRange uniform_buffers[8];
-    BufferRange storage_buffers[8];
-    StorageImageSlot storage_images[8];
+    SamplerSlot samplers[MAX_SAMPLERS];
+    BufferRange uniform_buffers[MAX_BUFFERS];
+    BufferRange storage_buffers[MAX_BUFFERS];
+    StorageImageSlot storage_images[MAX_BUFFERS];
 } Resources;
 
 typedef struct VertexArray {
@@ -268,7 +252,6 @@ typedef struct VertexArray {
     PyObject * index_buffer;
     uint32_t vertex_array;
     uint32_t index_type;
-    int8_t short_index;
     int32_t index_size;
     int32_t vertices;
     uint32_t mode;
@@ -279,7 +262,6 @@ typedef struct Program {
     GCHeader * gc_prev;
     GCHeader * gc_next;
     Context * ctx;
-    PyObject * uniforms;
     PyObject * uniform_index;
     PyObject * samplers;
     PyObject * uniform_buffers;
@@ -300,16 +282,17 @@ typedef struct Framebuffer {
     uint32_t framebuffer;
     int32_t width;
     int32_t height;
-    int32_t samples;
+    int8_t multisampled;
     int32_t color_count;
-    const ImageFormat * color_formats[8];
+    const ImageFormat * color_formats[MAX_ATTACHMENTS];
     const ImageFormat * depth_format;
-    ClearValue clear_colors[8];
+    ClearValue clear_colors[MAX_ATTACHMENTS];
     float clear_depth;
     int32_t clear_stencil;
     Region viewport;
     int8_t has_scissor;
     Region scissor;
+    int8_t external;
 } Framebuffer;
 
 typedef struct Pipeline {
@@ -661,6 +644,30 @@ static const ImageFormat image_formats[] = {
     {NULL},
 };
 
+static PyObject * release_object(Context * self, PyObject * arg);
+static PyObject * release_context(Context * self);
+static PyObject * Context_get_screen(Context * self, void * closure);
+
+static PyObject * meth_init(PyObject * self, PyObject * args, PyObject * kwargs) {
+    static char * keywords[] = {"loader", NULL};
+
+    PyObject * loader = Py_None;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", keywords, &loader)) {
+        return NULL;
+    }
+
+    PyMutex_Lock(&gl_mutex);
+    int ok = load_gl(loader);
+    PyMutex_Unlock(&gl_mutex);
+
+    if (!ok) {
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 static int get_named_value(const NamedValue * table, const char * name, uint32_t * value) {
     for (const NamedValue * it = table; it->name; ++it) {
         if (!strcmp(name, it->name)) {
@@ -688,6 +695,10 @@ static int parse_named_value(const NamedValue * table, PyObject * obj, uint32_t 
         return 0;
     }
     return 1;
+}
+
+static int parse_optional(const NamedValue * table, PyObject * obj, uint32_t * value, const char * what) {
+    return obj == Py_None || parse_named_value(table, obj, value, what);
 }
 
 static const ImageFormat * get_image_format(const char * name) {
@@ -796,16 +807,9 @@ static int parse_blend(PyObject * args, PyObject * kwargs, BlendState * res) {
     PyObject * equation_alpha_arg = Py_None;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "|OO$OOOO",
-        keywords,
-        &src_arg,
-        &dst_arg,
-        &equation_arg,
-        &src_alpha_arg,
-        &dst_alpha_arg,
-        &equation_alpha_arg
+        args, kwargs, "|OO$OOOO", keywords,
+        &src_arg, &dst_arg, &equation_arg,
+        &src_alpha_arg, &dst_alpha_arg, &equation_alpha_arg
     );
 
     if (!args_ok) {
@@ -834,7 +838,7 @@ static int parse_blend(PyObject * args, PyObject * kwargs, BlendState * res) {
         return 0;
     }
 
-    if (equation_arg != Py_None && !parse_named_value(blend_equations, equation_arg, &res->equation, "blend equation")) {
+    if (!parse_optional(blend_equations, equation_arg, &res->equation, "blend equation")) {
         return 0;
     }
 
@@ -842,15 +846,15 @@ static int parse_blend(PyObject * args, PyObject * kwargs, BlendState * res) {
     res->dst_alpha = res->dst;
     res->equation_alpha = res->equation;
 
-    if (src_alpha_arg != Py_None && !parse_named_value(blend_factors, src_alpha_arg, &res->src_alpha, "blend factor")) {
+    if (!parse_optional(blend_factors, src_alpha_arg, &res->src_alpha, "blend factor")) {
         return 0;
     }
 
-    if (dst_alpha_arg != Py_None && !parse_named_value(blend_factors, dst_alpha_arg, &res->dst_alpha, "blend factor")) {
+    if (!parse_optional(blend_factors, dst_alpha_arg, &res->dst_alpha, "blend factor")) {
         return 0;
     }
 
-    if (equation_alpha_arg != Py_None && !parse_named_value(blend_equations, equation_alpha_arg, &res->equation_alpha, "blend equation")) {
+    if (!parse_optional(blend_equations, equation_alpha_arg, &res->equation_alpha, "blend equation")) {
         return 0;
     }
 
@@ -869,18 +873,8 @@ static void apply_blend(BlendState * state) {
 
 static int parse_stencil(PyObject * args, PyObject * kwargs, StencilState * res) {
     static char * keywords[] = {
-        "func",
-        "ref",
-        "read_mask",
-        "write_mask",
-        "fail",
-        "depth_fail",
-        "depth_pass",
-        "back_func",
-        "back_fail",
-        "back_depth_fail",
-        "back_depth_pass",
-        NULL,
+        "func", "ref", "read_mask", "write_mask", "fail", "depth_fail", "depth_pass", "back_func", "back_fail",
+        "back_depth_fail", "back_depth_pass", NULL,
     };
 
     PyObject * func_arg = Py_None;
@@ -897,21 +891,10 @@ static int parse_stencil(PyObject * args, PyObject * kwargs, StencilState * res)
     res->write_mask = 0xFF;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "|Oi$IIOOOOOOO",
-        keywords,
-        &func_arg,
-        &res->ref,
-        &res->read_mask,
-        &res->write_mask,
-        &fail_arg,
-        &depth_fail_arg,
-        &depth_pass_arg,
-        &back_func_arg,
-        &back_fail_arg,
-        &back_depth_fail_arg,
-        &back_depth_pass_arg
+        args, kwargs, "|Oi$IIOOOOOOO", keywords,
+        &func_arg, &res->ref, &res->read_mask, &res->write_mask,
+        &fail_arg, &depth_fail_arg, &depth_pass_arg,
+        &back_func_arg, &back_fail_arg, &back_depth_fail_arg, &back_depth_pass_arg
     );
 
     if (!args_ok) {
@@ -932,15 +915,15 @@ static int parse_stencil(PyObject * args, PyObject * kwargs, StencilState * res)
         return 0;
     }
 
-    if (fail_arg != Py_None && !parse_named_value(stencil_ops, fail_arg, &res->fail, "stencil op")) {
+    if (!parse_optional(stencil_ops, fail_arg, &res->fail, "stencil op")) {
         return 0;
     }
 
-    if (depth_fail_arg != Py_None && !parse_named_value(stencil_ops, depth_fail_arg, &res->depth_fail, "stencil op")) {
+    if (!parse_optional(stencil_ops, depth_fail_arg, &res->depth_fail, "stencil op")) {
         return 0;
     }
 
-    if (depth_pass_arg != Py_None && !parse_named_value(stencil_ops, depth_pass_arg, &res->depth_pass, "stencil op")) {
+    if (!parse_optional(stencil_ops, depth_pass_arg, &res->depth_pass, "stencil op")) {
         return 0;
     }
 
@@ -949,19 +932,19 @@ static int parse_stencil(PyObject * args, PyObject * kwargs, StencilState * res)
     res->back_depth_fail = res->depth_fail;
     res->back_depth_pass = res->depth_pass;
 
-    if (back_func_arg != Py_None && !parse_named_value(compare_funcs, back_func_arg, &res->back_func, "stencil func")) {
+    if (!parse_optional(compare_funcs, back_func_arg, &res->back_func, "stencil func")) {
         return 0;
     }
 
-    if (back_fail_arg != Py_None && !parse_named_value(stencil_ops, back_fail_arg, &res->back_fail, "stencil op")) {
+    if (!parse_optional(stencil_ops, back_fail_arg, &res->back_fail, "stencil op")) {
         return 0;
     }
 
-    if (back_depth_fail_arg != Py_None && !parse_named_value(stencil_ops, back_depth_fail_arg, &res->back_depth_fail, "stencil op")) {
+    if (!parse_optional(stencil_ops, back_depth_fail_arg, &res->back_depth_fail, "stencil op")) {
         return 0;
     }
 
-    if (back_depth_pass_arg != Py_None && !parse_named_value(stencil_ops, back_depth_pass_arg, &res->back_depth_pass, "stencil op")) {
+    if (!parse_optional(stencil_ops, back_depth_pass_arg, &res->back_depth_pass, "stencil op")) {
         return 0;
     }
 
@@ -1131,10 +1114,12 @@ static uint32_t attachment_point(const ImageFormat * fmt) {
 }
 
 static void attach_texture(uint32_t attachment, Texture * texture, int32_t layer, int32_t level) {
-    if (texture->renderbuffer) {
+    if (texture->multisampled) {
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, texture->texture);
     } else if (texture->cubemap) {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer, texture->texture, level);
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER, attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer, texture->texture, level
+        );
     } else if (texture->array) {
         glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, texture->texture, level, layer);
     } else {
@@ -1212,7 +1197,9 @@ static int32_t region_bytes(Texture * texture, Region * region) {
     return ((region->width * texture->fmt->pixel_size + 3) & ~3) * region->height;
 }
 
-static Framebuffer * new_framebuffer(Context * ctx, uint32_t framebuffer, PyObject * attachments, int32_t width, int32_t height, int32_t samples) {
+static Framebuffer * new_framebuffer(
+    Context * ctx, uint32_t framebuffer, PyObject * attachments, int32_t width, int32_t height, int8_t multisampled
+) {
     Framebuffer * res = PyObject_New(Framebuffer, ctx->module_state->Framebuffer_type);
     res->ctx = (Context *)Py_NewRef(ctx);
     res->attachments = attachments;
@@ -1220,7 +1207,7 @@ static Framebuffer * new_framebuffer(Context * ctx, uint32_t framebuffer, PyObje
     res->framebuffer = framebuffer;
     res->width = width;
     res->height = height;
-    res->samples = samples;
+    res->multisampled = multisampled;
     res->gc_prev = NULL;
     res->gc_next = NULL;
     res->color_count = 0;
@@ -1235,6 +1222,7 @@ static Framebuffer * new_framebuffer(Context * ctx, uint32_t framebuffer, PyObje
     res->viewport.height = height;
     res->has_scissor = 0;
     memset(&res->scissor, 0, sizeof(res->scissor));
+    res->external = 0;
     return res;
 }
 
@@ -1479,8 +1467,8 @@ static uint32_t compile_shader(PyObject * cache, uint32_t type, PyObject * shade
         glGetShaderInfoLog(shader, sizeof(log), NULL, log);
         glDeleteShader(shader);
         Py_DECREF(key);
-        const char * title = type == GL_VERTEX_SHADER ? "Vertex Shader Error" : type == GL_COMPUTE_SHADER ? "Compute Shader Error" : "Fragment Shader Error";
-        PyErr_Format(PyExc_ValueError, "%s in \"%U\"\n\n%s", title, name, log);
+        const char * stage = type == GL_VERTEX_SHADER ? "Vertex" : type == GL_COMPUTE_SHADER ? "Compute" : "Fragment";
+        PyErr_Format(PyExc_ValueError, "%s Shader Error in \"%U\"\n\n%s", stage, name, log);
         return 0;
     }
 
@@ -1491,7 +1479,9 @@ static uint32_t compile_shader(PyObject * cache, uint32_t type, PyObject * shade
     return shader;
 }
 
-static uint32_t compile_program(PyObject * cache, PyObject * shaders, PyObject * vertex_shader, PyObject * fragment_shader) {
+static uint32_t compile_program(
+    PyObject * cache, PyObject * shaders, PyObject * vertex_shader, PyObject * fragment_shader
+) {
     uint32_t vs = compile_shader(cache, GL_VERTEX_SHADER, shaders, vertex_shader);
     if (!vs) {
         return 0;
@@ -2051,8 +2041,10 @@ static PyObject * Buffer_meth_use(Buffer * self, PyObject * args, PyObject * kwa
     Py_RETURN_NONE;
 }
 
-static ReadRequest * read_texture(Texture * self, PyObject * size_arg, PyObject * offset_arg, int32_t layer, int32_t level) {
-    if (self->samples > 1) {
+static ReadRequest * read_texture(
+    Texture * self, PyObject * size_arg, PyObject * offset_arg, int32_t layer, int32_t level
+) {
+    if (self->multisampled) {
         PyErr_Format(PyExc_TypeError, "cannot read multisampled textures");
         return NULL;
     }
@@ -2087,7 +2079,10 @@ static ReadRequest * read_texture(Texture * self, PyObject * size_arg, PyObject 
     }
     uint32_t staging = direct ? 0 : new_staging_buffer(GL_PIXEL_PACK_BUFFER, size);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
-    glReadPixels(region.x, region.y, region.width, region.height, self->fmt->format, self->fmt->type, direct ? PyBytes_AsString(data) : NULL);
+    glReadPixels(
+        region.x, region.y, region.width, region.height, self->fmt->format,
+        self->fmt->type, direct ? PyBytes_AsString(data) : NULL
+    );
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
@@ -2111,7 +2106,12 @@ static PyObject * Texture_meth_write(Texture * self, PyObject * args, PyObject *
     PyObject * layer_arg = Py_None;
     int32_t level = 0;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOi", keywords, &data, &size_arg, &offset_arg, &layer_arg, &level)) {
+    int args_ok = PyArg_ParseTupleAndKeywords(
+        args, kwargs, "O|OOOi", keywords,
+        &data, &size_arg, &offset_arg, &layer_arg, &level
+    );
+
+    if (!args_ok) {
         return NULL;
     }
 
@@ -2155,7 +2155,7 @@ static PyObject * Texture_meth_write(Texture * self, PyObject * args, PyObject *
         return NULL;
     }
 
-    if (self->renderbuffer) {
+    if (self->multisampled) {
         PyErr_Format(PyExc_TypeError, "cannot write to multisampled textures");
         return NULL;
     }
@@ -2249,13 +2249,14 @@ static int parse_storage_image(Context * ctx, PyObject * obj, StorageImageSlot *
         PyErr_Clear();
         texture = NULL;
     }
-    if (!texture || Py_TYPE(texture) != ctx->module_state->Texture_type || (layer != Py_None && !PyLong_CheckExact(layer))) {
+    int is_texture = texture && Py_TYPE(texture) == ctx->module_state->Texture_type;
+    if (!is_texture || (layer != Py_None && !PyLong_CheckExact(layer))) {
         PyErr_Format(PyExc_TypeError, "expected a Texture or a texture.storage_image(...)");
         return 0;
     }
     res->texture = (Texture *)texture;
     res->layer = layer != Py_None ? (int32_t)PyLong_AsLong(layer) : -1;
-    if (res->texture->samples > 1 || !res->texture->fmt->color || res->texture->fmt->format == GL_BGRA) {
+    if (res->texture->multisampled || !res->texture->fmt->color || res->texture->fmt->format == GL_BGRA) {
         PyErr_Format(PyExc_ValueError, "storage images cannot be multisampled, depth or bgra8unorm");
         return 0;
     }
@@ -2363,7 +2364,7 @@ static PyObject * Texture_meth_attachment(Texture * self, PyObject * args, PyObj
 }
 
 static PyObject * Texture_meth_mipmaps(Texture * self, PyObject * args) {
-    if (self->renderbuffer) {
+    if (self->multisampled) {
         PyErr_Format(PyExc_TypeError, "cannot build mipmaps for multisampled textures");
         return NULL;
     }
@@ -2400,17 +2401,25 @@ static PyObject * Resources_meth_use(Resources * self, PyObject * args) {
     }
     for (int32_t i = 0; i < self->uniform_buffer_count; ++i) {
         BufferRange * range = &self->uniform_buffers[i];
-        glBindBufferRange(GL_UNIFORM_BUFFER, range->binding, range->buffer->buffer, (intptr_t)range->offset, (intptr_t)range->size);
+        glBindBufferRange(
+            GL_UNIFORM_BUFFER, range->binding, range->buffer->buffer, (intptr_t)range->offset, (intptr_t)range->size
+        );
     }
     for (int32_t i = 0; i < self->storage_buffer_count; ++i) {
         BufferRange * range = &self->storage_buffers[i];
-        glBindBufferRange(GL_SHADER_STORAGE_BUFFER, range->binding, range->buffer->buffer, (intptr_t)range->offset, (intptr_t)range->size);
+        glBindBufferRange(
+            GL_SHADER_STORAGE_BUFFER, range->binding, range->buffer->buffer,
+            (intptr_t)range->offset, (intptr_t)range->size
+        );
     }
     for (int32_t i = 0; i < self->storage_image_count; ++i) {
         StorageImageSlot * slot = &self->storage_images[i];
         Texture * texture = slot->texture;
         uint8_t layered = slot->layer < 0 && (texture->array || texture->cubemap);
-        glBindImageTexture(slot->unit, texture->texture, slot->level, layered, slot->layer < 0 ? 0 : slot->layer, GL_READ_WRITE, texture->fmt->internal_format);
+        int32_t layer = slot->layer < 0 ? 0 : slot->layer;
+        glBindImageTexture(
+            slot->unit, texture->texture, slot->level, layered, layer, GL_READ_WRITE, texture->fmt->internal_format
+        );
     }
     Py_RETURN_NONE;
 }
@@ -2459,7 +2468,9 @@ static PyObject * Resources_get_storage_images(Resources * self, void * closure)
     return res;
 }
 
-static PyObject * draw_vertex_array(VertexArray * self, uint32_t mode, int32_t first, int32_t vertices, int32_t instances, int32_t first_instance) {
+static PyObject * draw_vertex_array(
+    VertexArray * self, uint32_t mode, int32_t first, int32_t vertices, int32_t instances, int32_t first_instance
+) {
     if (!self->ctx->bound_program) {
         PyErr_Format(PyExc_RuntimeError, "no program is bound, call program.use() first");
         return NULL;
@@ -2486,7 +2497,9 @@ static PyObject * draw_vertex_array(VertexArray * self, uint32_t mode, int32_t f
 
     void * offset = (void *)(intptr_t)(first * self->index_size);
     if (first_instance) {
-        glDrawElementsInstancedBaseVertexBaseInstance(mode, vertices, self->index_type, offset, instances, 0, first_instance);
+        glDrawElementsInstancedBaseVertexBaseInstance(
+            mode, vertices, self->index_type, offset, instances, 0, first_instance
+        );
     } else {
         glDrawElementsInstanced(mode, vertices, self->index_type, offset, instances);
     }
@@ -2511,7 +2524,12 @@ static PyObject * VertexArray_meth_render(VertexArray * self, PyObject * args, P
     int32_t first = 0;
     int32_t first_instance = 0;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|$zOiii", keywords, &mode_arg, &vertices_arg, &instances, &first, &first_instance)) {
+    int args_ok = PyArg_ParseTupleAndKeywords(
+        args, kwargs, "|$zOiii", keywords,
+        &mode_arg, &vertices_arg, &instances, &first, &first_instance
+    );
+
+    if (!args_ok) {
         return NULL;
     }
 
@@ -2545,7 +2563,12 @@ static PyObject * VertexArray_meth_draw(VertexArray * self, PyObject * args, PyO
     int32_t first_instance = 0;
     const char * mode_arg = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|i$iiz", keywords, &vertices, &first, &instances, &first_instance, &mode_arg)) {
+    int args_ok = PyArg_ParseTupleAndKeywords(
+        args, kwargs, "i|i$iiz", keywords,
+        &vertices, &first, &instances, &first_instance, &mode_arg
+    );
+
+    if (!args_ok) {
         return NULL;
     }
 
@@ -2570,7 +2593,12 @@ static PyObject * VertexArray_meth_draw_indirect(VertexArray * self, PyObject * 
     int32_t offset = 0;
     const char * mode_arg = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|ii$z", keywords, self->ctx->module_state->Buffer_type, &buffer, &count, &offset, &mode_arg)) {
+    int args_ok = PyArg_ParseTupleAndKeywords(
+        args, kwargs, "O!|ii$z", keywords,
+        self->ctx->module_state->Buffer_type, &buffer, &count, &offset, &mode_arg
+    );
+
+    if (!args_ok) {
         return NULL;
     }
 
@@ -2632,7 +2660,6 @@ static PyObject * Program_meth_use(Program * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-
 static int Program_ass_subscript(Program * self, PyObject * key, PyObject * value) {
     if (!value) {
         PyErr_Format(PyExc_TypeError, "uniforms cannot be deleted");
@@ -2673,7 +2700,7 @@ static PyObject * Framebuffer_meth_clear(Framebuffer * self, PyObject * args, Py
     int8_t stencil_masked = self->ctx->stencil_write_mask != 0xFF;
 
     int32_t count = slot_count;
-    int32_t indices[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    int32_t indices[MAX_ATTACHMENTS + 1] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 
     if (attachments != Py_None && !parse_clear_attachments(attachments, slot_count, indices, &count)) {
         return NULL;
@@ -2722,7 +2749,7 @@ static int Framebuffer_set_clear_color(Framebuffer * self, PyObject * value, voi
         return 0;
     }
 
-    ClearValue clear_colors[8] = {0};
+    ClearValue clear_colors[MAX_ATTACHMENTS] = {0};
 
     if (self->color_count == 1) {
         if (!parse_clear_color(self->color_formats[0], value, &clear_colors[0])) {
@@ -2838,7 +2865,7 @@ static PyObject * Framebuffer_get_size(Framebuffer * self, void * closure) {
 }
 
 static int Framebuffer_set_size(Framebuffer * self, PyObject * value, void * closure) {
-    if (PyTuple_Size(self->attachments)) {
+    if (!self->external) {
         PyErr_Format(PyExc_TypeError, "only external framebuffers can be resized");
         return -1;
     }
@@ -2929,7 +2956,9 @@ static PyObject * Pipeline_meth_run(Pipeline * self, PyObject * args) {
         Py_RETURN_NONE;
     }
 
-    PyObject * res = draw_vertex_array(self->vertex_array, self->mode, self->first, self->vertices, self->instances, self->first_instance);
+    PyObject * res = draw_vertex_array(
+        self->vertex_array, self->mode, self->first, self->vertices, self->instances, self->first_instance
+    );
     apply_viewport(self->ctx, &self->framebuffer->viewport);
     apply_scissor(self->ctx, self->framebuffer->has_scissor, &self->framebuffer->scissor);
     return res;
@@ -2967,7 +2996,8 @@ static int Pipeline_ass_subscript(Pipeline * self, PyObject * key, PyObject * va
         return -1;
     }
     int32_t i = (int32_t)PyLong_AsLong(index);
-    return pack_uniform(&self->program->uniform_bindings[i], key, value, self->uniform_data + self->uniform_offsets[i]) ? 0 : -1;
+    UniformBinding * b = &self->program->uniform_bindings[i];
+    return pack_uniform(b, key, value, self->uniform_data + self->uniform_offsets[i]) ? 0 : -1;
 }
 
 static PyObject * Pipeline_get_viewport(Pipeline * self, void * closure) {
@@ -3071,9 +3101,6 @@ static PyObject * HeadlessContext_meth_load_opengl_function(HeadlessContext * se
     return PyLong_FromVoidPtr(default_loader_load(name));
 }
 
-static PyObject * release_object(Context * self, PyObject * arg);
-static PyObject * release_context(Context * self);
-
 static PyObject * HeadlessContext_meth_release(HeadlessContext * self, PyObject * args) {
     if (!self->handles[0]) {
         Py_RETURN_NONE;
@@ -3085,8 +3112,6 @@ static PyObject * HeadlessContext_meth_release(HeadlessContext * self, PyObject 
     memset(self->handles, 0, sizeof(self->handles));
     Py_RETURN_NONE;
 }
-
-static PyObject * Context_get_screen(Context * self, void * closure);
 
 static Buffer * Context_meth_buffer(Context * self, PyObject * args, PyObject * kwargs) {
     static char * keywords[] = {"data", "size", "index", "usage", NULL};
@@ -3168,6 +3193,7 @@ static Buffer * Context_meth_buffer(Context * self, PyObject * args, PyObject * 
     res->target = target;
     res->size = size;
     res->index = (int8_t)index;
+    res->external = 0;
 
     if (data != Py_None) {
         PyObject * write_args = PyTuple_Pack(1, data);
@@ -3198,18 +3224,9 @@ static Texture * Context_meth_texture(Context * self, PyObject * args, PyObject 
     int cubemap = 0;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "(ii)|sO$piip",
-        keywords,
-        &width,
-        &height,
-        &format,
-        &data,
-        &multisampled,
-        &array,
-        &levels,
-        &cubemap
+        args, kwargs, "(ii)|sO$piip", keywords,
+        &width, &height, &format, &data,
+        &multisampled, &array, &levels, &cubemap
     );
 
     if (!args_ok) {
@@ -3232,7 +3249,6 @@ static Texture * Context_meth_texture(Context * self, PyObject * args, PyObject 
         levels = max_levels;
     }
 
-    int32_t samples = multisampled ? 4 : 1;
     if (array < 0) {
         PyErr_Format(PyExc_ValueError, "array must not be negative");
         return NULL;
@@ -3249,22 +3265,21 @@ static Texture * Context_meth_texture(Context * self, PyObject * args, PyObject 
         PyErr_Format(PyExc_ValueError, "cubemaps must be square");
         return NULL;
     }
-    if (samples > 1 && (array || cubemap)) {
+    if (multisampled && (array || cubemap)) {
         PyErr_Format(PyExc_TypeError, "multisampled array or cubemap textures are not supported");
         return NULL;
     }
-    if (data != Py_None && samples > 1) {
+    if (data != Py_None && multisampled) {
         PyErr_Format(PyExc_ValueError, "cannot write to multisampled textures");
         return NULL;
     }
-    int8_t renderbuffer = samples > 1;
     uint32_t target = cubemap ? GL_TEXTURE_CUBE_MAP : array ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
 
     uint32_t image = 0;
-    if (renderbuffer) {
+    if (multisampled) {
         glGenRenderbuffers(1, &image);
         glBindRenderbuffer(GL_RENDERBUFFER, image);
-        glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples > 1 ? samples : 0, fmt->internal_format, width, height);
+        glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, fmt->internal_format, width, height);
     } else {
         glGenTextures(1, &image);
         glActiveTexture(self->default_texture_unit);
@@ -3300,10 +3315,10 @@ static Texture * Context_meth_texture(Context * self, PyObject * args, PyObject 
     res->framebuffer = 0;
     res->width = width;
     res->height = height;
-    res->samples = samples;
     res->array = array;
     res->cubemap = (int8_t)cubemap;
-    res->renderbuffer = renderbuffer;
+    res->multisampled = (int8_t)multisampled;
+    res->external = 0;
     res->layer_count = (array ? array : 1) * (cubemap ? 6 : 1);
     res->level_count = levels;
 
@@ -3325,18 +3340,8 @@ static Texture * Context_meth_texture(Context * self, PyObject * args, PyObject 
 
 static Sampler * Context_meth_sampler(Context * self, PyObject * args, PyObject * kwargs) {
     static char * keywords[] = {
-        "texture",
-        "min_filter",
-        "mag_filter",
-        "wrap_x",
-        "wrap_y",
-        "wrap_z",
-        "min_lod",
-        "max_lod",
-        "lod_bias",
-        "compare_func",
-        "anisotropy",
-        NULL,
+        "texture", "min_filter", "mag_filter", "wrap_x", "wrap_y", "wrap_z", "min_lod", "max_lod", "lod_bias",
+        "compare_func", "anisotropy", NULL,
     };
 
     Texture * texture = NULL;
@@ -3352,29 +3357,17 @@ static Sampler * Context_meth_sampler(Context * self, PyObject * args, PyObject 
     float anisotropy = 1.0f;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "O!|$zssssfffzf",
-        keywords,
-        self->module_state->Texture_type,
-        &texture,
-        &min_filter_arg,
-        &mag_filter_arg,
-        &wrap_x_arg,
-        &wrap_y_arg,
-        &wrap_z_arg,
-        &min_lod,
-        &max_lod,
-        &lod_bias,
-        &compare_func_arg,
-        &anisotropy
+        args, kwargs, "O!|$zssssfffzf", keywords,
+        self->module_state->Texture_type, &texture,
+        &min_filter_arg, &mag_filter_arg, &wrap_x_arg, &wrap_y_arg, &wrap_z_arg,
+        &min_lod, &max_lod, &lod_bias, &compare_func_arg, &anisotropy
     );
 
     if (!args_ok) {
         return NULL;
     }
 
-    if (texture->renderbuffer) {
+    if (texture->multisampled) {
         PyErr_Format(PyExc_TypeError, "multisampled textures cannot be sampled");
         return NULL;
     }
@@ -3455,17 +3448,21 @@ static Resources * Context_meth_resources(Context * self, PyObject * args, PyObj
     PyObject * storage_images = NULL;
 
     PyObject * empty = PyTuple_New(0);
-    int args_ok = PyArg_ParseTupleAndKeywords(empty, kwargs, "|$O!O!O!O!", keywords, &PyDict_Type, &samplers, &PyDict_Type, &uniform_buffers, &PyDict_Type, &storage_buffers, &PyDict_Type, &storage_images);
+    int args_ok = PyArg_ParseTupleAndKeywords(
+        empty, kwargs, "|$O!O!O!O!", keywords,
+        &PyDict_Type, &samplers, &PyDict_Type, &uniform_buffers,
+        &PyDict_Type, &storage_buffers, &PyDict_Type, &storage_images
+    );
     Py_DECREF(empty);
 
     if (!args_ok) {
         return NULL;
     }
 
-    Sampler * sampler_slots[16] = {0};
-    BufferRange buffer_slots[8] = {0};
-    BufferRange storage_slots[8] = {0};
-    StorageImageSlot image_slots[8] = {0};
+    Sampler * sampler_slots[MAX_SAMPLERS] = {0};
+    BufferRange buffer_slots[MAX_BUFFERS] = {0};
+    BufferRange storage_slots[MAX_BUFFERS] = {0};
+    StorageImageSlot image_slots[MAX_BUFFERS] = {0};
 
     for (int32_t i = 0; i < PyTuple_Size(args); ++i) {
         Resources * base = (Resources *)PyTuple_GetItem(args, i);
@@ -3588,7 +3585,7 @@ static Resources * Context_meth_resources(Context * self, PyObject * args, PyObj
     res->storage_buffer_count = 0;
     res->storage_image_count = 0;
 
-    for (int32_t i = 0; i < 16; ++i) {
+    for (int32_t i = 0; i < MAX_SAMPLERS; ++i) {
         if (sampler_slots[i]) {
             res->samplers[res->sampler_count].unit = i;
             res->samplers[res->sampler_count].sampler = (Sampler *)Py_NewRef(sampler_slots[i]);
@@ -3596,7 +3593,7 @@ static Resources * Context_meth_resources(Context * self, PyObject * args, PyObj
         }
     }
 
-    for (int32_t i = 0; i < 8; ++i) {
+    for (int32_t i = 0; i < MAX_BUFFERS; ++i) {
         if (buffer_slots[i].buffer) {
             res->uniform_buffers[res->uniform_buffer_count] = buffer_slots[i];
             Py_INCREF(buffer_slots[i].buffer);
@@ -3626,7 +3623,12 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
     PyObject * vertices_arg = Py_None;
     const char * mode_arg = "triangles";
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O$pOs", keywords, &attributes_arg, &index_buffer, &short_index, &vertices_arg, &mode_arg)) {
+    int args_ok = PyArg_ParseTupleAndKeywords(
+        args, kwargs, "O|O$pOs", keywords,
+        &attributes_arg, &index_buffer, &short_index, &vertices_arg, &mode_arg
+    );
+
+    if (!args_ok) {
         return NULL;
     }
 
@@ -3660,14 +3662,14 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
 
     int32_t count = (int32_t)PyTuple_Size(attributes);
 
-    if (count > 64) {
+    if (count > MAX_ATTRIBUTES) {
         PyErr_Format(PyExc_ValueError, "too many attributes");
         Py_DECREF(attributes);
         return NULL;
     }
 
-    Attribute parsed[64] = {0};
-    uint8_t used[64] = {0};
+    Attribute parsed[MAX_ATTRIBUTES] = {0};
+    uint8_t used[MAX_ATTRIBUTES] = {0};
     int32_t vertices = -1;
 
     for (int32_t i = 0; i < count; ++i) {
@@ -3681,7 +3683,11 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
             return NULL;
         }
 
-        if (!PyTuple_Check(item) || !PyArg_ParseTuple(item, "O!isiii", self->module_state->Buffer_type, &a->buffer, &a->location, &format, &a->offset, &a->stride, &a->divisor)) {
+        int parsed = PyTuple_Check(item) && PyArg_ParseTuple(
+            item, "O!isiii", self->module_state->Buffer_type,
+            &a->buffer, &a->location, &format, &a->offset, &a->stride, &a->divisor
+        );
+        if (!parsed) {
             PyErr_Clear();
             PyErr_Format(PyExc_TypeError, "attribute %d must be a (buffer, location, format, offset, stride, divisor) tuple", i);
             Py_DECREF(attributes);
@@ -3754,9 +3760,14 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
         Attribute * a = &parsed[i];
         glBindBuffer(GL_ARRAY_BUFFER, a->buffer->buffer);
         if (a->fmt->integer) {
-            glVertexAttribIPointer(a->location, a->fmt->components, a->fmt->type, a->stride, (void *)(intptr_t)a->offset);
+            glVertexAttribIPointer(
+                a->location, a->fmt->components, a->fmt->type, a->stride, (void *)(intptr_t)a->offset
+            );
         } else {
-            glVertexAttribPointer(a->location, a->fmt->components, a->fmt->type, a->fmt->normalized, a->stride, (void *)(intptr_t)a->offset);
+            glVertexAttribPointer(
+                a->location, a->fmt->components, a->fmt->type,
+                a->fmt->normalized, a->stride, (void *)(intptr_t)a->offset
+            );
         }
         glVertexAttribDivisor(a->location, a->divisor);
         glEnableVertexAttribArray(a->location);
@@ -3782,7 +3793,6 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
     res->index_buffer = Py_NewRef(index_buffer);
     res->vertex_array = vertex_array;
     res->index_type = index_type;
-    res->short_index = (int8_t)short_index;
     res->index_size = index_size;
     res->vertices = vertices;
     res->mode = mode;
@@ -3791,14 +3801,8 @@ static VertexArray * Context_meth_vertex_array(Context * self, PyObject * args, 
 }
 
 static Program * create_program(
-    Context * self,
-    PyObject * vertex_shader,
-    PyObject * fragment_shader,
-    PyObject * compute_shader,
-    PyObject * samplers,
-    PyObject * uniform_buffers,
-    PyObject * storage_buffers,
-    PyObject * storage_images,
+    Context * self, PyObject * vertex_shader, PyObject * fragment_shader, PyObject * compute_shader,
+    PyObject * samplers, PyObject * uniform_buffers, PyObject * storage_buffers, PyObject * storage_images,
     PyObject * declared
 ) {
     if (compute_shader && !glDispatchCompute) {
@@ -3809,7 +3813,6 @@ static Program * create_program(
     int32_t uniform_count = declared ? (int32_t)PyDict_Size(declared) : 0;
 
     UniformBinding * bindings = (UniformBinding *)PyMem_Malloc(sizeof(UniformBinding) * (uniform_count + 1));
-    PyObject * uniforms = PyDict_New();
     PyObject * uniform_index = PyDict_New();
 
     PyObject * key = NULL;
@@ -3844,7 +3847,6 @@ static Program * create_program(
 
     if (!program) {
         PyMem_Free(bindings);
-        Py_DECREF(uniforms);
         Py_DECREF(uniform_index);
         return NULL;
     }
@@ -3856,9 +3858,6 @@ static Program * create_program(
     while (declared && PyDict_Next(declared, &pos, &key, &value)) {
         UniformBinding * b = &bindings[index];
         b->location = glGetUniformLocation(program, PyUnicode_AsUTF8(key));
-        PyObject * location = PyLong_FromLong(b->location);
-        PyDict_SetItem(uniforms, key, location);
-        Py_DECREF(location);
         index += 1;
     }
 
@@ -3988,7 +3987,6 @@ static Program * create_program(
 
     if (PyErr_Occurred()) {
         PyMem_Free(bindings);
-        Py_DECREF(uniforms);
         Py_DECREF(uniform_index);
         glDeleteProgram(program);
         return NULL;
@@ -3998,7 +3996,6 @@ static Program * create_program(
     res->gc_prev = NULL;
     res->gc_next = NULL;
     res->ctx = (Context *)Py_NewRef(self);
-    res->uniforms = uniforms;
     res->uniform_index = uniform_index;
     res->samplers = samplers ? PyDict_Copy(samplers) : PyDict_New();
     res->uniform_buffers = uniform_buffers ? PyDict_Copy(uniform_buffers) : PyDict_New();
@@ -4013,7 +4010,10 @@ static Program * create_program(
 }
 
 static Program * Context_meth_program(Context * self, PyObject * args, PyObject * kwargs) {
-    static char * keywords[] = {"vertex_shader", "fragment_shader", "samplers", "uniform_buffers", "storage_buffers", "storage_images", "uniforms", NULL};
+    static char * keywords[] = {
+        "vertex_shader", "fragment_shader", "samplers", "uniform_buffers", "storage_buffers", "storage_images",
+        "uniforms", NULL,
+    };
 
     PyObject * vertex_shader = NULL;
     PyObject * fragment_shader = NULL;
@@ -4024,29 +4024,20 @@ static Program * Context_meth_program(Context * self, PyObject * args, PyObject 
     PyObject * declared = NULL;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "UU|$O!O!O!O!O!",
-        keywords,
-        &vertex_shader,
-        &fragment_shader,
-        &PyDict_Type,
-        &samplers,
-        &PyDict_Type,
-        &uniform_buffers,
-        &PyDict_Type,
-        &storage_buffers,
-        &PyDict_Type,
-        &storage_images,
-        &PyDict_Type,
-        &declared
+        args, kwargs, "UU|$O!O!O!O!O!", keywords,
+        &vertex_shader, &fragment_shader,
+        &PyDict_Type, &samplers, &PyDict_Type, &uniform_buffers,
+        &PyDict_Type, &storage_buffers, &PyDict_Type, &storage_images,
+        &PyDict_Type, &declared
     );
 
     if (!args_ok) {
         return NULL;
     }
 
-    return create_program(self, vertex_shader, fragment_shader, NULL, samplers, uniform_buffers, storage_buffers, storage_images, declared);
+    return create_program(
+        self, vertex_shader, fragment_shader, NULL, samplers, uniform_buffers, storage_buffers, storage_images, declared
+    );
 }
 
 static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, PyObject * kwargs) {
@@ -4074,7 +4065,7 @@ static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, P
     PyObject * attachments = PyTuple_New(count);
     int32_t width = 0;
     int32_t height = 0;
-    int32_t samples = 0;
+    int8_t multisampled = 0;
     int32_t color_count = 0;
 
     for (int32_t i = 0; i < count; ++i) {
@@ -4082,6 +4073,7 @@ static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, P
         Texture * texture = NULL;
         int32_t layer = 0;
         int32_t level = 0;
+        int is_view = PyTuple_Check(item) && PyTuple_Size(item) == 3;
 
         if (Py_TYPE(item) == self->module_state->Texture_type) {
             texture = (Texture *)item;
@@ -4091,7 +4083,7 @@ static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, P
                 Py_DECREF(seq);
                 return NULL;
             }
-        } else if (PyTuple_Check(item) && PyTuple_Size(item) == 3 && Py_TYPE(PyTuple_GetItem(item, 0)) == self->module_state->Texture_type) {
+        } else if (is_view && Py_TYPE(PyTuple_GetItem(item, 0)) == self->module_state->Texture_type) {
             texture = (Texture *)PyTuple_GetItem(item, 0);
             layer = (int32_t)PyLong_AsLong(PyTuple_GetItem(item, 1));
             level = (int32_t)PyLong_AsLong(PyTuple_GetItem(item, 2));
@@ -4118,7 +4110,7 @@ static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, P
         if (i == 0) {
             width = level_width;
             height = level_height;
-            samples = texture->samples;
+            multisampled = texture->multisampled;
         }
 
         if (level_width != width || level_height != height) {
@@ -4128,8 +4120,8 @@ static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, P
             return NULL;
         }
 
-        if (texture->samples != samples) {
-            PyErr_Format(PyExc_ValueError, "attachment %d is %smultisampled unlike the others", i, texture->samples > 1 ? "" : "not ");
+        if (texture->multisampled != multisampled) {
+            PyErr_Format(PyExc_ValueError, "attachment %d is %smultisampled unlike the others", i, multisampled ? "not " : "");
             Py_DECREF(attachments);
             Py_DECREF(seq);
             return NULL;
@@ -4151,7 +4143,7 @@ static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, P
 
     Py_DECREF(seq);
 
-    if (color_count > 8) {
+    if (color_count > MAX_ATTACHMENTS) {
         Py_DECREF(attachments);
         PyErr_Format(PyExc_ValueError, "too many color attachments");
         return NULL;
@@ -4161,9 +4153,9 @@ static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, P
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
-    Framebuffer * res = new_framebuffer(self, framebuffer, attachments, width, height, samples);
+    Framebuffer * res = new_framebuffer(self, framebuffer, attachments, width, height, multisampled);
 
-    uint32_t draw_buffers[8] = {0};
+    uint32_t draw_buffers[MAX_ATTACHMENTS] = {0};
 
     for (int32_t i = 0; i < count; ++i) {
         PyObject * item = PyTuple_GetItem(attachments, i);
@@ -4203,10 +4195,10 @@ static Framebuffer * Context_meth_framebuffer(Context * self, PyObject * args, P
 }
 
 static int check_resources(Context * self, Program * program, Resources * merged) {
-    int8_t sampler_units[16] = {0};
-    int8_t buffer_bindings[8] = {0};
-    int8_t storage_bindings[8] = {0};
-    int8_t image_units[8] = {0};
+    int8_t sampler_units[MAX_SAMPLERS] = {0};
+    int8_t buffer_bindings[MAX_BUFFERS] = {0};
+    int8_t storage_bindings[MAX_BUFFERS] = {0};
+    int8_t image_units[MAX_BUFFERS] = {0};
 
     for (int32_t j = 0; j < merged->storage_image_count; ++j) {
         image_units[merged->storage_images[j].unit] = 1;
@@ -4227,7 +4219,8 @@ static int check_resources(Context * self, Program * program, Resources * merged
 
     while (PyDict_Next(program->samplers, &pos, &key, &value)) {
         const char * name = PyUnicode_Check(key) ? PyUnicode_AsUTF8(key) : NULL;
-        if (name && glGetUniformLocation(program->program, name) >= 0 && !sampler_units[PyLong_AsLong(value)]) {
+        int active = name && glGetUniformLocation(program->program, name) >= 0;
+        if (active && !sampler_units[PyLong_AsLong(value)]) {
             PyErr_Format(PyExc_ValueError, "sampler \"%s\" has no resource at unit %d", name, (int32_t)PyLong_AsLong(value));
             return 0;
         }
@@ -4236,7 +4229,8 @@ static int check_resources(Context * self, Program * program, Resources * merged
     pos = 0;
     while (PyDict_Next(program->uniform_buffers, &pos, &key, &value)) {
         const char * name = PyUnicode_Check(key) ? PyUnicode_AsUTF8(key) : NULL;
-        if (name && glGetUniformBlockIndex(program->program, name) != GL_INVALID_INDEX && !buffer_bindings[PyLong_AsLong(value)]) {
+        int active = name && glGetUniformBlockIndex(program->program, name) != GL_INVALID_INDEX;
+        if (active && !buffer_bindings[PyLong_AsLong(value)]) {
             PyErr_Format(PyExc_ValueError, "uniform block \"%s\" has no resource at binding %d", name, (int32_t)PyLong_AsLong(value));
             return 0;
         }
@@ -4245,7 +4239,8 @@ static int check_resources(Context * self, Program * program, Resources * merged
     pos = 0;
     while (glGetProgramResourceIndex && PyDict_Next(program->storage_buffers, &pos, &key, &value)) {
         const char * name = PyUnicode_Check(key) ? PyUnicode_AsUTF8(key) : NULL;
-        if (name && glGetProgramResourceIndex(program->program, GL_SHADER_STORAGE_BLOCK, name) != GL_INVALID_INDEX && !storage_bindings[PyLong_AsLong(value)]) {
+        int active = name && glGetProgramResourceIndex(program->program, GL_SHADER_STORAGE_BLOCK, name) != GL_INVALID_INDEX;
+        if (active && !storage_bindings[PyLong_AsLong(value)]) {
             PyErr_Format(PyExc_ValueError, "storage block \"%s\" has no resource at binding %d", name, (int32_t)PyLong_AsLong(value));
             return 0;
         }
@@ -4254,7 +4249,8 @@ static int check_resources(Context * self, Program * program, Resources * merged
     pos = 0;
     while (PyDict_Next(program->storage_images, &pos, &key, &value)) {
         const char * name = PyUnicode_Check(key) ? PyUnicode_AsUTF8(key) : NULL;
-        if (name && glGetUniformLocation(program->program, name) >= 0 && !image_units[PyLong_AsLong(value)]) {
+        int active = name && glGetUniformLocation(program->program, name) >= 0;
+        if (active && !image_units[PyLong_AsLong(value)]) {
             PyErr_Format(PyExc_ValueError, "storage image \"%s\" has no resource at unit %d", name, (int32_t)PyLong_AsLong(value));
             return 0;
         }
@@ -4263,18 +4259,17 @@ static int check_resources(Context * self, Program * program, Resources * merged
     return 1;
 }
 
+static PyObject * empty_resources(Context * ctx) {
+    PyObject * args = PyTuple_New(0);
+    PyObject * res = (PyObject *)Context_meth_resources(ctx, args, NULL);
+    Py_DECREF(args);
+    return res;
+}
+
 static Program * build_program(
-    Context * self,
-    PyObject * vertex_shader,
-    PyObject * fragment_shader,
-    PyObject * compute_shader,
-    PyObject * samplers,
-    PyObject * uniform_buffers,
-    PyObject * storage_buffers,
-    PyObject * storage_images,
-    PyObject * uniforms,
-    PyObject * resources_arg,
-    PyObject ** resources_out
+    Context * self, PyObject * vertex_shader, PyObject * fragment_shader, PyObject * compute_shader,
+    PyObject * samplers, PyObject * uniform_buffers, PyObject * storage_buffers, PyObject * storage_images,
+    PyObject * uniforms, PyObject * resources_arg, PyObject ** resources_out
 ) {
     PyObject * dicts[] = {samplers, uniform_buffers, storage_buffers, storage_images, uniforms};
     const char * names[] = {"samplers", "uniform_buffers", "storage_buffers", "storage_images", "uniforms"};
@@ -4291,14 +4286,9 @@ static Program * build_program(
     }
 
     Program * program = create_program(
-        self,
-        vertex_shader,
-        fragment_shader,
-        compute_shader,
-        samplers != Py_None ? samplers : NULL,
-        uniform_buffers != Py_None ? uniform_buffers : NULL,
-        storage_buffers != Py_None ? storage_buffers : NULL,
-        storage_images != Py_None ? storage_images : NULL,
+        self, vertex_shader, fragment_shader, compute_shader,
+        samplers != Py_None ? samplers : NULL, uniform_buffers != Py_None ? uniform_buffers : NULL,
+        storage_buffers != Py_None ? storage_buffers : NULL, storage_images != Py_None ? storage_images : NULL,
         uniforms != Py_None ? uniforms : NULL
     );
 
@@ -4306,9 +4296,7 @@ static Program * build_program(
         return NULL;
     }
 
-    PyObject * empty_args = PyTuple_New(0);
-    PyObject * resources = resources_arg && resources_arg != Py_None ? Py_NewRef(resources_arg) : (PyObject *)Context_meth_resources(self, empty_args, NULL);
-    Py_DECREF(empty_args);
+    PyObject * resources = resources_arg && resources_arg != Py_None ? Py_NewRef(resources_arg) : empty_resources(self);
 
     if (!check_resources(self, program, (Resources *)resources)) {
         Py_DECREF(release_object(self, (PyObject *)program));
@@ -4374,7 +4362,10 @@ static void release_pipeline_program(Context * self, Pipeline * pipeline) {
 }
 
 static Pipeline * Context_meth_compute(Context * self, PyObject * args, PyObject * kwargs) {
-    static char * keywords[] = {"compute_shader", "samplers", "uniform_buffers", "storage_buffers", "storage_images", "uniforms", "resources", "group_count", NULL};
+    static char * keywords[] = {
+        "compute_shader", "samplers", "uniform_buffers", "storage_buffers", "storage_images", "uniforms", "resources",
+        "group_count", NULL,
+    };
 
     PyObject * compute_shader = NULL;
     PyObject * samplers = Py_None;
@@ -4386,18 +4377,10 @@ static Pipeline * Context_meth_compute(Context * self, PyObject * args, PyObject
     PyObject * group_count = NULL;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "U|$OOOOOOO",
-        keywords,
+        args, kwargs, "U|$OOOOOOO", keywords,
         &compute_shader,
-        &samplers,
-        &uniform_buffers,
-        &storage_buffers,
-        &storage_images,
-        &uniforms,
-        &resources_arg,
-        &group_count
+        &samplers, &uniform_buffers, &storage_buffers, &storage_images, &uniforms,
+        &resources_arg, &group_count
     );
 
     if (!args_ok) {
@@ -4405,7 +4388,11 @@ static Pipeline * Context_meth_compute(Context * self, PyObject * args, PyObject
     }
 
     PyObject * resources = NULL;
-    Program * program = build_program(self, NULL, NULL, compute_shader, samplers, uniform_buffers, storage_buffers, storage_images, uniforms, resources_arg, &resources);
+    Program * program = build_program(
+        self, NULL, NULL, compute_shader,
+        samplers, uniform_buffers, storage_buffers, storage_images, uniforms,
+        resources_arg, &resources
+    );
     if (!program) {
         return NULL;
     }
@@ -4436,31 +4423,10 @@ static PyObject * Context_meth_memory_barrier(Context * self, PyObject * args) {
 
 static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObject * kwargs) {
     static char * keywords[] = {
-        "vertex_shader",
-        "fragment_shader",
-        "samplers",
-        "uniform_buffers",
-        "storage_buffers",
-        "storage_images",
-        "uniforms",
-        "vertex_array",
-        "framebuffer",
-        "resources",
-        "vertices",
-        "instances",
-        "first",
-        "first_instance",
-        "mode",
-        "viewport",
-        "scissor",
-        "polygon_offset",
-        "depth_test",
-        "depth_write",
-        "depth_func",
-        "cull_face",
-        "blend",
-        "stencil",
-        NULL,
+        "vertex_shader", "fragment_shader", "samplers", "uniform_buffers", "storage_buffers", "storage_images",
+        "uniforms", "vertex_array", "framebuffer", "resources", "vertices", "instances", "first", "first_instance",
+        "mode", "viewport", "scissor", "polygon_offset", "depth_test", "depth_write", "depth_func", "cull_face",
+        "blend", "stencil", NULL,
     };
 
     PyObject * vertex_shader = NULL;
@@ -4489,36 +4455,12 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
     PyObject * stencil_arg = Py_None;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "UU|$OOOOOO!O!OOiiizOOOppszOO",
-        keywords,
-        &vertex_shader,
-        &fragment_shader,
-        &samplers,
-        &uniform_buffers,
-        &storage_buffers,
-        &storage_images,
-        &uniforms,
-        self->module_state->VertexArray_type,
-        &vertex_array,
-        self->module_state->Framebuffer_type,
-        &framebuffer,
-        &resources_arg,
-        &vertices_arg,
-        &instances,
-        &first,
-        &first_instance,
-        &mode_arg,
-        &viewport_arg,
-        &scissor_arg,
-        &polygon_offset_arg,
-        &depth_test,
-        &depth_write,
-        &depth_func_arg,
-        &cull_face_arg,
-        &blend_arg,
-        &stencil_arg
+        args, kwargs, "UU|$OOOOOO!O!OOiiizOOOppszOO", keywords,
+        &vertex_shader, &fragment_shader, &samplers, &uniform_buffers, &storage_buffers, &storage_images, &uniforms,
+        self->module_state->VertexArray_type, &vertex_array, self->module_state->Framebuffer_type, &framebuffer,
+        &resources_arg, &vertices_arg, &instances, &first, &first_instance, &mode_arg,
+        &viewport_arg, &scissor_arg, &polygon_offset_arg,
+        &depth_test, &depth_write, &depth_func_arg, &cull_face_arg, &blend_arg, &stencil_arg
     );
 
     if (!args_ok) {
@@ -4587,7 +4529,11 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
     Py_DECREF(empty);
 
     PyObject * resources = NULL;
-    Program * program = build_program(self, vertex_shader, fragment_shader, NULL, samplers, uniform_buffers, storage_buffers, storage_images, uniforms, resources_arg, &resources);
+    Program * program = build_program(
+        self, vertex_shader, fragment_shader, NULL,
+        samplers, uniform_buffers, storage_buffers, storage_images, uniforms,
+        resources_arg, &resources
+    );
     if (!program) {
         return NULL;
     }
@@ -4619,7 +4565,7 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
 }
 
 static int same_framebuffer_layout(Framebuffer * a, Framebuffer * b) {
-    if (a->color_count != b->color_count || a->depth_format != b->depth_format || a->samples != b->samples) {
+    if (a->color_count != b->color_count || a->depth_format != b->depth_format || a->multisampled != b->multisampled) {
         return 0;
     }
     for (int32_t i = 0; i < a->color_count; ++i) {
@@ -4650,8 +4596,8 @@ static void vertex_layout(VertexArray * vertex_array, VertexLayout * layout) {
 }
 
 static int same_vertex_layout(VertexArray * a, VertexArray * b) {
-    VertexLayout layout_a[64] = {0};
-    VertexLayout layout_b[64] = {0};
+    VertexLayout layout_a[MAX_ATTRIBUTES] = {0};
+    VertexLayout layout_b[MAX_ATTRIBUTES] = {0};
     vertex_layout(a, layout_a);
     vertex_layout(b, layout_b);
     return !memcmp(layout_a, layout_b, sizeof(layout_a));
@@ -4666,14 +4612,9 @@ static Pipeline * Pipeline_meth_variant(Pipeline * self, PyObject * args, PyObje
     PyObject * resources_arg = NULL;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "|$O!O!O",
-        keywords,
-        ctx->module_state->VertexArray_type,
-        &vertex_array,
-        ctx->module_state->Framebuffer_type,
-        &framebuffer,
+        args, kwargs, "|$O!O!O", keywords,
+        ctx->module_state->VertexArray_type, &vertex_array,
+        ctx->module_state->Framebuffer_type, &framebuffer,
         &resources_arg
     );
 
@@ -4706,9 +4647,7 @@ static Pipeline * Pipeline_meth_variant(Pipeline * self, PyObject * args, PyObje
         return NULL;
     }
 
-    PyObject * empty_args = PyTuple_New(0);
-    PyObject * resources = resources_arg != Py_None ? Py_NewRef(resources_arg) : (PyObject *)Context_meth_resources(ctx, empty_args, NULL);
-    Py_DECREF(empty_args);
+    PyObject * resources = resources_arg != Py_None ? Py_NewRef(resources_arg) : empty_resources(ctx);
 
     if (!check_resources(ctx, self->program, (Resources *)resources)) {
         Py_DECREF(resources);
@@ -4780,6 +4719,8 @@ static Buffer * Context_meth_external_buffer(Context * self, PyObject * args, Py
     res->target = target;
     res->size = size;
     res->index = (int8_t)index;
+    res->external = 1;
+    track_object(self, (GCHeader *)res);
     return res;
 }
 
@@ -4796,18 +4737,9 @@ static Texture * Context_meth_external_texture(Context * self, PyObject * args, 
     int cubemap = 0;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "I(ii)|s$piip",
-        keywords,
-        &image,
-        &width,
-        &height,
-        &format,
-        &multisampled,
-        &array,
-        &levels,
-        &cubemap
+        args, kwargs, "I(ii)|s$piip", keywords,
+        &image, &width, &height, &format,
+        &multisampled, &array, &levels, &cubemap
     );
 
     if (!args_ok) {
@@ -4824,8 +4756,6 @@ static Texture * Context_meth_external_texture(Context * self, PyObject * args, 
         PyErr_Format(PyExc_ValueError, "invalid size, array, levels or cubemap");
         return NULL;
     }
-
-    int32_t samples = multisampled ? 4 : 1;
 
     if (multisampled && (array || cubemap)) {
         PyErr_Format(PyExc_TypeError, "multisampled array or cubemap textures are not supported");
@@ -4844,16 +4774,19 @@ static Texture * Context_meth_external_texture(Context * self, PyObject * args, 
     res->framebuffer = 0;
     res->width = width;
     res->height = height;
-    res->samples = samples;
     res->array = array;
     res->cubemap = (int8_t)cubemap;
-    res->renderbuffer = (int8_t)multisampled;
+    res->multisampled = (int8_t)multisampled;
+    res->external = 1;
     res->layer_count = (array ? array : 1) * (cubemap ? 6 : 1);
     res->level_count = levels;
+    track_object(self, (GCHeader *)res);
     return res;
 }
 
-static Framebuffer * create_external_framebuffer(Context * self, uint32_t framebuffer, int32_t width, int32_t height, PyObject * formats, int32_t samples) {
+static Framebuffer * create_external_framebuffer(
+    Context * self, uint32_t framebuffer, int32_t width, int32_t height, PyObject * formats, int8_t multisampled
+) {
     PyObject * seq = PySequence_Tuple(formats);
     if (!seq) {
         return NULL;
@@ -4861,7 +4794,7 @@ static Framebuffer * create_external_framebuffer(Context * self, uint32_t frameb
 
     int32_t count = (int32_t)PyTuple_Size(seq);
 
-    if (count == 0 || count > 9) {
+    if (count == 0 || count > MAX_ATTACHMENTS + 1) {
         Py_DECREF(seq);
         PyErr_Format(PyExc_ValueError, "invalid number of formats");
         return NULL;
@@ -4873,7 +4806,7 @@ static Framebuffer * create_external_framebuffer(Context * self, uint32_t frameb
         return NULL;
     }
 
-    const ImageFormat * slot_formats[9] = {0};
+    const ImageFormat * slot_formats[MAX_ATTACHMENTS + 1] = {0};
     int32_t color_count = 0;
 
     for (int32_t i = 0; i < count; ++i) {
@@ -4902,18 +4835,19 @@ static Framebuffer * create_external_framebuffer(Context * self, uint32_t frameb
 
     Py_DECREF(seq);
 
-    if (color_count > 8) {
+    if (color_count > MAX_ATTACHMENTS) {
         PyErr_Format(PyExc_ValueError, "too many color formats");
         return NULL;
     }
 
     PyObject * attachments = PyTuple_New(0);
-    Framebuffer * res = new_framebuffer(self, framebuffer, attachments, width, height, samples);
+    Framebuffer * res = new_framebuffer(self, framebuffer, attachments, width, height, multisampled);
 
     for (int32_t i = 0; i < count; ++i) {
         add_slot(res, slot_formats[i]);
     }
 
+    res->external = 1;
     return res;
 }
 
@@ -4926,20 +4860,24 @@ static Framebuffer * Context_meth_external_framebuffer(Context * self, PyObject 
     PyObject * formats = NULL;
     int multisampled = 0;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "I(ii)|O$p", keywords, &framebuffer, &width, &height, &formats, &multisampled)) {
+    int args_ok = PyArg_ParseTupleAndKeywords(
+        args, kwargs, "I(ii)|O$p", keywords,
+        &framebuffer, &width, &height, &formats, &multisampled
+    );
+
+    if (!args_ok) {
         return NULL;
     }
 
-    int32_t samples = multisampled ? 4 : 1;
-
-    if (!formats) {
-        formats = Py_BuildValue("(ss)", "rgba8unorm", "depth24plus-stencil8");
-        Framebuffer * res = create_external_framebuffer(self, framebuffer, width, height, formats, samples);
-        Py_DECREF(formats);
-        return res;
+    PyObject * default_formats = formats ? NULL : Py_BuildValue("(ss)", "rgba8unorm", "depth24plus-stencil8");
+    Framebuffer * res = create_external_framebuffer(
+        self, framebuffer, width, height, formats ? formats : default_formats, (int8_t)multisampled
+    );
+    Py_XDECREF(default_formats);
+    if (res) {
+        track_object(self, (GCHeader *)res);
     }
-
-    return create_external_framebuffer(self, framebuffer, width, height, formats, samples);
+    return res;
 }
 
 static PyObject * Context_meth_copy_buffer(Context * self, PyObject * args, PyObject * kwargs) {
@@ -4952,17 +4890,9 @@ static PyObject * Context_meth_copy_buffer(Context * self, PyObject * args, PyOb
     int32_t dst_offset = 0;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "O!O!|O$ii",
-        keywords,
-        self->module_state->Buffer_type,
-        &src,
-        self->module_state->Buffer_type,
-        &dst,
-        &size_arg,
-        &src_offset,
-        &dst_offset
+        args, kwargs, "O!O!|O$ii", keywords,
+        self->module_state->Buffer_type, &src, self->module_state->Buffer_type, &dst,
+        &size_arg, &src_offset, &dst_offset
     );
 
     if (!args_ok) {
@@ -4984,14 +4914,17 @@ static PyObject * Context_meth_copy_buffer(Context * self, PyObject * args, PyOb
         size = (int32_t)PyLong_AsLong(size_arg);
     }
 
-    if (src_offset < 0 || dst_offset < 0 || size <= 0 || src_offset + size > src->size || dst_offset + size > dst->size) {
+    int fits = src_offset + size <= src->size && dst_offset + size <= dst->size;
+    if (src_offset < 0 || dst_offset < 0 || size <= 0 || !fits) {
         PyErr_Format(PyExc_ValueError, "invalid size or offset");
         return NULL;
     }
 
     glBindBuffer(GL_COPY_READ_BUFFER, src->buffer);
     glBindBuffer(GL_COPY_WRITE_BUFFER, dst->buffer);
-    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, (intptr_t)src_offset, (intptr_t)dst_offset, (intptr_t)size);
+    glCopyBufferSubData(
+        GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, (intptr_t)src_offset, (intptr_t)dst_offset, (intptr_t)size
+    );
     glBindBuffer(GL_COPY_READ_BUFFER, 0);
     glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
     Py_RETURN_NONE;
@@ -5010,19 +4943,10 @@ static PyObject * Context_meth_copy_texture(Context * self, PyObject * args, PyO
     int flip_y = 0;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "O!O|O$OOOsp",
-        keywords,
-        self->module_state->Texture_type,
-        &src,
-        &dst,
-        &size_arg,
-        &src_offset_arg,
-        &dst_offset_arg,
-        &dst_size_arg,
-        &filter_arg,
-        &flip_y
+        args, kwargs, "O!O|O$OOOsp", keywords,
+        self->module_state->Texture_type, &src, &dst,
+        &size_arg, &src_offset_arg, &dst_offset_arg, &dst_size_arg,
+        &filter_arg, &flip_y
     );
 
     if (!args_ok) {
@@ -5052,7 +4976,7 @@ static PyObject * Context_meth_copy_texture(Context * self, PyObject * args, PyO
     }
 
     const ImageFormat * dst_fmt = dst_texture ? dst_texture->fmt : dst_framebuffer->color_formats[0];
-    int32_t dst_samples = dst_texture ? dst_texture->samples : dst_framebuffer->samples;
+    int8_t dst_multisampled = dst_texture ? dst_texture->multisampled : dst_framebuffer->multisampled;
     int32_t dst_width = dst_texture ? dst_texture->width : dst_framebuffer->width;
     int32_t dst_height = dst_texture ? dst_texture->height : dst_framebuffer->height;
 
@@ -5061,7 +4985,7 @@ static PyObject * Context_meth_copy_texture(Context * self, PyObject * args, PyO
         return NULL;
     }
 
-    if (dst_samples > 1) {
+    if (dst_multisampled) {
         PyErr_Format(PyExc_TypeError, "cannot copy to multisampled targets");
         return NULL;
     }
@@ -5081,7 +5005,7 @@ static PyObject * Context_meth_copy_texture(Context * self, PyObject * args, PyO
         return NULL;
     }
 
-    if (src->samples > 1 && src->fmt != dst_fmt) {
+    if (src->multisampled && src->fmt != dst_fmt) {
         PyErr_Format(PyExc_TypeError, "multisampled formats must match");
         return NULL;
     }
@@ -5119,14 +5043,16 @@ static PyObject * Context_meth_copy_texture(Context * self, PyObject * args, PyO
         return NULL;
     }
 
-    if (dst_texture && (dst_region.x < 0 || dst_region.y < 0 || dst_region.x + dst_region.width > dst_width || dst_region.y + dst_region.height > dst_height)) {
+    int outside_x = dst_region.x < 0 || dst_region.x + dst_region.width > dst_width;
+    int outside_y = dst_region.y < 0 || dst_region.y + dst_region.height > dst_height;
+    if (dst_texture && (outside_x || outside_y)) {
         PyErr_Format(PyExc_ValueError, "invalid size or offset");
         return NULL;
     }
 
     int scaled = dst_region.width != src_region.width || dst_region.height != src_region.height;
 
-    if (src->samples > 1 && (scaled || flip_y || src_region.x != dst_region.x || src_region.y != dst_region.y)) {
+    if (src->multisampled && (scaled || flip_y || src_region.x != dst_region.x || src_region.y != dst_region.y)) {
         PyErr_Format(PyExc_ValueError, "multisampled copies must have matching offsets and sizes, resolve first");
         return NULL;
     }
@@ -5179,19 +5105,9 @@ static PyObject * Context_meth_copy_buffer_to_texture(Context * self, PyObject *
     int32_t dst_level = 0;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "O!O!|O$iOii",
-        keywords,
-        self->module_state->Buffer_type,
-        &src,
-        self->module_state->Texture_type,
-        &dst,
-        &size_arg,
-        &src_offset,
-        &dst_offset_arg,
-        &dst_layer,
-        &dst_level
+        args, kwargs, "O!O!|O$iOii", keywords,
+        self->module_state->Buffer_type, &src, self->module_state->Texture_type, &dst,
+        &size_arg, &src_offset, &dst_offset_arg, &dst_layer, &dst_level
     );
 
     if (!args_ok) {
@@ -5203,7 +5119,7 @@ static PyObject * Context_meth_copy_buffer_to_texture(Context * self, PyObject *
         return NULL;
     }
 
-    if (dst->renderbuffer) {
+    if (dst->multisampled) {
         PyErr_Format(PyExc_TypeError, "cannot copy to multisampled textures");
         return NULL;
     }
@@ -5241,9 +5157,14 @@ static PyObject * Context_meth_copy_buffer_to_texture(Context * self, PyObject *
         uint32_t face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + dst_layer;
         glTexSubImage2D(face, dst_level, region.x, region.y, region.width, region.height, fmt->format, fmt->type, ptr);
     } else if (dst->array) {
-        glTexSubImage3D(dst->target, dst_level, region.x, region.y, dst_layer, region.width, region.height, 1, fmt->format, fmt->type, ptr);
+        glTexSubImage3D(
+            dst->target, dst_level, region.x, region.y, dst_layer,
+            region.width, region.height, 1, fmt->format, fmt->type, ptr
+        );
     } else {
-        glTexSubImage2D(dst->target, dst_level, region.x, region.y, region.width, region.height, fmt->format, fmt->type, ptr);
+        glTexSubImage2D(
+            dst->target, dst_level, region.x, region.y, region.width, region.height, fmt->format, fmt->type, ptr
+        );
     }
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
@@ -5260,17 +5181,9 @@ static PyObject * Context_meth_copy_texture_to_buffer(Context * self, PyObject *
     int32_t dst_offset = 0;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "O!O!|O$Oi",
-        keywords,
-        self->module_state->Texture_type,
-        &src,
-        self->module_state->Buffer_type,
-        &dst,
-        &size_arg,
-        &src_offset_arg,
-        &dst_offset
+        args, kwargs, "O!O!|O$Oi", keywords,
+        self->module_state->Texture_type, &src, self->module_state->Buffer_type, &dst,
+        &size_arg, &src_offset_arg, &dst_offset
     );
 
     if (!args_ok) {
@@ -5282,7 +5195,7 @@ static PyObject * Context_meth_copy_texture_to_buffer(Context * self, PyObject *
         return NULL;
     }
 
-    if (src->samples > 1) {
+    if (src->multisampled) {
         PyErr_Format(PyExc_TypeError, "cannot copy multisampled textures to buffers");
         return NULL;
     }
@@ -5461,7 +5374,9 @@ static PyObject * release_object(Context * self, PyObject * arg) {
     if (type == module_state->Buffer_type) {
         Buffer * buffer = (Buffer *)arg;
         if (untrack_object(self, (GCHeader *)buffer)) {
-            glDeleteBuffers(1, &buffer->buffer);
+            if (!buffer->external) {
+                glDeleteBuffers(1, &buffer->buffer);
+            }
             buffer->buffer = 0;
             Py_DECREF(buffer);
         }
@@ -5474,15 +5389,17 @@ static PyObject * release_object(Context * self, PyObject * arg) {
             glDeleteFramebuffers(1, &texture->framebuffer);
             texture->framebuffer = 0;
         }
-        if (untrack_object(self, (GCHeader *)texture)) {
-            if (texture->renderbuffer) {
-                glDeleteRenderbuffers(1, &texture->texture);
-            } else {
-                glDeleteTextures(1, &texture->texture);
-            }
-            texture->texture = 0;
-            Py_DECREF(texture);
+        if (!untrack_object(self, (GCHeader *)texture)) {
+            Py_RETURN_NONE;
         }
+        if (!texture->external && texture->multisampled) {
+            glDeleteRenderbuffers(1, &texture->texture);
+        }
+        if (!texture->external && !texture->multisampled) {
+            glDeleteTextures(1, &texture->texture);
+        }
+        texture->texture = 0;
+        Py_DECREF(texture);
         Py_RETURN_NONE;
     }
 
@@ -5495,7 +5412,9 @@ static PyObject * release_object(Context * self, PyObject * arg) {
                 apply_viewport(self, &self->bound_framebuffer->viewport);
                 apply_scissor(self, self->bound_framebuffer->has_scissor, &self->bound_framebuffer->scissor);
             }
-            glDeleteFramebuffers(1, &framebuffer->framebuffer);
+            if (!framebuffer->external) {
+                glDeleteFramebuffers(1, &framebuffer->framebuffer);
+            }
             framebuffer->framebuffer = 0;
             Py_DECREF(framebuffer);
         }
@@ -5610,7 +5529,9 @@ static PyObject * Context_get_screen(Context * self, void * closure) {
     glGetIntegerv(GL_VIEWPORT, viewport);
 
     PyObject * formats = Py_BuildValue("(ss)", "rgba8unorm", "depth24plus-stencil8");
-    Framebuffer * res = create_external_framebuffer(self, 0, least_one(viewport[2]), least_one(viewport[3]), formats, 1);
+    Framebuffer * res = create_external_framebuffer(
+        self, 0, least_one(viewport[2]), least_one(viewport[3]), formats, 0
+    );
     Py_DECREF(formats);
 
     if (!res) {
@@ -5786,7 +5707,7 @@ static uint32_t debug_glo(Context * ctx, PyObject * obj) {
     if (type == state->Sampler_type) {
         return ((Sampler *)obj)->sampler;
     }
-    if (type == state->Texture_type && !((Texture *)obj)->renderbuffer) {
+    if (type == state->Texture_type && !((Texture *)obj)->multisampled) {
         return ((Texture *)obj)->texture;
     }
     return 0;
@@ -5796,8 +5717,9 @@ static PyObject * debug_find(Context * ctx, PyTypeObject * type, int32_t glo) {
     if (!glo) {
         Py_RETURN_NONE;
     }
-    if (type == ctx->module_state->VertexArray_type && ctx->empty_vertex_array && ctx->empty_vertex_array->vertex_array == (uint32_t)glo) {
-        return Py_NewRef(ctx->empty_vertex_array);
+    VertexArray * empty = ctx->empty_vertex_array;
+    if (type == ctx->module_state->VertexArray_type && empty && empty->vertex_array == (uint32_t)glo) {
+        return Py_NewRef(empty);
     }
     PyObject * res = NULL;
     Py_BEGIN_CRITICAL_SECTION(ctx);
@@ -5959,7 +5881,10 @@ static void debug_program(Context * self, PyObject * res, uint32_t program_glo) 
         Py_ssize_t pos = 0;
         while (PyDict_Next(program->storage_buffers, &pos, &key, &value)) {
             const char * name = PyUnicode_Check(key) ? PyUnicode_AsUTF8(key) : NULL;
-            if (name && glGetProgramResourceIndex && glGetProgramResourceIndex(program_glo, GL_SHADER_STORAGE_BLOCK, name) != GL_INVALID_INDEX) {
+            if (!name || !glGetProgramResourceIndex) {
+                continue;
+            }
+            if (glGetProgramResourceIndex(program_glo, GL_SHADER_STORAGE_BLOCK, name) != GL_INVALID_INDEX) {
                 PyDict_SetItem(storage_buffers, key, value);
             }
         }
@@ -5994,7 +5919,8 @@ static void debug_state(Context * self, PyObject * res) {
     debug_set(res, "depth_test", PyBool_FromLong(glIsEnabled(GL_DEPTH_TEST)));
     debug_set(res, "depth_write", PyBool_FromLong(debug_int(DEBUG_DEPTH_WRITEMASK)));
     debug_set(res, "depth_func", debug_name(compare_funcs, DEBUG_DEPTH_FUNC));
-    debug_set(res, "cull_face", glIsEnabled(GL_CULL_FACE) ? debug_name(cull_faces, DEBUG_CULL_FACE_MODE) : Py_NewRef(Py_None));
+    PyObject * cull = glIsEnabled(GL_CULL_FACE) ? debug_name(cull_faces, DEBUG_CULL_FACE_MODE) : Py_NewRef(Py_None);
+    debug_set(res, "cull_face", cull);
 
     if (glIsEnabled(GL_POLYGON_OFFSET_FILL)) {
         float factor = 0.0f;
@@ -6132,7 +6058,7 @@ static Context * create_context(PyObject * self) {
         res->gc_prev = (GCHeader *)res;
         res->gc_next = (GCHeader *)res;
         res->module_state = module_state;
-        res->max_vertex_attribs = get_limit(GL_MAX_VERTEX_ATTRIBS, 8, 64);
+        res->max_vertex_attribs = get_limit(GL_MAX_VERTEX_ATTRIBS, 8, MAX_ATTRIBUTES);
         res->shaders = PyDict_New();
         res->shader_cache = PyDict_New();
         res->empty_vertex_array = NULL;
@@ -6141,10 +6067,16 @@ static Context * create_context(PyObject * self) {
         glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
         int32_t max_texture_units = get_limit(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, 2, 1024);
         res->default_texture_unit = GL_TEXTURE0 + max_texture_units - 1;
-        res->max_samplers = max_texture_units - 1 < max_sampler_bindings ? max_texture_units - 1 : max_sampler_bindings;
-        res->max_uniform_buffers = get_limit(GL_MAX_UNIFORM_BUFFER_BINDINGS, 1, max_buffer_bindings);
-        res->max_storage_buffers = glDispatchCompute ? get_limit(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, 0, max_buffer_bindings) : 0;
-        res->max_storage_images = glBindImageTexture ? get_limit(GL_MAX_IMAGE_UNITS, 0, max_buffer_bindings) : 0;
+        res->max_samplers = max_texture_units - 1 < MAX_SAMPLERS ? max_texture_units - 1 : MAX_SAMPLERS;
+        res->max_uniform_buffers = get_limit(GL_MAX_UNIFORM_BUFFER_BINDINGS, 1, MAX_BUFFERS);
+        res->max_storage_buffers = 0;
+        if (glDispatchCompute) {
+            res->max_storage_buffers = get_limit(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, 0, MAX_BUFFERS);
+        }
+        res->max_storage_images = 0;
+        if (glBindImageTexture) {
+            res->max_storage_images = get_limit(GL_MAX_IMAGE_UNITS, 0, MAX_BUFFERS);
+        }
         res->uniform_buffer_offset_alignment = 1;
         glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &res->uniform_buffer_offset_alignment);
         res->storage_buffer_offset_alignment = 1;
@@ -6295,25 +6227,11 @@ static PyObject * meth_camera(PyObject * self, PyObject * args, PyObject * kwarg
     int clip = 0;
 
     int args_ok = PyArg_ParseTupleAndKeywords(
-        args,
-        kwargs,
-        "(ddd)|(ddd)(ddd)dddddp",
-        keywords,
-        &eye.x,
-        &eye.y,
-        &eye.z,
-        &target.x,
-        &target.y,
-        &target.z,
-        &up.x,
-        &up.y,
-        &up.z,
-        &fov,
-        &aspect,
-        &znear,
-        &zfar,
-        &size,
-        &clip
+        args, kwargs, "(ddd)|(ddd)(ddd)dddddp", keywords,
+        &eye.x, &eye.y, &eye.z,
+        &target.x, &target.y, &target.z,
+        &up.x, &up.y, &up.z,
+        &fov, &aspect, &znear, &zfar, &size, &clip
     );
 
     if (!args_ok) {
@@ -6411,7 +6329,6 @@ static void VertexArray_dealloc(VertexArray * self) {
 static void Program_dealloc(Program * self) {
     PyTypeObject * type = Py_TYPE(self);
     PyMem_Free(self->uniform_bindings);
-    Py_DECREF(self->uniforms);
     Py_DECREF(self->uniform_index);
     Py_DECREF(self->samplers);
     Py_DECREF(self->uniform_buffers);
@@ -6475,6 +6392,19 @@ static void HeadlessContext_dealloc(HeadlessContext * self) {
     Py_DECREF(type);
 }
 
+typedef struct TrackedObject {
+    PyObject_HEAD
+    GCHeader * gc_prev;
+    GCHeader * gc_next;
+    Context * ctx;
+} TrackedObject;
+
+static PyObject * get_released(TrackedObject * self, void * closure) {
+    PyObject * obj = (PyObject *)self;
+    int owned_by_context = obj == (PyObject *)self->ctx->empty_vertex_array || obj == self->ctx->module_state->screen;
+    return PyBool_FromLong(!self->gc_prev && !owned_by_context);
+}
+
 static PyMethodDef HeadlessContext_methods[] = {
     {"load_opengl_function", (PyCFunction)HeadlessContext_meth_load_opengl_function, METH_O, NULL},
     {"release", (PyCFunction)HeadlessContext_meth_release, METH_NOARGS, NULL},
@@ -6512,6 +6442,7 @@ static PyMemberDef Texture_members[] = {
     {"array", Py_T_INT, offsetof(Texture, array), Py_READONLY, NULL},
     {"cubemap", Py_T_BOOL, offsetof(Texture, cubemap), Py_READONLY, NULL},
     {"levels", Py_T_INT, offsetof(Texture, level_count), Py_READONLY, NULL},
+    {"multisampled", Py_T_BOOL, offsetof(Texture, multisampled), Py_READONLY, NULL},
     {"glo", Py_T_UINT, offsetof(Texture, texture), Py_READONLY, NULL},
     {0},
 };
@@ -6552,12 +6483,12 @@ static PyMemberDef VertexArray_members[] = {
     {"vertices", Py_T_INT, offsetof(VertexArray, vertices), 0, NULL},
     {"attributes", Py_T_OBJECT_EX, offsetof(VertexArray, attributes), Py_READONLY, NULL},
     {"index_buffer", Py_T_OBJECT_EX, offsetof(VertexArray, index_buffer), Py_READONLY, NULL},
-    {"short_index", Py_T_BOOL, offsetof(VertexArray, short_index), Py_READONLY, NULL},
     {"glo", Py_T_UINT, offsetof(VertexArray, vertex_array), Py_READONLY, NULL},
     {0},
 };
 
 static PyGetSetDef VertexArray_getset[] = {
+    {"released", (getter)get_released, NULL, NULL, NULL},
     {"mode", (getter)VertexArray_get_mode, (setter)VertexArray_set_mode, NULL, NULL},
     {0},
 };
@@ -6568,7 +6499,6 @@ static PyMethodDef Program_methods[] = {
 };
 
 static PyMemberDef Program_members[] = {
-    {"uniforms", Py_T_OBJECT_EX, offsetof(Program, uniforms), Py_READONLY, NULL},
     {"glo", Py_T_UINT, offsetof(Program, program), Py_READONLY, NULL},
     {0},
 };
@@ -6581,31 +6511,24 @@ static PyMethodDef Framebuffer_methods[] = {
 
 static PyMemberDef Framebuffer_members[] = {
     {"attachments", Py_T_OBJECT_EX, offsetof(Framebuffer, attachments), Py_READONLY, NULL},
+    {"multisampled", Py_T_BOOL, offsetof(Framebuffer, multisampled), Py_READONLY, NULL},
     {"glo", Py_T_UINT, offsetof(Framebuffer, framebuffer), Py_READONLY, NULL},
     {0},
 };
 
-static PyObject * Texture_get_multisampled(Texture * self, void * closure) {
-    return PyBool_FromLong(self->samples > 1);
-}
-
-static PyObject * Framebuffer_get_multisampled(Framebuffer * self, void * closure) {
-    return PyBool_FromLong(self->samples > 1);
-}
-
 static PyGetSetDef Framebuffer_getset[] = {
+    {"released", (getter)get_released, NULL, NULL, NULL},
     {"viewport", (getter)Framebuffer_get_viewport, (setter)Framebuffer_set_viewport, NULL, NULL},
     {"scissor", (getter)Framebuffer_get_scissor, (setter)Framebuffer_set_scissor, NULL, NULL},
     {"size", (getter)Framebuffer_get_size, (setter)Framebuffer_set_size, NULL, NULL},
     {"clear_color", (getter)Framebuffer_get_clear_color, (setter)Framebuffer_set_clear_color, NULL, NULL},
     {"clear_depth", (getter)Framebuffer_get_clear_depth, (setter)Framebuffer_set_clear_depth, NULL, NULL},
     {"clear_stencil", (getter)Framebuffer_get_clear_stencil, (setter)Framebuffer_set_clear_stencil, NULL, NULL},
-    {"multisampled", (getter)Framebuffer_get_multisampled, NULL, NULL, NULL},
     {0},
 };
 
 static PyGetSetDef Texture_getset[] = {
-    {"multisampled", (getter)Texture_get_multisampled, NULL, NULL, NULL},
+    {"released", (getter)get_released, NULL, NULL, NULL},
     {0},
 };
 
@@ -6640,6 +6563,7 @@ static PyMemberDef Pipeline_members[] = {
 };
 
 static PyGetSetDef Pipeline_getset[] = {
+    {"released", (getter)get_released, NULL, NULL, NULL},
     {"viewport", (getter)Pipeline_get_viewport, (setter)Pipeline_set_viewport, NULL, NULL},
     {"scissor", (getter)Pipeline_get_scissor, (setter)Pipeline_set_scissor, NULL, NULL},
     {"group_count", (getter)Pipeline_get_group_count, (setter)Pipeline_set_group_count, NULL, NULL},
@@ -6703,7 +6627,13 @@ static PyType_Slot HeadlessContext_slots[] = {
     {0},
 };
 
+static PyGetSetDef Buffer_getset[] = {
+    {"released", (getter)get_released, NULL, NULL, NULL},
+    {0},
+};
+
 static PyType_Slot Buffer_slots[] = {
+    {Py_tp_getset, Buffer_getset},
     {Py_tp_methods, Buffer_methods},
     {Py_tp_members, Buffer_members},
     {Py_tp_dealloc, (void *)Buffer_dealloc},
@@ -6718,7 +6648,13 @@ static PyType_Slot Texture_slots[] = {
     {0},
 };
 
+static PyGetSetDef Sampler_getset[] = {
+    {"released", (getter)get_released, NULL, NULL, NULL},
+    {0},
+};
+
 static PyType_Slot Sampler_slots[] = {
+    {Py_tp_getset, Sampler_getset},
     {Py_tp_methods, Sampler_methods},
     {Py_tp_members, Sampler_members},
     {Py_tp_dealloc, (void *)Sampler_dealloc},
@@ -6740,7 +6676,13 @@ static PyType_Slot VertexArray_slots[] = {
     {0},
 };
 
+static PyGetSetDef Program_getset[] = {
+    {"released", (getter)get_released, NULL, NULL, NULL},
+    {0},
+};
+
 static PyType_Slot Program_slots[] = {
+    {Py_tp_getset, Program_getset},
     {Py_tp_methods, Program_methods},
     {Py_tp_members, Program_members},
     {Py_mp_ass_subscript, (void *)Program_ass_subscript},
@@ -6780,93 +6722,20 @@ static PyType_Slot Context_slots[] = {
     {0},
 };
 
-static PyType_Spec HeadlessContext_spec = {
-    "moderngl.HeadlessContext",
-    sizeof(HeadlessContext),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    HeadlessContext_slots,
-};
+#define TYPE_FLAGS (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION)
+#define TYPE_SPEC(name) {"moderngl." #name, sizeof(name), 0, TYPE_FLAGS, name##_slots}
 
-static PyType_Spec Buffer_spec = {
-    "moderngl.Buffer",
-    sizeof(Buffer),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    Buffer_slots,
-};
-
-static PyType_Spec Texture_spec = {
-    "moderngl.Texture",
-    sizeof(Texture),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    Texture_slots,
-};
-
-static PyType_Spec Sampler_spec = {
-    "moderngl.Sampler",
-    sizeof(Sampler),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    Sampler_slots,
-};
-
-static PyType_Spec Resources_spec = {
-    "moderngl.Resources",
-    sizeof(Resources),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    Resources_slots,
-};
-
-static PyType_Spec VertexArray_spec = {
-    "moderngl.VertexArray",
-    sizeof(VertexArray),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    VertexArray_slots,
-};
-
-static PyType_Spec Program_spec = {
-    "moderngl.Program",
-    sizeof(Program),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    Program_slots,
-};
-
-static PyType_Spec Framebuffer_spec = {
-    "moderngl.Framebuffer",
-    sizeof(Framebuffer),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    Framebuffer_slots,
-};
-
-static PyType_Spec Pipeline_spec = {
-    "moderngl.Pipeline",
-    sizeof(Pipeline),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    Pipeline_slots,
-};
-
-static PyType_Spec ReadRequest_spec = {
-    "moderngl.ReadRequest",
-    sizeof(ReadRequest),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    ReadRequest_slots,
-};
-
-static PyType_Spec Context_spec = {
-    "moderngl.Context",
-    sizeof(Context),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
-    Context_slots,
-};
+static PyType_Spec HeadlessContext_spec = TYPE_SPEC(HeadlessContext);
+static PyType_Spec Buffer_spec = TYPE_SPEC(Buffer);
+static PyType_Spec Texture_spec = TYPE_SPEC(Texture);
+static PyType_Spec Sampler_spec = TYPE_SPEC(Sampler);
+static PyType_Spec Resources_spec = TYPE_SPEC(Resources);
+static PyType_Spec VertexArray_spec = TYPE_SPEC(VertexArray);
+static PyType_Spec Program_spec = TYPE_SPEC(Program);
+static PyType_Spec Framebuffer_spec = TYPE_SPEC(Framebuffer);
+static PyType_Spec Pipeline_spec = TYPE_SPEC(Pipeline);
+static PyType_Spec ReadRequest_spec = TYPE_SPEC(ReadRequest);
+static PyType_Spec Context_spec = TYPE_SPEC(Context);
 
 static PyTypeObject * add_type(PyObject * self, PyType_Spec * spec) {
     PyTypeObject * type = (PyTypeObject *)PyType_FromModuleAndSpec(self, spec, NULL);
@@ -6991,15 +6860,8 @@ static void module_free(void * self) {
 }
 
 static PyModuleDef module_def = {
-    PyModuleDef_HEAD_INIT,
-    "moderngl",
-    NULL,
-    sizeof(ModuleState),
-    module_methods,
-    module_slots,
-    module_traverse,
-    module_clear,
-    module_free,
+    PyModuleDef_HEAD_INIT, "moderngl", NULL, sizeof(ModuleState), module_methods, module_slots,
+    module_traverse, module_clear, module_free,
 };
 
 extern PyObject * PyInit_moderngl() {

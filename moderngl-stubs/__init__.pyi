@@ -116,6 +116,7 @@ class ReadRequest:
     def wait(self) -> bytes: ...
 
 class Buffer:
+    released: bool
     index: bool
     size: int
     glo: int
@@ -126,6 +127,7 @@ class Buffer:
     def use(self, binding: int, offset: int = 0, size: int | None = None) -> None: ...
 
 class Texture:
+    released: bool
     size: IVec2
     format: ImageFormat
     multisampled: bool
@@ -147,6 +149,7 @@ class Texture:
     def mipmaps(self) -> None: ...
 
 class Sampler:
+    released: bool
     texture: Texture
     glo: int
     def use(self, unit: int) -> None: ...
@@ -159,6 +162,7 @@ class Resources:
     def use(self) -> None: ...
 
 class Framebuffer:
+    released: bool
     attachments: tuple[Attachment, ...]
     size: IVec2
     multisampled: bool
@@ -172,9 +176,9 @@ class Framebuffer:
     def use(self) -> None: ...
 
 class VertexArray:
+    released: bool
     attributes: tuple[Attribute, ...]
     index_buffer: Buffer | None
-    short_index: bool
     vertices: int
     mode: Mode
     glo: int
@@ -192,12 +196,13 @@ class VertexArray:
     def draw_indirect(self, buffer: Buffer, count: int = 1, offset: int = 0, *, mode: Mode | None = None) -> None: ...
 
 class Program:
-    uniforms: dict[str, int]
+    released: bool
     glo: int
     def use(self) -> None: ...
     def __setitem__(self, key: str, value: UniformValue) -> None: ...
 
 class Pipeline:
+    released: bool
     program: Program
     vertex_array: VertexArray | None
     framebuffer: Framebuffer | None

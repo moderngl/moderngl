@@ -116,6 +116,6 @@ Other newer features
 - Queries follow this pattern. The repository has extension examples for queries, debug output, streaming and mesh shaders. examples/optional has compute, storage images, first_instance and indirect drawing on the core.
 
 Interoperability
-- ctx.external_buffer(glo, size), ctx.external_texture(glo, size, format) and ctx.external_framebuffer(glo, size) wrap objects from other libraries. Every object exposes its OpenGL name as glo.
+- ctx.external_buffer(glo, size), ctx.external_texture(glo, size, format) and ctx.external_framebuffer(glo, size) wrap objects from other libraries. They are tracked and have to be released, releasing them does not delete the OpenGL object. Every object exposes its OpenGL name as glo and released.
 
 When porting, keep the program structure, move shader sources into ctx.shaders, add layout (location = N) to shader inputs and outputs, declare samplers, uniform blocks and uniforms when creating programs, replace constants with strings, replace enable calls with state properties, and render into a texture that is presented at the end of the frame. If something has no counterpart here, say so and propose calling OpenGL directly or an extension module instead of inventing an API.

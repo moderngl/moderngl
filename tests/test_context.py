@@ -46,8 +46,6 @@ def ctx():
 def test_program(ctx):
     program = ctx.program('fullscreen.vert', 'color.frag', uniforms={'color': 'vec4', 'unused': 'float'})
     assert isinstance(program, moderngl.Program)
-    assert program.uniforms['color'] >= 0
-    assert program.uniforms['unused'] == -1
     with pytest.raises(RuntimeError, match='program.use'):
         program['color'] = (1.0, 0.0, 0.0, 1.0)
     program.use()
@@ -329,13 +327,16 @@ def test_external_buffer(ctx):
     buffer = ctx.buffer(b'abcdefgh')
     external = ctx.external_buffer(buffer.glo)
     assert external.size == 8 and not external.index
-    assert external not in ctx.gc()
+    assert external in ctx.gc() and not external.released
     external.write(b'xy', offset=2)
     assert buffer.read().wait() == b'abxyefgh'
     assert ctx.external_buffer(buffer.glo, 4).read().wait() == b'abxy'
+    glo = external.glo
     ctx.release(external)
+    ctx.release(external)
+    assert external.released and external.glo == 0 and external not in ctx.gc()
     ctx.end_frame()
-    assert GL.glIsBuffer(buffer.glo)
+    assert GL.glIsBuffer(glo) and buffer.glo == glo
     assert ctx.external_buffer(buffer.glo, index=True).index
     ctx.release(buffer)
 
@@ -343,7 +344,7 @@ def test_external_buffer(ctx):
 def test_external_texture(ctx):
     texture = ctx.texture((2, 2), 'rgba8unorm', bytes(range(16)))
     external = ctx.external_texture(texture.glo, (2, 2), 'rgba8unorm')
-    assert external.size == (2, 2) and external not in ctx.gc()
+    assert external.size == (2, 2) and external in ctx.gc()
     assert external.read().wait() == bytes(range(16))
     copy = ctx.texture((2, 2), 'rgba8unorm')
     ctx.copy_texture(external, copy)
@@ -353,7 +354,7 @@ def test_external_texture(ctx):
     fbo.clear()
     assert texture.read().wait() == b'\xff\x00\x00\xff' * 4
     ctx.release(external)
-    assert GL.glIsTexture(texture.glo)
+    assert external.released and GL.glIsTexture(texture.glo)
     msaa = ctx.texture((2, 2), multisampled=True)
     assert ctx.external_texture(msaa.glo, (2, 2), multisampled=True).multisampled
     with pytest.raises(TypeError):
@@ -1070,7 +1071,6 @@ def test_vertex_array(ctx):
     attributes.clear()
     assert len(vao.attributes) == 3
     assert vao.index_buffer is ibo
-    assert vao.short_index
     empty = ctx.vertex_array([])
     assert empty.attributes == ()
     assert empty.index_buffer is None
@@ -2820,3 +2820,23 @@ def test_compute_variant(ctx):
     assert values_a.read().wait() == values_b.read().wait()
     ctx.release(compute)
     ctx.release(other)
+
+
+def test_released(ctx):
+    assert not ctx.screen.released and not ctx.empty_vertex_array.released
+    texture = ctx.texture((1, 1))
+    pipeline = ctx.pipeline('fullscreen.vert', 'color.frag', uniforms={'color': 'vec4'}, vertex_array=ctx.empty_vertex_array, framebuffer=ctx.screen)
+    objects = [
+        ctx.buffer(size=4),
+        texture,
+        ctx.sampler(texture),
+        ctx.framebuffer([ctx.texture((1, 1))]),
+        ctx.vertex_array([]),
+        ctx.program('fullscreen.vert', 'color.frag', uniforms={'color': 'vec4'}),
+        pipeline,
+        ctx.external_framebuffer(0, (1, 1)),
+    ]
+    for obj in objects:
+        assert not obj.released and obj in ctx.gc()
+        ctx.release(obj)
+        assert obj.released and obj not in ctx.gc()
