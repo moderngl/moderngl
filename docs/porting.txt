@@ -99,10 +99,11 @@ Pipelines (new, optional)
 - pipeline['radius'] = 2.0 stores the value and uploads it on every run. pipeline.run() draws. vertices, instances, first, first_instance, viewport and scissor are writable. viewport and scissor ignore the framebuffer values, unset viewport is the full framebuffer, unset scissor is disabled. polygon_offset=(factor, units) is set at creation.
 - pipeline.use() binds everything without drawing, vertex_array.draw(vertices, first) then draws ranges.
 - vao.render_indirect(buffer, mode, count, first) becomes vertex_array.draw_indirect(buffer, count, offset) with the vertex array bound, for example after pipeline.use(). Needs OpenGL 4.3.
+- pipeline.variant(vertex_array=vao, framebuffer=fb, resources=res) shares the program and state with a different vertex array, framebuffer and resources. The program is linked once. Every ctx.pipeline() call links a new program, programs are not cached like in ZenGL.
 - Use pipelines for fixed passes like post processing, direct rendering for dynamic scenes.
 
 Cleanup
-- obj.release() becomes ctx.release(obj). ctx.release('all') releases everything. ctx.release() without an argument releases everything and the context itself, like ctx.release() in ModernGL 5. ctx.release('shader_cache') deletes the compiled shaders, existing programs keep working. ctx.gc() lists unreleased objects. ctx.gc_mode does not exist, the Python garbage collector never frees OpenGL objects.
+- obj.release() becomes ctx.release(obj). ctx.release('all') releases everything. ctx.release() without an argument releases everything and the context itself, like ctx.release() in ModernGL 5. ctx.release('shader_cache') deletes the compiled shaders, existing programs keep working. ctx.gc() lists unreleased objects, pipelines included. Releasing twice is fine. ctx.gc_mode does not exist, the Python garbage collector never frees OpenGL objects.
 
 Helpers
 - moderngl.camera(eye, target, up=(0, 0, 1), fov=60.0, aspect=1.0, near=0.1, far=1000.0) returns a column major mat4 view projection as 64 bytes for a uniform buffer. The default up axis is z. fov=0.0 gives an orthographic projection.

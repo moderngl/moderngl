@@ -2714,3 +2714,109 @@ def test_primitive_restart(ctx):
         assert color.read().wait() == b'\xff' * 4 + bytes(8) + b'\xff' * 4
         ctx.release(vao)
     ctx.release(program)
+
+
+def test_pipeline_variant(ctx):
+    color_a = ctx.texture((2, 2), 'rgba8unorm')
+    color_b = ctx.texture((2, 2), 'rgba8unorm')
+    fbo_a = ctx.framebuffer([color_a])
+    fbo_b = ctx.framebuffer([color_b])
+    red = ctx.buffer(struct.pack('4f', 1.0, 0.0, 0.0, 1.0))
+    blue = ctx.buffer(struct.pack('4f', 0.0, 0.0, 1.0, 1.0))
+    ctx.shaders['variant.frag'] = '''
+        #version 330 core
+        layout (std140) uniform Color {
+            vec4 color;
+        };
+        uniform float scale;
+        layout (location = 0) out vec4 out_color;
+        void main() {
+            out_color = color * scale;
+        }
+    '''
+    base = ctx.pipeline(
+        'fullscreen.vert',
+        'variant.frag',
+        uniform_buffers={'Color': 0},
+        uniforms={'scale': 'float'},
+        vertex_array=ctx.empty_vertex_array,
+        framebuffer=fbo_a,
+        resources=ctx.resources(uniform_buffers={0: red}),
+        vertices=3,
+        blend={'src': 'one', 'dst': 'one'},
+    )
+    base['scale'] = 1.0
+    variant = base.variant(vertex_array=ctx.empty_vertex_array, framebuffer=fbo_b, resources=ctx.resources(uniform_buffers={0: blue}))
+    assert variant.program is base.program
+    assert variant.vertices == ctx.empty_vertex_array.vertices
+    variant.vertices = 3
+    fbo_a.clear()
+    fbo_b.clear()
+    base.run()
+    variant.run()
+    assert color_a.read().wait() == b'\xff\x00\x00\xff' * 4
+    assert color_b.read().wait() == bytes(16)
+    variant['scale'] = 1.0
+    variant.run()
+    variant.run()
+    assert color_b.read().wait() == b'\x00\x00\xff\xff' * 4
+    with pytest.raises(TypeError):
+        base.variant(framebuffer=fbo_b, resources=None)
+    with pytest.raises(ValueError, match='Color'):
+        base.variant(vertex_array=ctx.empty_vertex_array, framebuffer=fbo_b, resources=None)
+    with pytest.raises(ValueError, match='framebuffer'):
+        base.variant(vertex_array=ctx.empty_vertex_array, framebuffer=ctx.framebuffer([ctx.texture((2, 2), 'r8unorm')]), resources=None)
+    vbo = ctx.buffer(size=64)
+    with pytest.raises(ValueError, match='vertex array'):
+        base.variant(vertex_array=ctx.vertex_array(vbo.bind('2f', 0)), framebuffer=fbo_b, resources=None)
+    program = base.program
+    ctx.release(base)
+    ctx.release(base)
+    assert program.glo
+    fbo_b.clear()
+    variant.run()
+    assert color_b.read().wait() == b'\x00\x00\xff\xff' * 4
+    ctx.release(variant)
+    assert program.glo == 0
+    ctx.release(variant)
+
+
+def test_pipeline_variant_release_program(ctx):
+    base = ctx.pipeline('fullscreen.vert', 'color.frag', uniforms={'color': 'vec4'}, vertex_array=ctx.empty_vertex_array, framebuffer=ctx.screen)
+    variants = [base.variant(vertex_array=ctx.empty_vertex_array, framebuffer=ctx.screen, resources=None) for _ in range(3)]
+    ctx.release(base.program)
+    assert base.program.glo == 0
+    for variant in variants:
+        ctx.release(variant)
+    ctx.release(base)
+    assert base not in ctx.gc() and base.program not in ctx.gc()
+
+
+def test_compute_variant(ctx):
+    needs_compute(ctx)
+    ctx.shaders['scale.comp'] = COMPUTE_SHADER
+    offset = ctx.buffer(size=16)
+    values_a = ctx.buffer(struct.pack('8f', *range(8)))
+    values_b = ctx.buffer(struct.pack('8f', *range(8)))
+    compute = ctx.compute(
+        'scale.comp',
+        storage_buffers={'Values': 3},
+        uniform_buffers={'Offset': 0},
+        uniforms={'scale': 'float'},
+        resources=ctx.resources(storage_buffers={3: values_a}, uniform_buffers={0: offset}),
+        group_count=(1, 1, 1),
+    )
+    other = compute.variant(resources=ctx.resources(storage_buffers={3: values_b}, uniform_buffers={0: offset}))
+    assert other.group_count == (1, 1, 1)
+    with pytest.raises(TypeError):
+        compute.variant(vertex_array=ctx.empty_vertex_array, resources=None)
+    compute['scale'] = 2.0
+    compute.run()
+    ctx.memory_barrier()
+    assert values_a.read().wait() != values_b.read().wait()
+    other['scale'] = 2.0
+    other.run()
+    ctx.memory_barrier()
+    assert values_a.read().wait() == values_b.read().wait()
+    ctx.release(compute)
+    ctx.release(other)

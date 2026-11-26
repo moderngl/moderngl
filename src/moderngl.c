@@ -287,6 +287,7 @@ typedef struct Program {
     PyObject * storage_images;
     UniformBinding * uniform_bindings;
     uint32_t program;
+    int32_t pipelines;
 } Program;
 
 typedef struct Framebuffer {
@@ -313,6 +314,8 @@ typedef struct Framebuffer {
 
 typedef struct Pipeline {
     PyObject_HEAD
+    GCHeader * gc_prev;
+    GCHeader * gc_next;
     Context * ctx;
     Program * program;
     VertexArray * vertex_array;
@@ -4003,6 +4006,7 @@ static Program * create_program(
     res->storage_images = storage_images ? PyDict_Copy(storage_images) : PyDict_New();
     res->uniform_bindings = bindings;
     res->program = program;
+    res->pipelines = 0;
 
     track_object(self, (GCHeader *)res);
     return res;
@@ -4329,8 +4333,11 @@ static Pipeline * new_pipeline(Context * self, Program * program, PyObject * res
     memset(uniform_data, 0, data_size + 1);
 
     Pipeline * res = PyObject_New(Pipeline, self->module_state->Pipeline_type);
+    res->gc_prev = NULL;
+    res->gc_next = NULL;
     res->ctx = (Context *)Py_NewRef(self);
     res->program = program;
+    program->pipelines += 1;
     res->vertex_array = NULL;
     res->framebuffer = NULL;
     res->resources = resources;
@@ -4357,6 +4364,13 @@ static Pipeline * new_pipeline(Context * self, Program * program, PyObject * res
     memset(&res->blend, 0, sizeof(res->blend));
     memset(&res->stencil, 0, sizeof(res->stencil));
     return res;
+}
+
+static void release_pipeline_program(Context * self, Pipeline * pipeline) {
+    pipeline->program->pipelines -= 1;
+    if (!pipeline->program->pipelines) {
+        Py_DECREF(release_object(self, (PyObject *)pipeline->program));
+    }
 }
 
 static Pipeline * Context_meth_compute(Context * self, PyObject * args, PyObject * kwargs) {
@@ -4402,10 +4416,12 @@ static Pipeline * Context_meth_compute(Context * self, PyObject * args, PyObject
     res->framebuffer = (Framebuffer *)Py_NewRef(Py_None);
 
     if (group_count && Pipeline_set_group_count(res, group_count, NULL)) {
+        release_pipeline_program(self, res);
         Py_DECREF(res);
         return NULL;
     }
 
+    track_object(self, (GCHeader *)res);
     return res;
 }
 
@@ -4593,10 +4609,134 @@ static Pipeline * Context_meth_pipeline(Context * self, PyObject * args, PyObjec
     res->polygon_offset = polygon_offset;
 
     if (Pipeline_set_viewport(res, viewport_arg, NULL) || Pipeline_set_scissor(res, scissor_arg, NULL)) {
+        release_pipeline_program(self, res);
         Py_DECREF(res);
         return NULL;
     }
 
+    track_object(self, (GCHeader *)res);
+    return res;
+}
+
+static int same_framebuffer_layout(Framebuffer * a, Framebuffer * b) {
+    if (a->color_count != b->color_count || a->depth_format != b->depth_format || a->samples != b->samples) {
+        return 0;
+    }
+    for (int32_t i = 0; i < a->color_count; ++i) {
+        if (a->color_formats[i] != b->color_formats[i]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+typedef struct VertexLayout {
+    const VertexFormat * fmt;
+    int32_t stride;
+    int32_t divisor;
+} VertexLayout;
+
+static void vertex_layout(VertexArray * vertex_array, VertexLayout * layout) {
+    int32_t count = (int32_t)PyTuple_Size(vertex_array->attributes);
+    for (int32_t i = 0; i < count; ++i) {
+        PyObject * item = PyTuple_GetItem(vertex_array->attributes, i);
+        int32_t location = (int32_t)PyLong_AsLong(PyTuple_GetItem(item, 1));
+        const VertexFormat * fmt = get_vertex_format(PyUnicode_AsUTF8(PyTuple_GetItem(item, 2)));
+        int32_t stride = (int32_t)PyLong_AsLong(PyTuple_GetItem(item, 4));
+        layout[location].fmt = fmt;
+        layout[location].stride = stride ? stride : fmt->size;
+        layout[location].divisor = (int32_t)PyLong_AsLong(PyTuple_GetItem(item, 5));
+    }
+}
+
+static int same_vertex_layout(VertexArray * a, VertexArray * b) {
+    VertexLayout layout_a[64] = {0};
+    VertexLayout layout_b[64] = {0};
+    vertex_layout(a, layout_a);
+    vertex_layout(b, layout_b);
+    return !memcmp(layout_a, layout_b, sizeof(layout_a));
+}
+
+static Pipeline * Pipeline_meth_variant(Pipeline * self, PyObject * args, PyObject * kwargs) {
+    static char * keywords[] = {"vertex_array", "framebuffer", "resources", NULL};
+
+    Context * ctx = self->ctx;
+    VertexArray * vertex_array = NULL;
+    Framebuffer * framebuffer = NULL;
+    PyObject * resources_arg = NULL;
+
+    int args_ok = PyArg_ParseTupleAndKeywords(
+        args,
+        kwargs,
+        "|$O!O!O",
+        keywords,
+        ctx->module_state->VertexArray_type,
+        &vertex_array,
+        ctx->module_state->Framebuffer_type,
+        &framebuffer,
+        &resources_arg
+    );
+
+    if (!args_ok) {
+        return NULL;
+    }
+
+    if (self->compute && (vertex_array || framebuffer || !resources_arg)) {
+        PyErr_Format(PyExc_TypeError, "compute variants take resources only");
+        return NULL;
+    }
+
+    if (!self->compute && (!vertex_array || !framebuffer || !resources_arg)) {
+        PyErr_Format(PyExc_TypeError, "vertex_array, framebuffer and resources are required");
+        return NULL;
+    }
+
+    if (resources_arg != Py_None && Py_TYPE(resources_arg) != ctx->module_state->Resources_type) {
+        PyErr_Format(PyExc_TypeError, "resources must be a Resources or None, combine them with ctx.resources(a, b)");
+        return NULL;
+    }
+
+    if (!self->compute && !same_framebuffer_layout(self->framebuffer, framebuffer)) {
+        PyErr_Format(PyExc_ValueError, "the framebuffer must have the same formats and multisampling as the pipeline's framebuffer");
+        return NULL;
+    }
+
+    if (!self->compute && !same_vertex_layout(self->vertex_array, vertex_array)) {
+        PyErr_Format(PyExc_ValueError, "the vertex array must have the same locations, formats, strides and divisors as the pipeline's vertex array");
+        return NULL;
+    }
+
+    PyObject * empty_args = PyTuple_New(0);
+    PyObject * resources = resources_arg != Py_None ? Py_NewRef(resources_arg) : (PyObject *)Context_meth_resources(ctx, empty_args, NULL);
+    Py_DECREF(empty_args);
+
+    if (!check_resources(ctx, self->program, (Resources *)resources)) {
+        Py_DECREF(resources);
+        return NULL;
+    }
+
+    Pipeline * res = new_pipeline(ctx, (Program *)Py_NewRef(self->program), resources);
+    res->compute = self->compute;
+    res->vertex_array = (VertexArray *)Py_NewRef(self->compute ? Py_None : (PyObject *)vertex_array);
+    res->framebuffer = (Framebuffer *)Py_NewRef(self->compute ? Py_None : (PyObject *)framebuffer);
+    res->vertices = self->compute ? 0 : vertex_array->vertices;
+    res->instances = self->instances;
+    res->first = self->first;
+    res->first_instance = self->first_instance;
+    memcpy(res->group_count, self->group_count, sizeof(res->group_count));
+    res->mode = self->mode;
+    res->has_viewport = self->has_viewport;
+    res->viewport = self->viewport;
+    res->has_scissor = self->has_scissor;
+    res->scissor = self->scissor;
+    res->polygon_offset = self->polygon_offset;
+    res->depth_test = self->depth_test;
+    res->depth_write = self->depth_write;
+    res->depth_func = self->depth_func;
+    res->cull_face = self->cull_face;
+    res->blend = self->blend;
+    res->stencil = self->stencil;
+    track_object(ctx, (GCHeader *)res);
     return res;
 }
 
@@ -5303,11 +5443,8 @@ static PyObject * release_object(Context * self, PyObject * arg) {
     }
 
     if (PyUnicode_CheckExact(arg) && PyUnicode_EqualToUTF8(arg, "all")) {
-        GCHeader * it = self->gc_next;
-        while (it != (GCHeader *)self) {
-            GCHeader * next = it->gc_next;
-            Py_DECREF(release_object(self, (PyObject *)it));
-            it = next;
+        while (self->gc_next != (GCHeader *)self) {
+            Py_DECREF(release_object(self, (PyObject *)self->gc_next));
         }
         PyObject * key = NULL;
         PyObject * value = NULL;
@@ -5404,7 +5541,12 @@ static PyObject * release_object(Context * self, PyObject * arg) {
     }
 
     if (type == module_state->Pipeline_type) {
-        return release_object(self, (PyObject *)((Pipeline *)arg)->program);
+        Pipeline * pipeline = (Pipeline *)arg;
+        if (untrack_object(self, (GCHeader *)pipeline)) {
+            release_pipeline_program(self, pipeline);
+            Py_DECREF(pipeline);
+        }
+        Py_RETURN_NONE;
     }
 
     PyErr_Format(PyExc_TypeError, "cannot release %R", arg);
@@ -6469,6 +6611,7 @@ static PyGetSetDef Texture_getset[] = {
 
 static PyMethodDef Pipeline_methods[] = {
     {"run", (PyCFunction)Pipeline_meth_run, METH_NOARGS, NULL},
+    {"variant", (PyCFunction)Pipeline_meth_variant, METH_VARARGS | METH_KEYWORDS, NULL},
     {"use", (PyCFunction)Pipeline_meth_use, METH_NOARGS, NULL},
     {0},
 };

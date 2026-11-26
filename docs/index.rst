@@ -853,7 +853,9 @@ Context
 
     Delete the OpenGL object. ``'all'`` releases every tracked object and the shader cache.
     ``'shader_cache'`` deletes only the cached shaders, programs keep working.
-    Releasing a pipeline releases its program. Using a released object is an error.
+    Releasing an object twice does nothing. Using a released object is an error, its ``glo`` is 0.
+    A pipeline and its variants share one program, it is deleted when the last of them is released.
+    Releasing the program directly deletes it for all of them.
     Without an argument it releases everything and the context itself, the next ``moderngl.get_context()`` creates a new one.
 
 .. py:method:: Context.source(name) -> str
@@ -1222,6 +1224,14 @@ Pipeline
 .. py:method:: Pipeline.use()
 
     Bind everything and apply the state without drawing, for ``vertex_array.draw()``.
+
+.. py:method:: Pipeline.variant(*, vertex_array, framebuffer, resources) -> Pipeline
+
+    A new pipeline with the same program and state, drawing a different vertex array into a different framebuffer with different resources.
+    Nothing is linked, only the resources are checked against the program.
+    The framebuffer must have the same formats and multisampling, the vertex array the same locations, formats, strides and divisors.
+    The mode, the state, viewport, scissor, instances, first and first_instance are copied, ``vertices`` comes from the vertex array. Uniform values start at zero.
+    A compute variant takes ``resources`` only and copies ``group_count``.
 
 .. py:attribute:: Pipeline.program
     :type: Program
