@@ -207,14 +207,15 @@ def test_debug_uniforms(ctx):
     program['flags'] = (False, True)
     program['shear'] = ((1.0, 2.0, 3.0), (4.0, 5.0, 6.0))
     program['seeds'] = [0.0, 1.0, 0.0, 0.0]
-    values = program.debug()['uniforms']
+    debug = ctx.debug()
+    values = debug['uniforms']
+    assert debug['program'] is program
     assert values['count'] == -3
     assert values['flags'] == (False, True)
     assert values['shear'] == ((1.0, 2.0, 3.0), (4.0, 5.0, 6.0))
     assert values['seeds'][:2] == [0.0, 1.0]
-    assert len(values['seeds']) == 4
-    assert values['unused'] is None
-    assert values['more'] == [None, None]
+    assert 'unused' not in values and 'more' not in values
+    assert sorted(debug['inactive']) == ['more', 'unused']
     program['shear'] = values['shear']
     with pytest.raises(TypeError):
         program['unused'] = None
@@ -259,13 +260,14 @@ def test_program_layout(ctx):
     with pytest.raises(ValueError, match='Common'):
         ctx.program('layout.vert', 'layout.frag', samplers={'Texture': 0}, uniforms={'Common': 'vec4'})
     program = ctx.program('layout.vert', 'layout.frag', samplers={'Texture': 15, 'Unused': 3}, uniform_buffers={'Common': 7, 'Missing': 1})
-    assert program.debug() == {
-        'uniforms': {},
-        'samplers': {'Texture': 15, 'Unused': None},
-        'uniform_buffers': {'Common': 7, 'Missing': None},
-        'storage_buffers': {},
-        'storage_images': {},
-    }
+    program.use()
+    debug = ctx.debug()
+    assert debug['uniforms'] == {}
+    assert debug['samplers'] == {'Texture': 15}
+    assert debug['uniform_buffers'] == {'Common': 7}
+    assert debug['storage_buffers'] == {}
+    assert debug['storage_images'] == {}
+    assert sorted(debug['inactive']) == ['Missing', 'Unused']
     ctx.shaders['sampler_array.frag'] = '''
         #version 330 core
         uniform sampler2D Textures[2];
@@ -279,7 +281,9 @@ def test_program_layout(ctx):
     with pytest.raises(ValueError, match=r'Textures\[0\]'):
         ctx.program('fullscreen.vert', 'sampler_array.frag', samplers={'Textures': 0})
     program = ctx.program('fullscreen.vert', 'sampler_array.frag', samplers={'Textures[0]': 2, 'Textures[1]': 5, 'Textures[2]': 6})
-    assert program.debug()['samplers'] == {'Textures[0]': 2, 'Textures[1]': 5, 'Textures[2]': None}
+    program.use()
+    assert ctx.debug()['samplers'] == {'Textures[0]': 2, 'Textures[1]': 5}
+    assert ctx.debug()['inactive'] == ['Textures[2]']
     red = ctx.texture((1, 1), 'rgba8unorm', bytes([255, 0, 0, 255]))
     blue = ctx.texture((1, 1), 'rgba8unorm', bytes([0, 0, 255, 255]))
     color = ctx.texture((1, 1), 'rgba8unorm')
@@ -1702,8 +1706,9 @@ def test_pipeline(ctx):
     row = [out[(2 * 5 + x) * 4] for x in range(5)]
     column = [out[(y * 5 + 2) * 4] for y in range(5)]
     assert row == column == [0, 32, 64, 32, 0]
-    assert blur_x.program.debug()['uniforms'] == {'vertical': False}
-    assert blur_y.program.debug()['uniforms'] == {'vertical': True}
+    assert ctx.debug()['uniforms'] == {'vertical': True}
+    blur_x.use()
+    assert ctx.debug()['uniforms'] == {'vertical': False}
     with pytest.raises(KeyError):
         blur_x['missing'] = 1
     with pytest.raises(TypeError):
@@ -2310,7 +2315,8 @@ def test_storage_buffer_program_debug(ctx):
         uniforms={'scale': 'float'},
         resources=ctx.resources(storage_buffers={3: values}, uniform_buffers={0: offset}),
     )
-    assert compute.program.debug()['storage_buffers'] == {'Values': 3}
+    compute.program.use()
+    assert ctx.debug()['storage_buffers'] == {'Values': 3}
 
 
 def test_draw_indirect(ctx):
@@ -2393,7 +2399,8 @@ def test_storage_images(ctx):
     assert output.read(level=1).wait() == bytes([0, 0, 0, 255, 1, 0, 0, 255, 0, 1, 0, 255, 1, 1, 0, 255])
     assert counters.read(layer=0).wait() == bytes(64)
     assert struct.unpack('16I', counters.read(layer=1).wait())[:6] == (2, 4, 0, 0, 2, 4)
-    assert compute.program.debug()['storage_images'] == {'Output': 0, 'Counters': 1}
+    compute.program.use()
+    assert ctx.debug()['storage_images'] == {'Output': 0, 'Counters': 1}
 
 
 def test_storage_images_fragment(ctx):
@@ -2604,3 +2611,50 @@ def test_reset_state_scissor_polygon_offset(ctx):
     assert not GL.glIsEnabled(0x0C11)
     ctx.reset_state()
     assert not GL.glIsEnabled(0x0C11)
+
+
+def test_context_debug(ctx):
+    ctx.reset_state()
+    debug = ctx.debug()
+    assert (debug['program'], debug['vertex_array'], debug['framebuffer']) == (None, None, None)
+    assert (debug['depth_test'], debug['cull_face'], debug['blend'], debug['stencil'], debug['scissor'], debug['polygon_offset']) == (False, None, None, None, None, None)
+    assert debug['units'] == {'samplers': {}, 'uniform_buffers': {}}
+    color = ctx.texture((4, 4), 'rgba8unorm')
+    fbo = ctx.framebuffer([color, ctx.texture((4, 4), 'depth24plus-stencil8')])
+    texture = ctx.texture((1, 1), 'rgba8unorm')
+    sampler = ctx.sampler(texture)
+    buffer = ctx.buffer(size=256)
+    program = ctx.program('fullscreen.vert', 'color.frag', uniforms={'color': 'vec4'})
+    fbo.use()
+    fbo.scissor = (1, 1, 2, 2)
+    program.use()
+    program['color'] = (0.0, 0.5, 1.0, 1.0)
+    ctx.empty_vertex_array.use()
+    ctx.depth_test = True
+    ctx.depth_write = False
+    ctx.depth_func = 'lequal'
+    ctx.cull_face = 'front'
+    ctx.polygon_offset = (1.0, 2.0)
+    ctx.blend('src_alpha', 'one_minus_src_alpha')
+    ctx.stencil('equal', 3, read_mask=0x0F)
+    sampler.use(3)
+    texture_only = ctx.texture((1, 1), 'rgba8unorm')
+    ctx.sampler(texture_only).use(4)
+    buffer.use(2, offset=0, size=64)
+    debug = ctx.debug()
+    assert debug['program'] is program
+    assert debug['vertex_array'] is ctx.empty_vertex_array
+    assert debug['framebuffer'] is fbo
+    assert debug['viewport'] == (0, 0, 4, 4)
+    assert debug['scissor'] == (1, 1, 2, 2)
+    assert (debug['depth_test'], debug['depth_write'], debug['depth_func'], debug['cull_face']) == (True, False, 'lequal', 'front')
+    assert debug['polygon_offset'] == (1.0, 2.0)
+    assert debug['blend'] == {'src': 'src_alpha', 'dst': 'one_minus_src_alpha', 'equation': 'add', 'src_alpha': 'src_alpha', 'dst_alpha': 'one_minus_src_alpha', 'equation_alpha': 'add'}
+    assert debug['stencil']['func'] == 'equal' and debug['stencil']['ref'] == 3 and debug['stencil']['read_mask'] == 0x0F
+    assert debug['uniforms'] == {'color': (0.0, 0.5, 1.0, 1.0)}
+    assert debug['inactive'] == []
+    assert debug['units']['samplers'][3] is sampler
+    assert debug['units']['samplers'][4] is not None
+    assert debug['units']['uniform_buffers'] == {2: (buffer, 0, 64)}
+    ctx.reset_state()
+    fbo.scissor = None

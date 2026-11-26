@@ -321,8 +321,8 @@ The values stay in the program until changed.
 
 Values are numbers, nested sequences of numbers or bytes of the exact size.
 
-For debugging, ``program.debug()`` reads the uniforms, sampler units and uniform block bindings back from OpenGL. It is slow, do not call it every frame.
-Optimized out uniforms read as ``None``.
+For debugging, bind the program and call ``ctx.debug()``, it reads the uniform values, sampler units and uniform block bindings back from OpenGL. It is slow, do not call it every frame.
+Declared names that are optimized out are listed in ``inactive``.
 
 Vertex data
 ~~~~~~~~~~~
@@ -859,6 +859,15 @@ Context
 
     The objects created and not released yet.
 
+.. py:method:: Context.debug() -> dict
+
+    Read the current state back from OpenGL. Slow, for debugging only.
+    ``program``, ``vertex_array`` and ``framebuffer`` are the bound objects, ``None`` when nothing or an unknown object is bound.
+    ``viewport``, ``scissor``, ``depth_test``, ``depth_write``, ``depth_func``, ``cull_face``, ``polygon_offset``, ``blend`` and ``stencil`` are the render state.
+    ``uniforms``, ``samplers``, ``uniform_buffers``, ``storage_buffers`` and ``storage_images`` are the active ones of the bound program with their values, units and bindings.
+    ``inactive`` lists the declared names that are optimized out.
+    ``units`` has the samplers and uniform buffer views bound to each unit and binding, a texture when it is bound without a known sampler.
+
 .. py:attribute:: Context.shaders
     :type: dict[str, str]
 
@@ -1128,11 +1137,6 @@ Program
 .. py:method:: Program.use()
 
     Bind the program.
-
-.. py:method:: Program.debug() -> dict
-
-    Read back ``uniforms``, ``samplers`` and ``uniform_buffers`` from OpenGL, optimized out ones are ``None``. ``storage_buffers`` and ``storage_images`` are the declared bindings.
-    Slow, for debugging only.
 
 .. py:attribute:: Program.uniforms
     :type: dict[str, int]

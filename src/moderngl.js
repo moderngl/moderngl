@@ -5,6 +5,7 @@
   const encoder = new TextEncoder();
 
   const objects = new Map();
+  const ids = new WeakMap();
   const locations = new Map();
   const strings = new Map();
   let nextId = 1;
@@ -14,6 +15,9 @@
   const add = (obj) => {
     const id = nextId++;
     objects.set(id, obj);
+    if (obj !== null && typeof obj === 'object') {
+      ids.set(obj, id);
+    }
     return id;
   };
 
@@ -56,6 +60,8 @@
     const values = typeof value === 'object' ? Array.from(value, Number) : [Number(value)];
     wasm.HEAP32.set(values.map((x) => Math.min(x, 0x7fffffff)), ptr >> 2);
   };
+
+  const getParameter = (value) => (value !== null && typeof value === 'object' && !ArrayBuffer.isView(value) && !Array.isArray(value) ? ids.get(value) ?? 0 : value);
 
   const pixelHeap = (type) => {
     switch (type) {
@@ -185,7 +191,9 @@ precision highp usampler2DArray;`;
     },
     moderngl_glGetBufferParameteriv: (target, pname, params) => setIntegers(params, gl.getBufferParameter(target, pname)),
     moderngl_glGetBufferSubData: (target, offset, size, data) => gl.getBufferSubData(target, offset, wasm.HEAPU8, data, size),
-    moderngl_glGetIntegerv: (pname, data) => setIntegers(data, gl.getParameter(pname)),
+    moderngl_glGetFloatv: (pname, data) => setValues(wasm.HEAPF32, data, gl.getParameter(pname)),
+    moderngl_glGetIntegeri_v: (target, index, data) => setIntegers(data, getParameter(gl.getIndexedParameter(target, index))),
+    moderngl_glGetIntegerv: (pname, data) => setIntegers(data, getParameter(gl.getParameter(pname))),
     moderngl_glGetProgramInfoLog: (program, bufSize, length, log) => setString(log, bufSize, length, gl.getProgramInfoLog(get(program))),
     moderngl_glGetProgramiv: (program, pname, params) => setIntegers(params, gl.getProgramParameter(get(program), pname)),
     moderngl_glGetShaderInfoLog: (shader, bufSize, length, log) => setString(log, bufSize, length, gl.getShaderInfoLog(get(shader))),
@@ -212,6 +220,7 @@ precision highp usampler2DArray;`;
     moderngl_glGetUniformfv: (program, location, params) => setValues(wasm.HEAPF32, params, gl.getUniform(get(program), get(location))),
     moderngl_glGetUniformiv: (program, location, params) => setValues(wasm.HEAP32, params, gl.getUniform(get(program), get(location))),
     moderngl_glGetUniformuiv: (program, location, params) => setValues(wasm.HEAPU32, params, gl.getUniform(get(program), get(location))),
+    moderngl_glIsEnabled: (cap) => (gl.isEnabled(cap) ? 1 : 0),
     moderngl_glLinkProgram: (program) => gl.linkProgram(get(program)),
     moderngl_glPolygonOffset: (factor, units) => gl.polygonOffset(factor, units),
     moderngl_glPrimitiveRestartIndex: (index) => {},

@@ -1731,123 +1731,6 @@ static int get_binding(PyObject * bindings, const char * name, int32_t limit, in
     return *binding >= 0 && *binding < limit;
 }
 
-static PyObject * read_uniform_element(Program * self, UniformBinding * b, int32_t location) {
-    if (location < 0) {
-        Py_RETURN_NONE;
-    }
-    int32_t items = b->values / b->count;
-    int32_t raw[16] = {0};
-    if (b->type == 'f') {
-        glGetUniformfv(self->program, location, (float *)raw);
-    } else if (b->type == 'i') {
-        glGetUniformiv(self->program, location, raw);
-    } else {
-        glGetUniformuiv(self->program, location, (uint32_t *)raw);
-    }
-    int is_bool = b->gltype == GL_BOOL || b->gltype == GL_BOOL_VEC2 || b->gltype == GL_BOOL_VEC3 || b->gltype == GL_BOOL_VEC4;
-    PyObject * values = PyTuple_New(items);
-    for (int32_t i = 0; i < items; ++i) {
-        PyObject * item = NULL;
-        if (b->type == 'f') {
-            item = PyFloat_FromDouble(((float *)raw)[i]);
-        } else if (is_bool) {
-            item = PyBool_FromLong(raw[i]);
-        } else if (b->type == 'i') {
-            item = PyLong_FromLong(raw[i]);
-        } else {
-            item = PyLong_FromUnsignedLong(((uint32_t *)raw)[i]);
-        }
-        PyTuple_SetItem(values, i, item);
-    }
-    if (items == 1) {
-        PyObject * res = Py_NewRef(PyTuple_GetItem(values, 0));
-        Py_DECREF(values);
-        return res;
-    }
-    if (b->function < 12) {
-        return values;
-    }
-    static const int32_t columns[] = {2, 2, 2, 3, 3, 3, 4, 4, 4};
-    int32_t cols = columns[b->function - 12];
-    int32_t rows = items / cols;
-    PyObject * res = PyTuple_New(cols);
-    for (int32_t i = 0; i < cols; ++i) {
-        PyTuple_SetItem(res, i, PyTuple_GetSlice(values, i * rows, i * rows + rows));
-    }
-    Py_DECREF(values);
-    return res;
-}
-
-static PyObject * read_uniforms(Program * self) {
-    PyObject * res = PyDict_New();
-    PyObject * key = NULL;
-    PyObject * value = NULL;
-    Py_ssize_t pos = 0;
-    while (PyDict_Next(self->uniform_index, &pos, &key, &value)) {
-        UniformBinding * b = &self->uniform_bindings[PyLong_AsLong(value)];
-        if (!b->array) {
-            PyObject * item = read_uniform_element(self, b, b->location);
-            PyDict_SetItem(res, key, item);
-            Py_DECREF(item);
-            continue;
-        }
-        PyObject * list = PyList_New(b->count);
-        for (int32_t i = 0; i < b->count; ++i) {
-            char name[300] = {0};
-            snprintf(name, sizeof(name), "%s[%d]", PyUnicode_AsUTF8(key), i);
-            int32_t location = b->location < 0 ? -1 : glGetUniformLocation(self->program, name);
-            PyList_SetItem(list, i, read_uniform_element(self, b, location));
-        }
-        PyDict_SetItem(res, key, list);
-        Py_DECREF(list);
-    }
-    return res;
-}
-
-static PyObject * read_samplers(Program * self) {
-    PyObject * res = PyDict_New();
-    PyObject * key = NULL;
-    PyObject * value = NULL;
-    Py_ssize_t pos = 0;
-    while (PyDict_Next(self->samplers, &pos, &key, &value)) {
-        const char * name = PyUnicode_Check(key) ? PyUnicode_AsUTF8(key) : NULL;
-        int32_t location = name ? glGetUniformLocation(self->program, name) : -1;
-        int32_t unit = 0;
-        PyObject * item = NULL;
-        if (location >= 0) {
-            glGetUniformiv(self->program, location, &unit);
-            item = PyLong_FromLong(unit);
-        } else {
-            item = Py_NewRef(Py_None);
-        }
-        PyDict_SetItem(res, key, item);
-        Py_DECREF(item);
-    }
-    return res;
-}
-
-static PyObject * read_uniform_buffers(Program * self) {
-    PyObject * res = PyDict_New();
-    PyObject * key = NULL;
-    PyObject * value = NULL;
-    Py_ssize_t pos = 0;
-    while (PyDict_Next(self->uniform_buffers, &pos, &key, &value)) {
-        const char * name = PyUnicode_Check(key) ? PyUnicode_AsUTF8(key) : NULL;
-        uint32_t block = name ? glGetUniformBlockIndex(self->program, name) : GL_INVALID_INDEX;
-        int32_t binding = 0;
-        PyObject * item = NULL;
-        if (block != GL_INVALID_INDEX) {
-            glGetActiveUniformBlockiv(self->program, block, GL_UNIFORM_BLOCK_BINDING, &binding);
-            item = PyLong_FromLong(binding);
-        } else {
-            item = Py_NewRef(Py_None);
-        }
-        PyDict_SetItem(res, key, item);
-        Py_DECREF(item);
-    }
-    return res;
-}
-
 static ReadRequest * new_read_request(Context * ctx, uint32_t buffer, int32_t size) {
     ReadRequest * res = PyObject_New(ReadRequest, ctx->module_state->ReadRequest_type);
     res->ctx = (Context *)Py_NewRef(ctx);
@@ -2748,17 +2631,6 @@ static PyObject * Program_meth_use(Program * self, PyObject * args) {
     Py_RETURN_NONE;
 }
 
-
-static PyObject * Program_meth_debug(Program * self, PyObject * args) {
-    PyObject * uniforms = read_uniforms(self);
-    PyObject * samplers = read_samplers(self);
-    PyObject * uniform_buffers = read_uniform_buffers(self);
-    PyObject * res = Py_BuildValue("{sOsOsOsNsN}", "uniforms", uniforms, "samplers", samplers, "uniform_buffers", uniform_buffers, "storage_buffers", PyDict_Copy(self->storage_buffers), "storage_images", PyDict_Copy(self->storage_images));
-    Py_DECREF(uniforms);
-    Py_DECREF(samplers);
-    Py_DECREF(uniform_buffers);
-    return res;
-}
 
 static int Program_ass_subscript(Program * self, PyObject * key, PyObject * value) {
     if (!value) {
@@ -5698,6 +5570,403 @@ static int Context_set_polygon_offset(Context * self, PyObject * value, void * c
     return 0;
 }
 
+enum {
+    DEBUG_SCISSOR_BOX = 0x0C10,
+    DEBUG_DEPTH_WRITEMASK = 0x0B72,
+    DEBUG_DEPTH_FUNC = 0x0B74,
+    DEBUG_CULL_FACE_MODE = 0x0B45,
+    DEBUG_POLYGON_OFFSET_FACTOR = 0x8038,
+    DEBUG_POLYGON_OFFSET_UNITS = 0x2A00,
+    DEBUG_BLEND_DST_RGB = 0x80C8,
+    DEBUG_BLEND_SRC_RGB = 0x80C9,
+    DEBUG_BLEND_DST_ALPHA = 0x80CA,
+    DEBUG_BLEND_SRC_ALPHA = 0x80CB,
+    DEBUG_BLEND_EQUATION_RGB = 0x8009,
+    DEBUG_BLEND_EQUATION_ALPHA = 0x883D,
+    DEBUG_STENCIL_FUNC = 0x0B92,
+    DEBUG_STENCIL_VALUE_MASK = 0x0B93,
+    DEBUG_STENCIL_FAIL = 0x0B94,
+    DEBUG_STENCIL_PASS_DEPTH_FAIL = 0x0B95,
+    DEBUG_STENCIL_PASS_DEPTH_PASS = 0x0B96,
+    DEBUG_STENCIL_REF = 0x0B97,
+    DEBUG_STENCIL_WRITEMASK = 0x0B98,
+    DEBUG_STENCIL_BACK_FUNC = 0x8800,
+    DEBUG_STENCIL_BACK_FAIL = 0x8801,
+    DEBUG_STENCIL_BACK_PASS_DEPTH_FAIL = 0x8802,
+    DEBUG_STENCIL_BACK_PASS_DEPTH_PASS = 0x8803,
+    DEBUG_CURRENT_PROGRAM = 0x8B8D,
+    DEBUG_VERTEX_ARRAY_BINDING = 0x85B5,
+    DEBUG_DRAW_FRAMEBUFFER_BINDING = 0x8CA6,
+    DEBUG_ACTIVE_TEXTURE = 0x84E0,
+    DEBUG_TEXTURE_BINDING_2D = 0x8069,
+    DEBUG_TEXTURE_BINDING_2D_ARRAY = 0x8C1D,
+    DEBUG_TEXTURE_BINDING_CUBE_MAP = 0x8514,
+    DEBUG_SAMPLER_BINDING = 0x8919,
+    DEBUG_UNIFORM_BUFFER_BINDING = 0x8A28,
+    DEBUG_UNIFORM_BUFFER_START = 0x8A29,
+    DEBUG_UNIFORM_BUFFER_SIZE = 0x8A2A,
+};
+
+static void debug_set(PyObject * dict, const char * key, PyObject * value) {
+    PyDict_SetItemString(dict, key, value);
+    Py_DECREF(value);
+}
+
+static int32_t debug_int(uint32_t pname) {
+    int32_t value = 0;
+    glGetIntegerv(pname, &value);
+    return value;
+}
+
+static PyObject * debug_name(const NamedValue * table, uint32_t pname) {
+    const char * name = get_value_name(table, (uint32_t)debug_int(pname));
+    return name ? PyUnicode_FromString(name) : Py_NewRef(Py_None);
+}
+
+static uint32_t debug_glo(Context * ctx, PyObject * obj) {
+    ModuleState * state = ctx->module_state;
+    PyTypeObject * type = Py_TYPE(obj);
+    if (type == state->Program_type) {
+        return ((Program *)obj)->program;
+    }
+    if (type == state->VertexArray_type) {
+        return ((VertexArray *)obj)->vertex_array;
+    }
+    if (type == state->Framebuffer_type) {
+        return ((Framebuffer *)obj)->framebuffer;
+    }
+    if (type == state->Buffer_type) {
+        return ((Buffer *)obj)->buffer;
+    }
+    if (type == state->Sampler_type) {
+        return ((Sampler *)obj)->sampler;
+    }
+    if (type == state->Texture_type && !((Texture *)obj)->renderbuffer) {
+        return ((Texture *)obj)->texture;
+    }
+    return 0;
+}
+
+static PyObject * debug_find(Context * ctx, PyTypeObject * type, int32_t glo) {
+    if (!glo) {
+        Py_RETURN_NONE;
+    }
+    if (type == ctx->module_state->VertexArray_type && ctx->empty_vertex_array && ctx->empty_vertex_array->vertex_array == (uint32_t)glo) {
+        return Py_NewRef(ctx->empty_vertex_array);
+    }
+    PyObject * res = NULL;
+    Py_BEGIN_CRITICAL_SECTION(ctx);
+    for (GCHeader * it = ctx->gc_next; it != (GCHeader *)ctx; it = it->gc_next) {
+        if (Py_TYPE(it) == type && debug_glo(ctx, (PyObject *)it) == (uint32_t)glo) {
+            res = Py_NewRef(it);
+            break;
+        }
+    }
+    Py_END_CRITICAL_SECTION();
+    return res ? res : Py_NewRef(Py_None);
+}
+
+static PyObject * debug_uniform_value(uint32_t program, uint32_t gltype, int32_t location) {
+    int32_t function = 0;
+    int32_t items = 0;
+    char type = 0;
+    if (!get_uniform_type(gltype, &function, &items, &type)) {
+        Py_RETURN_NONE;
+    }
+    int32_t raw[16] = {0};
+    if (type == 'f') {
+        glGetUniformfv(program, location, (float *)raw);
+    } else if (type == 'i') {
+        glGetUniformiv(program, location, raw);
+    } else {
+        glGetUniformuiv(program, location, (uint32_t *)raw);
+    }
+    int is_bool = gltype == GL_BOOL || gltype == GL_BOOL_VEC2 || gltype == GL_BOOL_VEC3 || gltype == GL_BOOL_VEC4;
+    PyObject * values = PyTuple_New(items);
+    for (int32_t i = 0; i < items; ++i) {
+        PyObject * item = NULL;
+        if (type == 'f') {
+            item = PyFloat_FromDouble(((float *)raw)[i]);
+        } else if (is_bool) {
+            item = PyBool_FromLong(raw[i]);
+        } else if (type == 'i') {
+            item = PyLong_FromLong(raw[i]);
+        } else {
+            item = PyLong_FromUnsignedLong(((uint32_t *)raw)[i]);
+        }
+        PyTuple_SetItem(values, i, item);
+    }
+    if (items == 1) {
+        PyObject * res = Py_NewRef(PyTuple_GetItem(values, 0));
+        Py_DECREF(values);
+        return res;
+    }
+    if (function < 12) {
+        return values;
+    }
+    static const int32_t columns[] = {2, 2, 2, 3, 3, 3, 4, 4, 4};
+    int32_t cols = columns[function - 12];
+    int32_t rows = items / cols;
+    PyObject * res = PyTuple_New(cols);
+    for (int32_t i = 0; i < cols; ++i) {
+        PyTuple_SetItem(res, i, PyTuple_GetSlice(values, i * rows, i * rows + rows));
+    }
+    Py_DECREF(values);
+    return res;
+}
+
+static void debug_units(uint32_t program, PyObject * target, const char * name, int32_t size, int32_t array) {
+    for (int32_t i = 0; i < size; ++i) {
+        char element[300] = {0};
+        snprintf(element, sizeof(element), array ? "%s[%d]" : "%s", name, i);
+        int32_t location = glGetUniformLocation(program, element);
+        if (location < 0) {
+            continue;
+        }
+        int32_t unit = 0;
+        glGetUniformiv(program, location, &unit);
+        PyObject * value = PyLong_FromLong(unit);
+        PyDict_SetItemString(target, element, value);
+        Py_DECREF(value);
+    }
+}
+
+static void debug_inactive(PyObject * declared, PyObject * active, PyObject * inactive) {
+    PyObject * key = NULL;
+    PyObject * value = NULL;
+    Py_ssize_t pos = 0;
+    while (declared && PyDict_Next(declared, &pos, &key, &value)) {
+        if (!PyDict_Contains(active, key)) {
+            PyList_Append(inactive, key);
+        }
+    }
+}
+
+static void debug_program(Context * self, PyObject * res, uint32_t program_glo) {
+    PyObject * found = debug_find(self, self->module_state->Program_type, (int32_t)program_glo);
+    Program * program = found != Py_None ? (Program *)found : NULL;
+    PyObject * uniforms = PyDict_New();
+    PyObject * samplers = PyDict_New();
+    PyObject * uniform_buffers = PyDict_New();
+    PyObject * storage_buffers = PyDict_New();
+    PyObject * storage_images = PyDict_New();
+    PyObject * inactive = PyList_New(0);
+
+    int32_t active_uniforms = 0;
+    int32_t active_blocks = 0;
+    if (program_glo) {
+        glGetProgramiv(program_glo, GL_ACTIVE_UNIFORMS, &active_uniforms);
+        glGetProgramiv(program_glo, GL_ACTIVE_UNIFORM_BLOCKS, &active_blocks);
+    }
+
+    for (int32_t i = 0; i < active_uniforms; ++i) {
+        char name[256] = {0};
+        int32_t length = 0;
+        int32_t size = 0;
+        uint32_t gltype = 0;
+        glGetActiveUniform(program_glo, i, 256, &length, &size, &gltype, name);
+        int32_t array = length > 3 && !strcmp(name + length - 3, "[0]");
+        if (array) {
+            name[length - 3] = 0;
+        }
+        int32_t location = glGetUniformLocation(program_glo, name);
+        if (location < 0) {
+            continue;
+        }
+        if (gltype >= 0x904C && gltype <= 0x906C) {
+            debug_units(program_glo, storage_images, name, size, array);
+            continue;
+        }
+        if (get_value_name(sampler_types, gltype)) {
+            debug_units(program_glo, samplers, name, size, array);
+            continue;
+        }
+        if (!array) {
+            debug_set(uniforms, name, debug_uniform_value(program_glo, gltype, location));
+            continue;
+        }
+        PyObject * list = PyList_New(0);
+        for (int32_t e = 0; e < size; ++e) {
+            char element[300] = {0};
+            snprintf(element, sizeof(element), "%s[%d]", name, e);
+            int32_t element_location = glGetUniformLocation(program_glo, element);
+            if (element_location < 0) {
+                break;
+            }
+            PyObject * value = debug_uniform_value(program_glo, gltype, element_location);
+            PyList_Append(list, value);
+            Py_DECREF(value);
+        }
+        debug_set(uniforms, name, list);
+    }
+
+    for (int32_t i = 0; i < active_blocks; ++i) {
+        char name[256] = {0};
+        int32_t binding = 0;
+        glGetActiveUniformBlockName(program_glo, i, 256, NULL, name);
+        glGetActiveUniformBlockiv(program_glo, i, GL_UNIFORM_BLOCK_BINDING, &binding);
+        debug_set(uniform_buffers, name, PyLong_FromLong(binding));
+    }
+
+    if (program) {
+        PyObject * key = NULL;
+        PyObject * value = NULL;
+        Py_ssize_t pos = 0;
+        while (PyDict_Next(program->storage_buffers, &pos, &key, &value)) {
+            const char * name = PyUnicode_Check(key) ? PyUnicode_AsUTF8(key) : NULL;
+            if (name && glGetProgramResourceIndex && glGetProgramResourceIndex(program_glo, GL_SHADER_STORAGE_BLOCK, name) != GL_INVALID_INDEX) {
+                PyDict_SetItem(storage_buffers, key, value);
+            }
+        }
+        debug_inactive(program->uniform_index, uniforms, inactive);
+        debug_inactive(program->samplers, samplers, inactive);
+        debug_inactive(program->uniform_buffers, uniform_buffers, inactive);
+        debug_inactive(program->storage_buffers, storage_buffers, inactive);
+        debug_inactive(program->storage_images, storage_images, inactive);
+    }
+
+    debug_set(res, "program", found);
+    debug_set(res, "uniforms", uniforms);
+    debug_set(res, "samplers", samplers);
+    debug_set(res, "uniform_buffers", uniform_buffers);
+    debug_set(res, "storage_buffers", storage_buffers);
+    debug_set(res, "storage_images", storage_images);
+    debug_set(res, "inactive", inactive);
+}
+
+static void debug_state(Context * self, PyObject * res) {
+    int32_t box[4] = {0};
+    glGetIntegerv(GL_VIEWPORT, box);
+    debug_set(res, "viewport", Py_BuildValue("(iiii)", box[0], box[1], box[2], box[3]));
+
+    if (glIsEnabled(GL_SCISSOR_TEST)) {
+        glGetIntegerv(DEBUG_SCISSOR_BOX, box);
+        debug_set(res, "scissor", Py_BuildValue("(iiii)", box[0], box[1], box[2], box[3]));
+    } else {
+        debug_set(res, "scissor", Py_NewRef(Py_None));
+    }
+
+    debug_set(res, "depth_test", PyBool_FromLong(glIsEnabled(GL_DEPTH_TEST)));
+    debug_set(res, "depth_write", PyBool_FromLong(debug_int(DEBUG_DEPTH_WRITEMASK)));
+    debug_set(res, "depth_func", debug_name(compare_funcs, DEBUG_DEPTH_FUNC));
+    debug_set(res, "cull_face", glIsEnabled(GL_CULL_FACE) ? debug_name(cull_faces, DEBUG_CULL_FACE_MODE) : Py_NewRef(Py_None));
+
+    if (glIsEnabled(GL_POLYGON_OFFSET_FILL)) {
+        float factor = 0.0f;
+        float units = 0.0f;
+        glGetFloatv(DEBUG_POLYGON_OFFSET_FACTOR, &factor);
+        glGetFloatv(DEBUG_POLYGON_OFFSET_UNITS, &units);
+        debug_set(res, "polygon_offset", Py_BuildValue("(ff)", factor, units));
+    } else {
+        debug_set(res, "polygon_offset", Py_NewRef(Py_None));
+    }
+
+    if (glIsEnabled(GL_BLEND)) {
+        debug_set(res, "blend", Py_BuildValue(
+            "{sNsNsNsNsNsN}",
+            "src", debug_name(blend_factors, DEBUG_BLEND_SRC_RGB),
+            "dst", debug_name(blend_factors, DEBUG_BLEND_DST_RGB),
+            "equation", debug_name(blend_equations, DEBUG_BLEND_EQUATION_RGB),
+            "src_alpha", debug_name(blend_factors, DEBUG_BLEND_SRC_ALPHA),
+            "dst_alpha", debug_name(blend_factors, DEBUG_BLEND_DST_ALPHA),
+            "equation_alpha", debug_name(blend_equations, DEBUG_BLEND_EQUATION_ALPHA)
+        ));
+    } else {
+        debug_set(res, "blend", Py_NewRef(Py_None));
+    }
+
+    if (glIsEnabled(GL_STENCIL_TEST)) {
+        debug_set(res, "stencil", Py_BuildValue(
+            "{sNsisIsIsNsNsNsNsNsNsN}",
+            "func", debug_name(compare_funcs, DEBUG_STENCIL_FUNC),
+            "ref", debug_int(DEBUG_STENCIL_REF),
+            "read_mask", (uint32_t)debug_int(DEBUG_STENCIL_VALUE_MASK),
+            "write_mask", (uint32_t)debug_int(DEBUG_STENCIL_WRITEMASK),
+            "fail", debug_name(stencil_ops, DEBUG_STENCIL_FAIL),
+            "depth_fail", debug_name(stencil_ops, DEBUG_STENCIL_PASS_DEPTH_FAIL),
+            "depth_pass", debug_name(stencil_ops, DEBUG_STENCIL_PASS_DEPTH_PASS),
+            "back_func", debug_name(compare_funcs, DEBUG_STENCIL_BACK_FUNC),
+            "back_fail", debug_name(stencil_ops, DEBUG_STENCIL_BACK_FAIL),
+            "back_depth_fail", debug_name(stencil_ops, DEBUG_STENCIL_BACK_PASS_DEPTH_FAIL),
+            "back_depth_pass", debug_name(stencil_ops, DEBUG_STENCIL_BACK_PASS_DEPTH_PASS)
+        ));
+    } else {
+        debug_set(res, "stencil", Py_NewRef(Py_None));
+    }
+}
+
+static PyObject * debug_units_bound(Context * self) {
+    ModuleState * state = self->module_state;
+    PyObject * samplers = PyDict_New();
+    PyObject * uniform_buffers = PyDict_New();
+    int32_t active_texture = debug_int(DEBUG_ACTIVE_TEXTURE);
+
+    for (int32_t i = 0; i < self->max_samplers; ++i) {
+        glActiveTexture(GL_TEXTURE0 + i);
+        int32_t texture = debug_int(DEBUG_TEXTURE_BINDING_2D);
+        if (!texture) {
+            texture = debug_int(DEBUG_TEXTURE_BINDING_2D_ARRAY);
+        }
+        if (!texture) {
+            texture = debug_int(DEBUG_TEXTURE_BINDING_CUBE_MAP);
+        }
+        int32_t sampler = debug_int(DEBUG_SAMPLER_BINDING);
+        if (!texture && !sampler) {
+            continue;
+        }
+        PyObject * value = debug_find(self, state->Sampler_type, sampler);
+        if (value != Py_None && ((Sampler *)value)->texture->texture != (uint32_t)texture) {
+            Py_SETREF(value, Py_NewRef(Py_None));
+        }
+        if (value == Py_None) {
+            Py_SETREF(value, debug_find(self, state->Texture_type, texture));
+        }
+        PyObject * unit = PyLong_FromLong(i);
+        PyDict_SetItem(samplers, unit, value);
+        Py_DECREF(unit);
+        Py_DECREF(value);
+    }
+
+    glActiveTexture((uint32_t)active_texture);
+
+    for (int32_t i = 0; i < self->max_uniform_buffers; ++i) {
+        int32_t buffer = 0;
+        int32_t offset = 0;
+        int32_t size = 0;
+        glGetIntegeri_v(DEBUG_UNIFORM_BUFFER_BINDING, i, &buffer);
+        if (!buffer) {
+            continue;
+        }
+        glGetIntegeri_v(DEBUG_UNIFORM_BUFFER_START, i, &offset);
+        glGetIntegeri_v(DEBUG_UNIFORM_BUFFER_SIZE, i, &size);
+        PyObject * found = debug_find(self, state->Buffer_type, buffer);
+        PyObject * value = found;
+        if (found != Py_None) {
+            value = Py_BuildValue("(Oii)", found, offset, size ? size : ((Buffer *)found)->size);
+            Py_DECREF(found);
+        }
+        PyObject * binding = PyLong_FromLong(i);
+        PyDict_SetItem(uniform_buffers, binding, value);
+        Py_DECREF(binding);
+        Py_DECREF(value);
+    }
+
+    return Py_BuildValue("{sNsN}", "samplers", samplers, "uniform_buffers", uniform_buffers);
+}
+
+static PyObject * Context_meth_debug(Context * self, PyObject * args) {
+    ModuleState * state = self->module_state;
+    PyObject * res = PyDict_New();
+    uint32_t program = (uint32_t)debug_int(DEBUG_CURRENT_PROGRAM);
+    debug_set(res, "program", Py_NewRef(Py_None));
+    debug_set(res, "vertex_array", debug_find(self, state->VertexArray_type, debug_int(DEBUG_VERTEX_ARRAY_BINDING)));
+    debug_set(res, "framebuffer", debug_find(self, state->Framebuffer_type, debug_int(DEBUG_DRAW_FRAMEBUFFER_BINDING)));
+    debug_state(self, res);
+    debug_program(self, res, program);
+    debug_set(res, "units", debug_units_bound(self));
+    return res;
+}
+
 static Context * create_context(PyObject * self) {
     ModuleState * module_state = (ModuleState *)PyModule_GetState(self);
     Context * res = NULL;
@@ -6150,7 +6419,6 @@ static PyGetSetDef VertexArray_getset[] = {
 
 static PyMethodDef Program_methods[] = {
     {"use", (PyCFunction)Program_meth_use, METH_NOARGS, NULL},
-    {"debug", (PyCFunction)Program_meth_debug, METH_NOARGS, NULL},
     {0},
 };
 
@@ -6241,6 +6509,7 @@ static PyMethodDef Context_methods[] = {
     {"external_buffer", (PyCFunction)Context_meth_external_buffer, METH_VARARGS | METH_KEYWORDS, NULL},
     {"external_texture", (PyCFunction)Context_meth_external_texture, METH_VARARGS | METH_KEYWORDS, NULL},
     {"gc", (PyCFunction)Context_meth_gc, METH_NOARGS, NULL},
+    {"debug", (PyCFunction)Context_meth_debug, METH_NOARGS, NULL},
     {"source", (PyCFunction)Context_meth_source, METH_O, NULL},
     {"start_frame", (PyCFunction)Context_meth_start_frame, METH_NOARGS, NULL},
     {"end_frame", (PyCFunction)Context_meth_end_frame, METH_NOARGS, NULL},

@@ -7,7 +7,7 @@ Design differences to keep in mind while porting:
 - Two ways to render, mixable. Direct rendering binds objects and draws, like plain OpenGL. A Pipeline owns its full state and draws with pipeline.run(), nothing from the global state leaks into it.
 - Vertex arrays do not reference a program. Attribute locations and fragment outputs come from layout (location = N) in the shader.
 - Shader interfaces (samplers, uniform blocks, plain uniforms with their types) are declared when the program is created. Undeclared uniforms cannot be set.
-- Uniform values cannot be read back, except with program.debug() which is slow and for debugging only.
+- Uniform values cannot be read back, except with ctx.debug() on the bound program, which is slow and for debugging only.
 - Textures cover plain textures, depth textures, array textures, cubemaps and multisampled render targets. Formats are WebGPU style names. 3D textures and 3 component formats do not exist.
 - Vertex, fragment and compute shaders in the core. Compute shaders and storage buffers need OpenGL 4.3, first_instance needs OpenGL 4.2, draw_indirect needs OpenGL 4.3. Storage images need OpenGL 4.2. ctx.info['compute'], ctx.info['storage_images'], ctx.info['first_instance'] and ctx.info['draw_indirect'] tell if they are available. Indirect drawing from GPU counts, queries, debug output and mesh shaders are done with small extension modules that call OpenGL through moderngl.get_proc_address() on the same buffers and textures. Geometry and tessellation shaders and transform feedback are not supported.
 

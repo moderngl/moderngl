@@ -216,6 +216,8 @@ static THREAD_LOCAL void (GLAPI * glGetActiveUniformBlockName)(uint32_t program,
 static THREAD_LOCAL void (GLAPI * glGetActiveUniformBlockiv)(uint32_t program, uint32_t index, uint32_t pname, int32_t * params) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glGetBufferParameteriv)(uint32_t target, uint32_t pname, int32_t * params) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glGetBufferSubData)(uint32_t target, intptr_t offset, intptr_t size, void * data) = (void *)gl_trap;
+static THREAD_LOCAL void (GLAPI * glGetFloatv)(uint32_t pname, float * data) = (void *)gl_trap;
+static THREAD_LOCAL void (GLAPI * glGetIntegeri_v)(uint32_t target, uint32_t index, int32_t * data) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glGetIntegerv)(uint32_t pname, int32_t * data) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glGetProgramInfoLog)(uint32_t program, int32_t buf_size, int32_t * length, char * log) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glGetProgramiv)(uint32_t program, uint32_t pname, int32_t * params) = (void *)gl_trap;
@@ -227,6 +229,7 @@ static THREAD_LOCAL int32_t (GLAPI * glGetUniformLocation)(uint32_t program, con
 static THREAD_LOCAL void (GLAPI * glGetUniformfv)(uint32_t program, int32_t location, float * params) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glGetUniformiv)(uint32_t program, int32_t location, int32_t * params) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glGetUniformuiv)(uint32_t program, int32_t location, uint32_t * params) = (void *)gl_trap;
+static THREAD_LOCAL uint8_t (GLAPI * glIsEnabled)(uint32_t cap) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glLinkProgram)(uint32_t program) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glPolygonOffset)(float factor, float units) = (void *)gl_trap;
 static THREAD_LOCAL void (GLAPI * glPrimitiveRestartIndex)(uint32_t index) = (void *)gl_trap;
@@ -621,6 +624,8 @@ static int load_gl(PyObject * loader) {
         {"glGetActiveUniformBlockiv", (void **)&glGetActiveUniformBlockiv},
         {"glGetBufferParameteriv", (void **)&glGetBufferParameteriv},
         {"glGetBufferSubData", (void **)&glGetBufferSubData},
+        {"glGetFloatv", (void **)&glGetFloatv},
+        {"glGetIntegeri_v", (void **)&glGetIntegeri_v},
         {"glGetIntegerv", (void **)&glGetIntegerv},
         {"glGetProgramInfoLog", (void **)&glGetProgramInfoLog},
         {"glGetProgramiv", (void **)&glGetProgramiv},
@@ -632,6 +637,7 @@ static int load_gl(PyObject * loader) {
         {"glGetUniformfv", (void **)&glGetUniformfv},
         {"glGetUniformiv", (void **)&glGetUniformiv},
         {"glGetUniformuiv", (void **)&glGetUniformuiv},
+        {"glIsEnabled", (void **)&glIsEnabled},
         {"glLinkProgram", (void **)&glLinkProgram},
         {"glPolygonOffset", (void **)&glPolygonOffset},
         {"glPrimitiveRestartIndex", (void **)&glPrimitiveRestartIndex},
@@ -870,6 +876,8 @@ extern void glGetActiveUniformBlockName(uint32_t program, uint32_t index, int32_
 extern void glGetActiveUniformBlockiv(uint32_t program, uint32_t index, uint32_t pname, int32_t * params) __asm__("moderngl_glGetActiveUniformBlockiv");
 extern void glGetBufferParameteriv(uint32_t target, uint32_t pname, int32_t * params) __asm__("moderngl_glGetBufferParameteriv");
 extern void glGetBufferSubData(uint32_t target, intptr_t offset, intptr_t size, void * data) __asm__("moderngl_glGetBufferSubData");
+extern void glGetFloatv(uint32_t pname, float * data) __asm__("moderngl_glGetFloatv");
+extern void glGetIntegeri_v(uint32_t target, uint32_t index, int32_t * data) __asm__("moderngl_glGetIntegeri_v");
 extern void glGetIntegerv(uint32_t pname, int32_t * data) __asm__("moderngl_glGetIntegerv");
 extern void glGetProgramInfoLog(uint32_t program, int32_t buf_size, int32_t * length, char * log) __asm__("moderngl_glGetProgramInfoLog");
 extern void glGetProgramiv(uint32_t program, uint32_t pname, int32_t * params) __asm__("moderngl_glGetProgramiv");
@@ -881,6 +889,7 @@ extern int32_t glGetUniformLocation(uint32_t program, const char * name) __asm__
 extern void glGetUniformfv(uint32_t program, int32_t location, float * params) __asm__("moderngl_glGetUniformfv");
 extern void glGetUniformiv(uint32_t program, int32_t location, int32_t * params) __asm__("moderngl_glGetUniformiv");
 extern void glGetUniformuiv(uint32_t program, int32_t location, uint32_t * params) __asm__("moderngl_glGetUniformuiv");
+extern uint8_t glIsEnabled(uint32_t cap) __asm__("moderngl_glIsEnabled");
 extern void glLinkProgram(uint32_t program) __asm__("moderngl_glLinkProgram");
 extern void glPolygonOffset(float factor, float units) __asm__("moderngl_glPolygonOffset");
 extern void glPrimitiveRestartIndex(uint32_t index) __asm__("moderngl_glPrimitiveRestartIndex");
@@ -973,6 +982,7 @@ static const char webgl_js[] =
     "  const encoder = new TextEncoder();\n"
     "\n"
     "  const objects = new Map();\n"
+    "  const ids = new WeakMap();\n"
     "  const locations = new Map();\n"
     "  const strings = new Map();\n"
     "  let nextId = 1;\n"
@@ -982,6 +992,9 @@ static const char webgl_js[] =
     "  const add = (obj) => {\n"
     "    const id = nextId++;\n"
     "    objects.set(id, obj);\n"
+    "    if (obj !== null && typeof obj === 'object') {\n"
+    "      ids.set(obj, id);\n"
+    "    }\n"
     "    return id;\n"
     "  };\n"
     "\n"
@@ -1024,6 +1037,8 @@ static const char webgl_js[] =
     "    const values = typeof value === 'object' \? Array.from(value, Number) : [Number(value)];\n"
     "    wasm.HEAP32.set(values.map((x) => Math.min(x, 0x7fffffff)), ptr >> 2);\n"
     "  };\n"
+    "\n"
+    "  const getParameter = (value) => (value !== null && typeof value === 'object' && !ArrayBuffer.isView(value) && !Array.isArray(value) \? ids.get(value) \?\? 0 : value);\n"
     "\n"
     "  const pixelHeap = (type) => {\n"
     "    switch (type) {\n"
@@ -1153,7 +1168,9 @@ static const char webgl_js[] =
     "    },\n"
     "    moderngl_glGetBufferParameteriv: (target, pname, params) => setIntegers(params, gl.getBufferParameter(target, pname)),\n"
     "    moderngl_glGetBufferSubData: (target, offset, size, data) => gl.getBufferSubData(target, offset, wasm.HEAPU8, data, size),\n"
-    "    moderngl_glGetIntegerv: (pname, data) => setIntegers(data, gl.getParameter(pname)),\n"
+    "    moderngl_glGetFloatv: (pname, data) => setValues(wasm.HEAPF32, data, gl.getParameter(pname)),\n"
+    "    moderngl_glGetIntegeri_v: (target, index, data) => setIntegers(data, getParameter(gl.getIndexedParameter(target, index))),\n"
+    "    moderngl_glGetIntegerv: (pname, data) => setIntegers(data, getParameter(gl.getParameter(pname))),\n"
     "    moderngl_glGetProgramInfoLog: (program, bufSize, length, log) => setString(log, bufSize, length, gl.getProgramInfoLog(get(program))),\n"
     "    moderngl_glGetProgramiv: (program, pname, params) => setIntegers(params, gl.getProgramParameter(get(program), pname)),\n"
     "    moderngl_glGetShaderInfoLog: (shader, bufSize, length, log) => setString(log, bufSize, length, gl.getShaderInfoLog(get(shader))),\n"
@@ -1180,6 +1197,7 @@ static const char webgl_js[] =
     "    moderngl_glGetUniformfv: (program, location, params) => setValues(wasm.HEAPF32, params, gl.getUniform(get(program), get(location))),\n"
     "    moderngl_glGetUniformiv: (program, location, params) => setValues(wasm.HEAP32, params, gl.getUniform(get(program), get(location))),\n"
     "    moderngl_glGetUniformuiv: (program, location, params) => setValues(wasm.HEAPU32, params, gl.getUniform(get(program), get(location))),\n"
+    "    moderngl_glIsEnabled: (cap) => (gl.isEnabled(cap) \? 1 : 0),\n"
     "    moderngl_glLinkProgram: (program) => gl.linkProgram(get(program)),\n"
     "    moderngl_glPolygonOffset: (factor, units) => gl.polygonOffset(factor, units),\n"
     "    moderngl_glPrimitiveRestartIndex: (index) => {},\n"
