@@ -4,7 +4,7 @@ release = '6.0.0b3'
 copyright = '2017-2026, Szabolcs Dombi'
 
 extensions = []
-templates_path = []
+templates_path = ['_templates']
 exclude_patterns = []
 
 html_title = f'ModernGL {release}'

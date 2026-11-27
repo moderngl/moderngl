@@ -1,4 +1,3 @@
-import math
 import struct
 
 import js
@@ -18,54 +17,57 @@ ctx.screen.size = (canvas.width, canvas.height)
 ctx.shaders['common'] = '''
     layout (std140) uniform Common {
         mat4 camera;
+        float time;
     };
 '''
 
-ctx.shaders['cube.vert'] = '''
+ctx.shaders['terrain.vert'] = '''
     #version 330 core
     #include "common"
 
-    layout (location = 0) in vec3 in_vertex;
-    layout (location = 1) in vec3 in_normal;
+    const int N = 48;
+    const ivec2 corners[6] = ivec2[](ivec2(0, 0), ivec2(1, 0), ivec2(1, 1), ivec2(0, 0), ivec2(1, 1), ivec2(0, 1));
 
-    out vec3 v_normal;
+    out vec3 v_vertex;
+
+    float height(vec2 p) {
+        float h = sin(p.x * 0.9) * sin(p.y * 0.7) * 0.8;
+        h += sin(p.x * 2.1 + p.y * 1.3) * 0.25;
+        h += sin(p.x * 4.7 - p.y * 3.9) * 0.08;
+        return max(h, -0.5);
+    }
 
     void main() {
-        gl_Position = camera * vec4(in_vertex, 1.0);
-        v_normal = in_normal;
+        int quad = gl_VertexID / 6;
+        vec2 cell = vec2(ivec2(quad % N, quad / N) + corners[gl_VertexID % 6]);
+        vec2 xy = (cell / float(N) * 2.0 - 1.0) * 6.0;
+        float scroll = time - mod(time, 0.25);
+        v_vertex = vec3(xy.x, xy.y - mod(time, 0.25), height(xy + vec2(0.0, scroll)));
+        gl_Position = camera * vec4(v_vertex, 1.0);
     }
 '''
 
-ctx.shaders['cube.frag'] = '''
+ctx.shaders['terrain.frag'] = '''
     #version 330 core
 
-    in vec3 v_normal;
+    in vec3 v_vertex;
 
     layout (location = 0) out vec4 out_color;
 
     void main() {
-        vec3 light = normalize(vec3(4.0, 3.0, 10.0));
-        float lum = 0.3 + 0.7 * max(dot(normalize(v_normal), light), 0.0);
-        out_color = vec4((abs(v_normal) * 0.6 + 0.4) * lum, 1.0);
-        out_color.rgb = pow(out_color.rgb, vec3(1.0 / 2.2));
+        vec3 normal = normalize(cross(dFdx(v_vertex), dFdy(v_vertex)));
+        vec3 light = normalize(vec3(-3.0, 2.0, 4.0));
+        float lum = 0.4 + 0.6 * max(dot(normal, light), 0.0);
+        vec3 color = vec3(0.45, 0.52, 0.58);
+        color = mix(color, vec3(0.55, 0.6, 0.48), step(-0.49, v_vertex.z));
+        color = mix(color, vec3(0.6, 0.57, 0.53), step(0.35, v_vertex.z));
+        color = mix(color, vec3(0.92, 0.93, 0.95), step(0.75, v_vertex.z));
+        float fog = smoothstep(4.0, 6.0, length(v_vertex.xy));
+        out_color = vec4(mix(color * lum, vec3(0.1, 0.1, 0.12), fog), 1.0);
     }
 '''
 
-vertices = bytearray()
-for axis in range(3):
-    for sign in (-1.0, 1.0):
-        normal = [0.0, 0.0, 0.0]
-        normal[axis] = sign
-        u = [0.0, 0.0, 0.0]
-        v = [0.0, 0.0, 0.0]
-        u[(axis + 1) % 3] = 1.0
-        v[(axis + 2) % 3] = sign
-        for a, b in ((-1, -1), (1, -1), (1, 1), (-1, -1), (1, 1), (-1, 1)):
-            position = [normal[i] + u[i] * a + v[i] * b for i in range(3)]
-            vertices += struct.pack('6f', *position, *normal)
-
-vertex_buffer = ctx.buffer(vertices)
-camera_buffer = ctx.buffer(size=64)
+uniform_buffer = ctx.buffer(size=80)
 
 size = ctx.screen.size
 image = ctx.texture(size, 'rgba8unorm', multisampled=True)
@@ -74,25 +76,25 @@ output = ctx.texture(size, 'rgba8unorm')
 framebuffer = ctx.framebuffer([image, depth])
 framebuffer.clear_color = (0.1, 0.1, 0.12, 1.0)
 
-cube = ctx.pipeline(
-    'cube.vert',
-    'cube.frag',
+terrain = ctx.pipeline(
+    'terrain.vert',
+    'terrain.frag',
     uniform_buffers={'Common': 0},
-    vertex_array=ctx.vertex_array(vertex_buffer.bind('3f 3f', 0, 1)),
+    vertex_array=ctx.empty_vertex_array,
+    vertices=48 * 48 * 6,
     framebuffer=framebuffer,
-    resources=ctx.resources(uniform_buffers={0: camera_buffer}),
+    resources=ctx.resources(uniform_buffers={0: uniform_buffer}),
     depth_test=True,
-    cull_face='back',
 )
+
+camera = moderngl.camera((0.0, -6.5, 4.0), (0.0, 0.0, 0.0), aspect=size[0] / size[1], fov=45.0)
 
 
 def render(timestamp):
-    t = timestamp / 1000.0
-    eye = (math.cos(t * 0.5) * 5.0, math.sin(t * 0.5) * 5.0, 3.0)
-    camera_buffer.write(moderngl.camera(eye, aspect=size[0] / size[1], fov=45.0))
+    uniform_buffer.write(camera + struct.pack('4f', timestamp / 1000.0, 0.0, 0.0, 0.0))
     ctx.start_frame()
     framebuffer.clear()
-    cube.run()
+    terrain.run()
     ctx.copy_texture(image, output)
     ctx.present(output)
     js.requestAnimationFrame(render_proxy)

@@ -22,51 +22,6 @@ Examples
 
 Every example is a plain pygame script and runs in your browser, see all of them in :doc:`examples`.
 
-.. code::
-
-    import moderngl
-    import pygame
-
-    pygame.init()
-    pygame.display.set_mode((800, 600), flags=pygame.OPENGL | pygame.DOUBLEBUF)
-
-    ctx = moderngl.get_context()
-
-    ctx.shaders['triangle.vert'] = '''
-        #version 330 core
-        vec2 vertices[3] = vec2[](vec2(0.0, 0.8), vec2(-0.6, -0.8), vec2(0.6, -0.8));
-        void main() {
-            gl_Position = vec4(vertices[gl_VertexID], 0.0, 1.0);
-        }
-    '''
-
-    ctx.shaders['triangle.frag'] = '''
-        #version 330 core
-        layout (location = 0) out vec4 out_color;
-        void main() {
-            out_color = vec4(1.0, 0.5, 0.2, 1.0);
-        }
-    '''
-
-    image = ctx.texture(ctx.screen.size, 'rgba8unorm', multisampled=True)
-    framebuffer = ctx.framebuffer([image])
-
-    triangle = ctx.pipeline(
-        'triangle.vert',
-        'triangle.frag',
-        vertex_array=ctx.empty_vertex_array,
-        vertices=3,
-        framebuffer=framebuffer,
-    )
-
-    while True:
-        pygame.event.pump()
-        ctx.start_frame()
-        framebuffer.clear()
-        triangle.run()
-        ctx.present(image)
-        pygame.display.flip()
-
 Live demo
 =========
 
@@ -74,24 +29,37 @@ The same moderngl, built for WebAssembly, running in your browser with Pyodide a
 
 .. raw:: html
 
-    <canvas id="demo" width="512" height="512" style="display: block; width: 100%; max-width: 512px; aspect-ratio: 1; background: #1a1a1f"></canvas>
-    <p id="demo-status">Loading Python...</p>
+    <div class="demo">
+        <canvas id="demo" width="512" height="512"></canvas>
+        <button id="demo-play">&#9654; Run the demo</button>
+    </div>
     <script type="module">
-        import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/pyodide.mjs';
-        const status = document.getElementById('demo-status');
+        const play = document.getElementById('demo-play');
+        await new Promise((resolve) => play.addEventListener('click', resolve, { once: true }));
+        play.disabled = true;
+        play.textContent = 'Loading...';
         try {
+            const { loadPyodide } = await import('https://cdn.jsdelivr.net/pyodide/v314.0.3/full/pyodide.mjs');
             const pyodide = await loadPyodide();
             const wheels = (await (await fetch(new URL('wheels.txt', document.baseURI), { cache: 'no-cache' })).text()).trim().split('\n');
             const wheel = wheels.find((name) => name.startsWith('moderngl'));
             await pyodide.loadPackage(new URL(wheel, document.baseURI).href);
             pyodide.runPython(await (await fetch(new URL('demo.py', document.baseURI), { cache: 'no-cache' })).text());
-            status.textContent = '';
+            play.remove();
         } catch (error) {
-            status.textContent = `The demo failed to load: ${error.message}`;
+            play.textContent = `The demo failed to load: ${error.message}`;
         }
     </script>
 
+.. raw:: html
+
+    <details class="demo-source"><summary>Source of the demo</summary>
+
 .. literalinclude:: demo/demo.py
+
+.. raw:: html
+
+    </details>
 
 Overview
 ========
@@ -111,6 +79,8 @@ Object          OpenGL                                  Purpose
 **Framebuffer** framebuffer object                      render target with clear values and a viewport
 **Pipeline**    all of the above                        everything one draw call needs, in one object
 =============== ======================================= ===================================================
+
+.. _direct-rendering:
 
 There are two ways to render. Both can be mixed freely.
 

@@ -25,3 +25,10 @@
 table.align-default {
     margin-left: 0;
 }
+.demo-source summary { cursor: pointer; color: var(--color-brand-primary); margin: 8px 0; }
+.sidebar-tree .toctree-l1>.reference { color: var(--color-sidebar-link-text); }
+.demo { position: relative; max-width: 384px; margin: 16px 0; }
+.demo canvas { display: block; width: 100%; aspect-ratio: 1; background: #1a1a1f; }
+.demo button { position: absolute; inset: 0; width: fit-content; height: fit-content; max-width: 90%; margin: auto; padding: 8px 16px; border: 1px solid var(--color-brand-primary); border-radius: 8px; background: rgba(0, 0, 0, 0.4); color: var(--color-foreground-primary); font-size: 16px; cursor: pointer; }
+.demo button:enabled:hover { background: var(--color-brand-primary); }
+.demo button:disabled { cursor: default; }
